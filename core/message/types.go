@@ -29,7 +29,7 @@ type Subscribe struct {
 }
 
 func (s *Subscribe) Kind() byte {
-	return subscribeMsg
+	return SubscribeMsg
 }
 
 func (s *Subscribe) Serialize() []byte {
@@ -57,7 +57,7 @@ type About struct {
 }
 
 func (s *About) Kind() byte {
-	return aboutMsg
+	return AboutMsg
 }
 
 func (s *About) Serialize() []byte {
@@ -82,7 +82,7 @@ type CreateAudience struct {
 }
 
 func (s *CreateAudience) Kind() byte {
-	return createAudienceMsg
+	return CreateAudienceMsg
 }
 
 func (s *CreateAudience) Serialize() []byte {
@@ -109,7 +109,7 @@ type JoinAudience struct {
 }
 
 func (s *JoinAudience) Kind() byte {
-	return joinAudienceMsg
+	return JoinAudienceMsg
 }
 
 func (s *JoinAudience) Serialize() []byte {
@@ -143,7 +143,7 @@ type ChangeAudience struct {
 }
 
 func (s *ChangeAudience) Kind() byte {
-	return audienceChangeMsg
+	return AudienceChangeMsg
 }
 
 func (s *ChangeAudience) Serialize() []byte {
@@ -220,7 +220,7 @@ type AdvertisingOffer struct {
 }
 
 func (s *AdvertisingOffer) Kind() byte {
-	return advertisingOfferMsg
+	return AdvertisingOfferMsg
 }
 
 func (s *AdvertisingOffer) Serialize() []byte {
@@ -258,7 +258,7 @@ type Content struct {
 }
 
 func (s *Content) Kind() byte {
-	return contentMsg
+	return ContentMsg
 }
 
 func (s *Content) Serialize() []byte {
@@ -291,7 +291,7 @@ type GrantPowerOfAttorney struct {
 }
 
 func (s *GrantPowerOfAttorney) Kind() byte {
-	return grantPowerOfAttorneyMsg
+	return GrantPowerOfAttorneyMsg
 }
 
 func (s *GrantPowerOfAttorney) Serialize() []byte {
@@ -317,7 +317,7 @@ type RevokePowerOfAttorney struct {
 }
 
 func (s *RevokePowerOfAttorney) Kind() byte {
-	return revokePowerOfAttorneyMsg
+	return RevokePowerOfAttorneyMsg
 }
 
 func (s *RevokePowerOfAttorney) Serialize() []byte {

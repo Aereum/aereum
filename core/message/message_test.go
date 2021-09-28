@@ -54,7 +54,7 @@ func TestMessage(t *testing.T) {
 	WalletPrivate, _ := rsa.GenerateKey(rand.Reader, 512)
 	WalletPublic := x509.MarshalPKCS1PublicKey(&WalletPrivate.PublicKey)
 	message := &Message{
-		MessageType:     createAudienceMsg,
+		MessageType:     CreateAudienceMsg,
 		Author:          AuthorPublic,
 		Message:         []byte{1, 2, 3, 4, 5},
 		FeeWallet:       WalletPublic,

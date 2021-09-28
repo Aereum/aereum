@@ -26,19 +26,19 @@ import (
 )
 
 const (
-	genesis byte = iota
+	GenesisMsg byte = iota
 	// version 0
-	transferMsg
-	subscribeMsg
-	aboutMsg
-	createAudienceMsg
-	joinAudienceMsg
-	audienceChangeMsg
-	advertisingOfferMsg
-	contentMsg
-	grantPowerOfAttorneyMsg
-	revokePowerOfAttorneyMsg
-	unkownMessageType
+	TransferMsg
+	SubscribeMsg
+	AboutMsg
+	CreateAudienceMsg
+	JoinAudienceMsg
+	AudienceChangeMsg
+	AdvertisingOfferMsg
+	ContentMsg
+	GrantPowerOfAttorneyMsg
+	RevokePowerOfAttorneyMsg
+	UnkownMessageType
 	// to be used in other versions
 )
 
@@ -54,7 +54,7 @@ type Transfer struct {
 }
 
 func (t *Transfer) serializeWithouSignature() []byte {
-	bytes := []byte{transferMsg}
+	bytes := []byte{TransferMsg}
 	PutByteArray(t.From, &bytes)
 	PutByteArray(t.To, &bytes)
 	PutUint64(t.Value, &bytes)
@@ -80,7 +80,7 @@ func (t *Transfer) Serialize() []byte {
 }
 
 func ParseTranfer(data []byte) (*Transfer, error) {
-	if len(data) == 0 || data[0] != transferMsg {
+	if len(data) == 0 || data[0] != TransferMsg {
 		return nil, fmt.Errorf("wrong message type")
 	}
 	length := len(data)
@@ -177,14 +177,14 @@ func (m *Message) Serialize() []byte {
 }
 
 func ParseGenesis(data []byte) *Genesis {
-	if data[0] != genesis {
+	if data[0] != GenesisMsg {
 		return nil
 	}
 	return &Genesis{}
 }
 
 func ParseMessage(data []byte) (*Message, error) {
-	if data[0] >= unkownMessageType || data[0] <= transferMsg {
+	if data[0] >= UnkownMessageType || data[0] <= TransferMsg {
 		return nil, fmt.Errorf("wrong message type")
 	}
 	length := len(data)
