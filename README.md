@@ -219,13 +219,23 @@ Follower:
    Valid Subscriber Token
    Encryption by the Subscrber Token of the Private Key of the Audience Token
 ```
-
 The message should only be accepted if every new follower can be traced back to 
 a Join Audience request. Changes in audience can only be performed by the same 
 author that created the audience.
 
 The protocol ensures that a follower is capable of seeing the Tokens of all the 
 other followers in the audience.
+
+The follower can request to be removed from an audience by 
+
+```
+Withdraw Audience:
+   Audience Token
+```
+
+This is only to be processed if the refered audience includes the message
+author. 
+
 
 An advertising offer is a message of the type
 
@@ -236,12 +246,13 @@ Advertising Offer:
    Content-Type
    Content-Data
    Advertising Fee
-   Advertising Wallet Token
    Expire Epoch
    Signature by Advertising Wallet Token (Private Key) of the above
 ```
 
 Expire Epoch must be greater than the epoch associated to the message. 
+Advertising Fee will be withdrawn from fee message fee wallet upon valid
+acceptance. 
 
 The message to deliver content is of the form
 
