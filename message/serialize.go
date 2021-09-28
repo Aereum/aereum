@@ -1,11 +1,30 @@
+// Copyright 2021 The aereum Authors
+// This file is part of the aereum library.
+//
+// The aereum library is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Lesser General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// The aereum library is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// GNU Lesser General Public License for more details.
+//
+// You should have received a copy of the GNU Lesser General Public License
+// along with the go-ethereum library. If not, see <http://www.gnu.org/licenses/>.
+
+// Package message contains data types related to aereum network.
 package message
 
 func PutByteArray(b []byte, data *[]byte) {
 	if len(b) == 0 {
-		*data = append(*data, 0)
+		*data = append(*data, 0, 0)
+		return
 	}
-	if len(b) > 65535 {
-		*data = append(*data, append([]byte{255, 255}, b[0:65535]...)...)
+	if len(b) > 1<<16-1 {
+		*data = append(*data, append([]byte{255, 255}, b[0:1<<16-1]...)...)
+		return
 	}
 	v := len(b)
 	*data = append(*data, append([]byte{byte(v), byte(v >> 8)}, b...)...)
@@ -33,10 +52,13 @@ func ParseByteArray(data []byte, position int) ([]byte, int) {
 		return []byte{}, position
 	}
 	length := int(data[position+0]) | int(data[position+1])<<8
-	if position+length >= len(data) {
-		return []byte{}, position
+	if length == 0 {
+		return []byte{}, position + 2
 	}
-	return (data[position+1 : position+length+1]), position + length
+	if position+length+2 > len(data) {
+		return []byte{}, position + length + 2
+	}
+	return (data[position+2 : position+length+2]), position + length + 2
 }
 
 func ParseString(data []byte, position int) (string, int) {
@@ -49,7 +71,7 @@ func ParseString(data []byte, position int) (string, int) {
 }
 
 func ParseUint64(data []byte, position int) (uint64, int) {
-	if position+8 >= len(data) {
+	if position+7 >= len(data) {
 		return 0, position + 8
 	}
 	value := uint64(data[position+0]) |
