@@ -1,3 +1,3 @@
-module github.com/Aereum/aereum/message
+module github.com/Aereum/aereum/core/message
 
 go 1.16
