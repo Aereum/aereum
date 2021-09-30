@@ -306,6 +306,43 @@ Cryptography
 
 Specific details about cryptographic keys requirements will be provided.
 
+
+Infrastructure Needs
+=====================================
+
+Contrary to monetary blockchains, for the volume of traffic expected by a social
+network, the concept of a full node operating with the entire block chain is 
+not applicable. There must be nodes specialized in specific tasks.
+
+We will present here some estimates about the hardware needs of different kind
+of nodes with the network performing at the order of magnited of Twitter scale:
+
+* 200 MM Authors, Wallets and Power of Attorney
+* 1 BN message per day
+* 500 follower per Author audience on average
+
+
+## Validating Nodes
+
+Thse are responsible for the validation of incoming mesages and block formation.
+At the bare minimum they have to check is authors are valid, if power of 
+attornment is valid, if signatures are valid, if wallets are compatible with
+messages, and finally if someone follows someone else under an audience.
+
+These nodes only needs the current state of those variables. The history of the
+blockchain is not relevant for validation.
+
+For performance reasons, at least Author Tokens, Power of Attorney Tokens and
+Wallets must be kept on memory. At 200 MM users, and assuming a hashing of 32
+bytes, there need to be allocated 200 MM * (3 * 32 bytes for tokens + 8 bytes 
+for wallets + 8 bytes of hash table memory overhead). This gives aroung 20Gb
+of memory.
+
+Audience is particularly tricky. In order to store 200 MM * 500 followers as
+32 byte hashes consumes 3TB of storage. This is not viable for memory but 
+completely viable for SSD, even with sizebla overhead for a fast data structure
+that works on disk. 
+
 Stability and Performance Estimations
 =====================================
 
