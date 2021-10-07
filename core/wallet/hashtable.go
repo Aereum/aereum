@@ -2,8 +2,19 @@ package main
 
 import (
 	"crypto/sha256"
+	"fmt"
 	"time"
 )
+
+var cloneInterval time.Duration
+
+func init() {
+	var err error
+	cloneInterval, err = time.ParseDuration("10ms")
+	if err != nil {
+		panic(err)
+	}
+}
 
 type Hash [size]byte
 
@@ -52,28 +63,31 @@ type Query struct {
 type QueryOperation func(found bool, hash Hash, b *Bucket, item int64, param int64) OperationResult
 
 type HashStore struct {
-	store         *BucketStore
-	bitsForBucket int
-	mask          int64
-	bitsCount     []int // number of items in the bucket
-	freeOverflows []int64
-	isReady       bool
-	operation     QueryOperation
-	//
-	query     chan Query
-	doubleJob chan int64
-	stop      chan bool
-	// for user when the map is doubling
+	name             string
+	store            *BucketStore
+	bitsForBucket    int
+	mask             int64
+	bitsCount        []int // number of items in the bucket
+	freeOverflows    []int64
+	isReady          bool
+	operation        QueryOperation
+	query            chan Query
+	doubleJob        chan int64
+	cloneJob         chan int64
+	stop             chan chan bool
+	clone            chan chan bool
+	cloned           chan bool
 	isDoubling       bool
 	bitsTransferered int64
 	newHashStore     *HashStore
 }
 
-func NewHashStore(buckets *BucketStore, bitsForBucket int, operation QueryOperation) *HashStore {
+func NewHashStore(name string, buckets *BucketStore, bitsForBucket int, operation QueryOperation) *HashStore {
 	if bitsForBucket < 12 {
 		panic("bitsForBucket too small")
 	}
 	return &HashStore{
+		name:             name,
 		store:            buckets,
 		bitsForBucket:    bitsForBucket,
 		mask:             int64(1<<bitsForBucket - 1),
@@ -83,14 +97,48 @@ func NewHashStore(buckets *BucketStore, bitsForBucket int, operation QueryOperat
 		operation:        operation,
 		query:            make(chan Query),
 		doubleJob:        make(chan int64),
-		stop:             make(chan bool),
+		stop:             make(chan chan bool),
 		isDoubling:       false,
 		bitsTransferered: 0,
 		newHashStore:     nil,
 	}
 }
 
-func (ws *HashStore) Get(q Query) QueryResult {
+func (hs *HashStore) Query(q Query) (bool, []byte) {
+	hs.query <- q
+	resp := <-q.response
+	return resp.ok, resp.data
+}
+
+func (hs *HashStore) Start() {
+	go func() {
+		for {
+			select {
+			case q := <-hs.query:
+				hs.findAndOperate(q)
+			case bucket := <-hs.doubleJob:
+				hs.continueDuplication(bucket)
+			case hs.cloned = <-hs.clone:
+				hs.StartCloning()
+			case bucket := <-hs.cloneJob:
+				hs.continueCloning(bucket)
+			case ok := <-hs.stop:
+				// wait until cloning and doubling is complete
+				if hs.store.isCloning || hs.isDoubling {
+					ok <- false
+				}
+				close(hs.query)
+				close(hs.doubleJob)
+				close(hs.cloneJob)
+				close(hs.stop)
+				ok <- true
+				return
+			}
+		}
+	}()
+}
+
+func (ws *HashStore) findAndOperate(q Query) QueryResult {
 	hashMask := q.hash.ToInt64() & ws.mask
 	wallet := ws
 	if ws.isDoubling && hashMask < ws.bitsTransferered {
@@ -105,13 +153,13 @@ func (ws *HashStore) Get(q Query) QueryResult {
 			if countAccounts > int(totalAccounts) {
 				resp := ws.operation(false, q.hash, bucket, item, q.param)
 				ws.ProcessMutation(hashMask, resp.added, resp.deleted, countAccounts)
-				return resp.result
+				q.response <- resp.result
 			}
 			data := bucket.ReadItem(item)
 			if q.hash.Equals(data) {
 				resp := ws.operation(true, q.hash, bucket, item, q.param)
 				ws.ProcessMutation(hashMask, resp.added, resp.deleted, countAccounts)
-				return resp.result
+				q.response <- resp.result
 			}
 		}
 		bucket = bucket.NextBucket()
@@ -215,8 +263,40 @@ func (w *HashStore) startDuplication() {
 	header := w.store.bytes.ReadAt(0, w.store.headerBytes)
 	newByteStore.WriteAt(0, header)
 	newBucketStore := NewBucketStore(w.store.itemBytes, w.store.itemsPerBucket, w.store.headerBytes, newByteStore)
-	w.newHashStore = NewHashStore(newBucketStore, int(newStoreBitsForBucket), w.operation)
+	w.newHashStore = NewHashStore(w.name, newBucketStore, int(newStoreBitsForBucket), w.operation)
 	w.newHashStore.isReady = false
 	w.bitsTransferered = 0
 	w.continueDuplication(0)
+}
+
+func (hs *HashStore) StartCloning() {
+	hs.store.isCloning = true
+	timeStamp := time.Now().Format("2006_01_02_15_04_05")
+	hs.store.journal = NewJournalStore(fmt.Sprintf("%v_journal_%v.dat", hs.name, timeStamp))
+	hs.store.cloning = NewJournalStore(fmt.Sprintf("%v_clone_%v.dat", hs.name, timeStamp))
+}
+
+func (hs *HashStore) continueCloning(start int64) {
+	bucketsToClone := maxCloningBlockSize / hs.store.bucketBytes
+	if hs.store.bucketsCloned+bucketsToClone > hs.store.bucketToClone {
+		bucketsToClone = hs.store.bucketToClone - hs.store.bucketsCloned
+	}
+	bytesCount := hs.store.bucketBytes * bucketsToClone
+	offset := hs.store.headerBytes + start*hs.store.bucketBytes
+	data := hs.store.bytes.ReadAt(offset, bytesCount)
+	hs.store.bucketsCloned += bucketsToClone
+	go func() {
+		hs.store.cloning.Append(data)
+		time.Sleep(cloneInterval)
+		if hs.store.bucketsCloned < hs.store.bucketToClone {
+			hs.cloneJob <- hs.store.bucketsCloned
+		} else {
+			hs.store.journal.Close()
+			hs.store.cloning.Close()
+			hs.store.isCloning = false
+			hs.store.journal = nil
+			hs.store.cloning = nil
+			hs.cloned <- true
+		}
+	}()
 }

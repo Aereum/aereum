@@ -2,7 +2,7 @@ package main
 
 import "encoding/binary"
 
-//const maxCloningBlockSize = 1 << 20
+const maxCloningBlockSize = 1 << 20
 
 // BucketStore is a sequential appendable collection of buckets of equal size.
 // Each bucket consists of a fixed number of items + a link to a next bucket.
@@ -20,6 +20,9 @@ type BucketStore struct {
 	headerBytes    int64     // bytes alocated for header
 	isCloning      bool      // for cloning state
 	journal        JournalStore
+	cloning        JournalStore
+	bucketsCloned  int64
+	bucketToClone  int64
 }
 
 type Bucket struct {

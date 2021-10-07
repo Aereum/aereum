@@ -20,7 +20,6 @@ func CreditOrDebit(found bool, hash Hash, b *Bucket, item int64, param int64) Op
 			return OperationResult{
 				result: QueryResult{ok: false},
 			}
-
 		}
 	} else {
 		if param >= 0 {
