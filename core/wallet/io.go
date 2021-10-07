@@ -7,7 +7,43 @@ import (
 )
 
 var errOverflow = errors.New("outside store")
-var errWhence = errors.New("unrecognized whence")
+
+// JornalStore is a panic on error semantics to an append only raw bytes on any
+// medium.
+type JournalStore interface {
+	Append([]byte)
+	Close()
+}
+
+type JournalFileStore struct {
+	file *os.File
+}
+
+func (j *JournalFileStore) Append(data []byte) {
+	if n, err := j.file.Write(data); n != len(data) {
+		panic(err)
+	}
+}
+
+func (j *JournalFileStore) Close() {
+	err := j.file.Close()
+	if err != nil {
+		panic(err)
+	}
+}
+
+func NewJournalStore(name string) *JournalFileStore {
+	file, err := os.Create(name)
+	if err != nil {
+		panic(err)
+	}
+	file.Close()
+	file, err = os.OpenFile(name, os.O_APPEND, os.ModeAppend)
+	if err != nil {
+		panic(err)
+	}
+	return &JournalFileStore{file: file}
+}
 
 // ByteStore is a panic on error semantics to store and retrieve raw bytes
 // on any medium.
@@ -24,6 +60,7 @@ type ByteStore interface {
 	New(int64) ByteStore // create a new empty bytestore os size int64
 	Merge(ByteStore)
 	Size() int64
+	Close()
 }
 
 type FileStore struct {
@@ -52,6 +89,13 @@ func NewFileStore(name string, size int64) *FileStore {
 		name: name,
 		size: size,
 		data: file,
+	}
+}
+
+func (f *FileStore) Close() {
+	err := f.data.Close()
+	if err != nil {
+		panic(err)
 	}
 }
 
@@ -123,6 +167,10 @@ func NewMemoryStore(size int64) *MemoryStore {
 	return &MemoryStore{
 		data: make([]byte, size),
 	}
+}
+
+func (m *MemoryStore) Close() {
+	m.data = nil
 }
 
 func (m *MemoryStore) Size() int64 {
