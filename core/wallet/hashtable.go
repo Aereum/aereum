@@ -1,4 +1,4 @@
-package main
+package wallet
 
 import (
 	"crypto/sha256"
@@ -35,7 +35,7 @@ const (
 	size       = int(sha256.Size)
 	size64     = int64(size)
 	NBuckets   = int64(2024)
-	loadFactor = int64(2)
+	loadFactor = int64(2) // number of overflow buckets that will trigger duplication
 )
 
 type Item struct {
@@ -176,6 +176,9 @@ func (ws *HashStore) ProcessMutation(hashMask int64, added *Item, deleted *Item,
 			} else {
 				added.bucket.AppendOverflow()
 			}
+		}
+		if (ws.store.bucketCount > 2*int64(1<<ws.bitsForBucket)) && !ws.store.isCloning {
+			ws.startDuplication()
 		}
 	}
 	if deleted != nil {

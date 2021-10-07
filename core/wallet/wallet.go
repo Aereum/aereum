@@ -1,4 +1,4 @@
-package main
+package wallet
 
 import "encoding/binary"
 
@@ -41,4 +41,35 @@ func CreditOrDebit(found bool, hash Hash, b *Bucket, item int64, param int64) Op
 	}
 }
 
-func NewMemoryWalletStore()
+type Wallet struct {
+	hs *HashStore
+}
+
+func (w *Wallet) Credit(hash Hash, value uint64) bool {
+	response := make(chan QueryResult)
+	w.hs.Query(Query{hash: hash, param: int64(value), response: response})
+	resp := <-response
+	return resp.ok
+}
+
+func (w *Wallet) Debit(hash Hash, value uint64) bool {
+	response := make(chan QueryResult)
+	w.hs.Query(Query{hash: hash, param: -int64(value), response: response})
+	resp := <-response
+	return resp.ok
+}
+
+func (w *Wallet) Close() bool {
+	ok := make(chan bool)
+	w.hs.stop <- ok
+	return <-ok
+}
+
+func NewMemoryWalletStore(epoch uint64, bitsForBucket int64) *Wallet {
+	nbytes := 8 + int64(1<<bitsForBucket)
+	bytestore := NewMemoryStore(nbytes)
+	bucketstore := NewBucketStore(40, 6, 8, bytestore)
+	return &Wallet{
+		hs: NewHashStore("wallet", bucketstore, int(bitsForBucket), CreditOrDebit),
+	}
+}
