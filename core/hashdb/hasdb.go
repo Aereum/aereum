@@ -1,34 +1,61 @@
-package main
+package hashdb
 
 import (
 	"bytes"
-	"crypto/rand"
 	"crypto/sha256"
 	"errors"
-	"fmt"
 	"os"
-	"time"
 )
 
-// hashdb implements a hash disk storage solution with a simple interface
-// Exits(hash) bool
-// Remove(hash) bool
-// Add(hash) bool
-
 // these configurations should be altered latter
-const segmentsBytes = 2
 const maxHashesPerSegment = 10
-
 const size = sha256.Size
 
 var errSegmentIsFull = errors.New("hash segment is full")
+var errFileOfWrongSize = errors.New("data file size incompatible with segments bytes")
 
 type Hash [size]byte
 
+type HashStore interface {
+	Exists(hash Hash) (bool, error)
+	RemoveIfExists(hash Hash) (bool, error)
+	InsertIfNotExists(hash Hash) (bool, error)
+}
+
+type ReaderWriterAt interface {
+	ReadAt(p []byte, off int64) (n int, err error)
+	WriteAt(p []byte, off int64) (n int, err error)
+}
+
+type MemoryHashStore struct {
+	data map[Hash]struct{}
+}
+
+func (m *MemoryHashStore) Exists(hash Hash) (bool, error) {
+	_, ok := m.data[hash]
+	return ok, nil
+}
+
+func (m *MemoryHashStore) RemoveIfExists(hash Hash) (bool, error) {
+	_, ok := m.data[hash]
+	if ok {
+		delete(m.data, hash)
+	}
+	return ok, nil
+}
+
+func (m *MemoryHashStore) InsertIfNotExists(hash Hash) (bool, error) {
+	_, ok := m.data[hash]
+	if !ok {
+		m.data[hash] = struct{}{}
+	}
+	return ok, nil
+}
+
 type MultipleFileHashDB struct {
 	multipleFiles bool
-	singleFile    *os.File
-	files         []*os.File
+	singleFile    ReaderWriterAt
+	files         []ReaderWriterAt
 	segmentsBytes int
 	collisions    map[Hash]struct{}
 }
@@ -48,7 +75,7 @@ func (m *MultipleFileHashDB) RemoveIfExists(hash Hash) (exists bool, error error
 	return m.FindHash(hash, false, true)
 }
 
-func (m *MultipleFileHashDB) InsertIfExists(hash Hash) (exists bool, error error) {
+func (m *MultipleFileHashDB) InsertIfNotExists(hash Hash) (exists bool, error error) {
 	if _, ok := m.collisions[hash]; ok {
 		return true, nil
 	}
@@ -66,7 +93,7 @@ func (m *MultipleFileHashDB) InsertIfExists(hash Hash) (exists bool, error error
 
 func (m *MultipleFileHashDB) FindHash(hash Hash, insert bool, remove bool) (exists bool, error error) {
 
-	var file *os.File
+	var file ReaderWriterAt
 	var segment, empty, sizeOnSegment int
 	var hashEnd []byte
 	if m.multipleFiles {
@@ -123,60 +150,47 @@ func (m *MultipleFileHashDB) FindHash(hash Hash, insert bool, remove bool) (exis
 	return false, nil
 }
 
-func OpenOrCreateSingleFileHashDb(filePath string, segmentsBytes int) *MultipleFileHashDB {
-	db := &MultipleFileHashDB{
-		segmentsBytes: segmentsBytes,
-		multipleFiles: false,
-		collisions:    make(map[Hash]struct{}),
-	}
+func OpenOrCreateFile(filePath string, segmentsBytes int) (*os.File, error) {
 	segments := 1 << (8 * segmentsBytes)
 	segmentSize := maxHashesPerSegment * (size - segmentsBytes)
 	fileSize := segmentSize * segments
 	if stats, err := os.Stat(filePath); os.IsNotExist(err) {
 		if file, err := os.Create(filePath); err != nil {
-			return nil
+			return nil, err
 		} else {
 			bytes := make([]byte, fileSize)
 			n, err := file.Write(bytes)
 			if err != nil || n != len(bytes) {
-				return nil
+				return nil, err
 			}
-			db.singleFile = file
-			return db
+			return file, nil
 		}
 	} else {
 		if stats.Size() != int64(fileSize) {
-			return nil
+			return nil, errFileOfWrongSize
 		}
 		file, err := os.OpenFile(filePath, os.O_RDWR, os.ModeExclusive)
 		if err != nil {
-			return nil
+			return nil, err
 		}
-		db.singleFile = file
-		return db
+		return file, nil
 	}
 }
 
-func main() {
-	var db = OpenOrCreateSingleFileHashDb("hash_teste.tmp", 3)
-	if db == nil {
-		fmt.Println("Could not access database")
-		return
+func SingleFileHashDb(file ReaderWriterAt, segmentsBytes int) *MultipleFileHashDB {
+	return &MultipleFileHashDB{
+		segmentsBytes: segmentsBytes,
+		multipleFiles: false,
+		collisions:    make(map[Hash]struct{}),
+		singleFile:    file,
 	}
-	b := make([]byte, size)
-	var h Hash
-	start := time.Now()
-	for r := 0; r < 500000; r++ {
-		rand.Read(b)
-		for n := 0; n < size; n++ {
-			h[n] = b[n]
-		}
-		_, err := db.InsertIfExists(h)
-		if err != nil {
-			fmt.Printf("%v\n", err)
-			return
-		}
+}
+
+func MultipleFileHashDb(files []ReaderWriterAt, segmentsBytes int) *MultipleFileHashDB {
+	return &MultipleFileHashDB{
+		segmentsBytes: segmentsBytes,
+		multipleFiles: true,
+		collisions:    make(map[Hash]struct{}),
+		files:         files,
 	}
-	fmt.Println(time.Since(start))
-	fmt.Println(len(db.collisions))
 }

@@ -5,7 +5,9 @@ import (
 	"crypto/sha256"
 	"sync"
 
+	"github.com/Aereum/aereum/core/hashdb"
 	"github.com/Aereum/aereum/core/message"
+	"github.com/Aereum/aereum/core/network"
 )
 
 type Blockchain struct {
@@ -17,40 +19,45 @@ type AudienceState struct {
 	Followers []*message.Follower
 }
 
-type Hash [sha256.Size]byte
-
-func Hash256(data []byte) Hash {
-	return Hash(sha256.Sum256(data))
+func Hash256(data []byte) hashdb.Hash {
+	return hashdb.Hash(sha256.Sum256(data))
 }
 
-// State incorporates only the necessary information on the blockchain to 
-// validate new messages. It should be used on validation nodes. 
+type SyncJob struct {
+	EpochStart uint64
+	socket     *network.SyncSocket
+}
+
+// State incorporates only the necessary information on the blockchain to
+// validate new messages. It should be used on validation nodes.
 type State struct {
 	Epoch             uint64
-	Subscribers       map[Hash]*Hash                // subscriber token hash
-	Captions          map[Hash]struct{}             // caption string hash
-	Wallets           map[Hash]int                  // wallet token hash
-	Audiences         map[Hash]*[]*Hash             // audience hash
-	AudienceRequests  map[Hash]*[]*message.Message  // audience hash
-	PowerOfAttorney   map[Hash]Hash                 // power of attonery token hash
-	AdvertisingOffers map[Hash]*message.Message     // advertising offer hash
+	Subscribers       hashdb.HashStore                    // subscriber token hash
+	Captions          hashdb.HashStore                    // caption string hash
+	Wallets           map[hashdb.Hash]int                 // wallet token hash
+	Audiences         hashdb.HashStore                    // audience + Follower hash
+	AudienceRequests  map[hashdb.Hash]*[]*message.Message // audience hash
+	PowerOfAttorney   hashdb.HashStore                    // power of attonery token hash
+	AdvertisingOffers map[hashdb.Hash]*message.Message    // advertising offer hash
+	SyncJobs          []SyncJob
 	*sync.Mutex
 }
 
 func (s *State) IncorporateMutations(mut NewBlockMuttations) {
 	s.Epoch += 1
 	for subscriber, _ := range mut.NewSubsribers {
-		s.Subscribers[subscriber] = struct{}{}
+		s.Subscribers.InsertIfNotExists(subscriber)
+		// TODO: Treat Error
 	}
 	for caption, _ := range mut.NewCaptions {
-		s.Captions[caption] = struct{}{}
+		s.Captions.InsertIfNotExists(caption)
+		// TODO: Treat Error
 	}
 	for wallet, delta := range mut.DeltaWallets {
 		s.Wallets[wallet] += delta
 	}
-	for  
-}
 
+}
 
 type NewBlockMuttations struct {
 	State                     *State
@@ -160,12 +167,11 @@ func (s *NewBlockMuttations) CanSubscribe(m *message.Subscribe, author Hash) boo
 
 func (s *NewBlockMuttations) CanCreateAudience(m *message.CreateAudience) bool {
 	audience := Hash256(m.Token)
-	if _,ok := s.State.Audiences[audience]; ok {
+	if _, ok := s.State.Audiences[audience]; ok {
 		return false
 	}
-	if _, ok :+ s.NewAudieces[audience]; ok {
+	if _, ok := s.NewAudieces[audience]; ok {
 		return false
 	}
-
 
 }

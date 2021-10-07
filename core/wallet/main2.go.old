@@ -1,0 +1,198 @@
+package main
+
+import (
+	"crypto/sha256"
+	"os"
+	"sync"
+	"unsafe"
+)
+
+const (
+	size        = sha256.Size
+	bucketSize  = 6
+	bucketBytes = 6*(size+8) + 8
+	accBytes    = size + 8
+)
+
+type Hash [size]byte
+
+func (one Hash) Equal(another Hash) bool {
+	for n := 0; n < size; n++ {
+		if one[n] != another[n] {
+			return false
+		}
+	}
+	return true
+}
+
+var zeroHash = Hash{}
+
+type bucketStore interface {
+	LoadBucket(N int) (bucket, error)
+	WriteAt(N int, position int, hash Hash, value int) error
+	Enlarge(N int) (int, error)
+}
+
+type memoryBucket struct {
+	buckets []bucket
+}
+
+func (m *memoryBucket) LoadBucket(bucket int) (bucket, error) {
+	return m.buckets[bucket], nil
+}
+
+func (m *memoryBucket) Enlarge(N int) (int, error) {
+	numBuckets := len(m.buckets)
+	buckets := make([]bucket, N)
+	m.buckets = append(m.buckets, buckets...)
+	return numBuckets, nil
+}
+
+func (m *memoryBucket) WriteAt(bucket int, position int, hash Hash, value int) error {
+	m.buckets[bucket].acc[position].hash = hash
+	m.buckets[bucket].acc[position].balance = value
+	return nil
+}
+
+type bucketFile struct {
+	file *os.File
+}
+
+func (f *bucketFile) Load(N int) (bucket, error) {
+	var bkt bucket
+	b := make([]byte, bucketSize)
+	n, err := f.file.ReadAt(b, int64(N*bucketBytes))
+	if n != bucketSize {
+		return bkt, err
+	}
+	return *(*bucket)(unsafe.Pointer(&b))
+}
+
+type account struct {
+	hash    Hash
+	balance int
+}
+
+type bucket struct {
+	acc      [bucketSize]account
+	overflow int
+}
+
+type walletStore struct {
+	bitsForBucket int
+	mask          int
+	data          []bucket
+	bitsCount     []uint8 // number of items in the bucket
+	freeOverflows []int
+}
+
+type Wallet struct {
+	wallet *walletStore
+	*sync.Mutex
+}
+
+func NewWallet(bitsForBucket int) *Wallet {
+	if bitsForBucket > 4*8 || bitsForBucket < 0 {
+		panic("invalid wallet parameters")
+	}
+	return &Wallet{
+		wallet: &walletStore{
+			bitsForBucket: bitsForBucket,
+			mask:          1<<bitsForBucket - 1,
+			bitsCount:     make([]uint8, 1<<bitsForBucket),
+			data:          make([]bucket, 1<<(bitsForBucket)),
+			freeOverflows: make([]int, 0),
+		},
+	}
+}
+
+func (w *walletStore) moveLastTo(hashPos int, position int, bucketPos int) {
+	count := w.bitsCount[hashPos]
+	targetAcc := w.data[hashPos].acc[position]
+	w.bitsCount[hashPos] = count - 1
+	// if there is only one acc set to zero e return
+	if count == 1 {
+		targetAcc.hash = Hash{}
+		targetAcc.balance = 0
+		return
+	}
+	// find the last acc and replace
+	current := hashPos
+	previous := -1
+	for w.data[current].overflow != 0 {
+		previous = current
+		current = w.data[current].overflow
+	}
+	bucket := w.data[current]
+	lastPos := int(w.bitsCount[hashPos]-1) % bucketSize
+	lastAcc := bucket.acc[lastPos]
+	// replace the target with the last and zero the last
+	targetAcc.hash = lastAcc.hash
+	targetAcc.balance = lastAcc.balance
+	lastAcc.hash = Hash{}
+	lastAcc.balance = 0
+	// if the bucket is free zero it
+	if lastPos == 0 && current > 0 {
+		w.data[previous].overflow = 0
+		w.freeOverflows = append(w.freeOverflows, current)
+	}
+}
+
+func (w *walletStore) insertAfterLast(hash Hash, value int) {
+	hashBucketPos := int(hash[0]) + (int(hash[1]) << 8) + (int(hash[2]) << 16) + (int(hash[3]) << 24)
+	hashBucketPos = hashBucketPos & w.mask
+	count := w.bitsCount[hashBucketPos] + 1
+	w.bitsCount[hashBucketPos] = count
+	for w.data[hashBucketPos].overflow != 0 {
+		hashBucketPos = w.data[hashBucketPos].overflow
+	}
+	posInBucket := int(count-1) % bucketSize
+	if posInBucket == 0 {
+		if len(w.freeOverflows) > 0 {
+			freeOverflow := w.freeOverflows[0]
+			w.data[hashBucketPos].overflow = freeOverflow
+			w.freeOverflows = w.freeOverflows[1:]
+			hashBucketPos = freeOverflow
+		} else {
+			w.data = append(w.data, bucket{})
+			newBucketPos := len(w.data) - 1
+			w.data[hashBucketPos].overflow = newBucketPos
+			hashBucketPos = newBucketPos
+		}
+	}
+	acc := w.data[hashBucketPos].acc[posInBucket]
+	acc.hash = hash
+	acc.balance = value
+}
+
+func (w *walletStore) addTo(hash Hash, value int) (bool, int, int) {
+	position := int(hash[0]) + (int(hash[1]) << 8) + (int(hash[2]) << 16) + (int(hash[3]) << 24)
+	position = position & w.mask
+	bucket := w.data[position]
+	count := int(w.bitsCount[position])
+	for n := 0; n < count; n++ {
+		bucketPos := n % bucketSize
+		acc := bucket.acc[bucketPos]
+		if hash.Equal(acc.hash) {
+			newBalance := acc.balance + value
+			if newBalance > 0 {
+				acc.balance = acc.balance + value
+				return true, position, bucketPos
+			} else if newBalance == 0 {
+				w.moveLastTo()
+			} else {
+				return false, position, bucketPos
+			}
+		}
+		if bucketPos == size-1 {
+			// change to overfolow buckets
+			if bucket.overflow > 0 {
+				position = bucket.overflow
+				bucket = w.data[position]
+			} else {
+				return false, position, bucketPos
+			}
+		}
+	}
+	return false, position, count % bucketSize
+}

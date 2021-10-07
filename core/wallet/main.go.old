@@ -1,0 +1,201 @@
+package main
+
+import (
+	"crypto/sha256"
+	"sync"
+)
+
+const size = sha256.Size
+const accPerBucket = 8
+const accLength = size + 8
+
+type Hash [size]byte
+
+func (one Hash) Equal(another []byte) bool {
+	for n := 0; n < size; n++ {
+		if one[n] != another[n] {
+			return false
+		}
+	}
+	return true
+}
+
+type stat struct {
+	count   int
+	overPos int
+	buckets uint8
+}
+
+type walletTable struct {
+	bitsForBucket int
+	bitsMask      int
+	data          []byte
+	freeOverflows []int
+	overData      []byte
+	overflowStat  []stat
+	shareOverflow float64
+}
+
+type Wallet struct {
+	wallet *walletTable
+	*sync.Mutex
+}
+
+func putHash(data []byte, position int, hash Hash) {
+	for n := 0; n < size; n++ {
+		data[position+n] = hash[n]
+	}
+}
+
+func (w *walletTable) addTo(data []byte, bucket int, n int, value int) (bool, int) {
+	position := bucket*accPerBucket + n*accLength + size
+	oldBalance := int(data[position+0]) |
+		int(data[position+1])<<8 |
+		int(data[position+2])<<16 |
+		int(data[position+3])<<24 |
+		int(data[position+4])<<32 |
+		int(data[position+5])<<40 |
+		int(data[position+6])<<48 |
+		int(data[position+7])<<56
+	balance := oldBalance + value
+
+	if balance < 0 {
+		return false, oldBalance
+	}
+
+	data[position+0] = byte(balance)
+	data[position+1] = byte(balance >> 8)
+	data[position+2] = byte(balance >> 16)
+	data[position+3] = byte(balance >> 24)
+	data[position+4] = byte(balance >> 32)
+	data[position+5] = byte(balance >> 40)
+	data[position+6] = byte(balance >> 48)
+	data[position+7] = byte(balance >> 56)
+	return true, balance
+}
+
+func (w *walletTable) bucket(hash Hash) (int, int, int) {
+	bucket := int(hash[0]) + int(hash[1])<<8 + int(hash[2])<<16 + int(hash[3])<<32
+	bucket = bucket & w.bitsMask
+	stat := w.overflowStat[bucket]
+	if stat.buckets > 0 {
+		return bucket, stat.overPos / accLength, stat.count - accPerBucket
+	}
+	return bucket & w.bitsMask, -1, 0
+}
+
+func (w *walletTable) accHash(bucket, overflowBucket, n int) []byte {
+	if n < accPerBucket {
+		position := bucket*accPerBucket + n*accLength
+		return w.data[position : position+size]
+	}
+	position := overflowBucket*accPerBucket + n*accLength
+	return w.overData[position : position+size]
+}
+
+func (w *walletTable) accHashOverflow(bucket, n int) []byte {
+	position := bucket*accPerBucket + n*accLength
+	return w.overData[position : position+size]
+}
+
+func (w *walletTable) Debit(hash Hash, value int) bool {
+	bucket, overflowBucket, overflowCount := w.bucket(hash)
+	for n := 0; n < accPerBucket; n++ {
+		if hash.Equal(w.accHash(bucket, overflowBucket, n)) {
+			ok, balance := w.addTo(w.data, bucket, n, value)
+			if !ok {
+				return false
+			}
+			if balance == 0 {
+				// move last to here
+			}
+			return true
+		}
+	}
+	if overflowBucket == -1 {
+		return false
+	}
+	for n := 0; n < overflowCount; n++ {
+
+	}
+	return false
+}
+
+func (w *walletTable) Credit(hash Hash, value int) bool {
+	bucket := int(hash[0]) + int(hash[1])<<8 + int(hash[2])<<16 + int(hash[3])<<32
+	bucket = bucket & w.bitsMask
+	start := bucket * accPerBucket
+	for n := 0; n < accPerBucket; n++ {
+		// part of hash starting at wholeBytes
+		position := start + n*accLength
+		hashed := w.data[position : position+size]
+		if hash.Equal(hashed) {
+			addTo(w.data, position+size, value)
+			return true
+		}
+	}
+	overflow := w.overflowStat[bucket]
+	if int(overflow.count) > accPerBucket {
+		extra := int(overflow.buckets)
+		for n := 0; n < extra; n++ {
+			position := overflow.overPos + n*accLength
+			hashed := w.overData[position : position+size]
+			if hash.Equal(hashed) {
+				addTo(w.overData, position+size, value)
+				return true
+			}
+		}
+	}
+
+	if overflow.count < accPerBucket { // there is space in the bucket
+		position := start + overflow.count*accLength
+		putHash(w.data, position, hash)
+		addTo(w.data, position+size, value)
+		overflow.count += 1
+		if overflow.count == 8 {
+			numberOfBuckets := 1 << w.bitsForBucket
+			w.shareOverflow += 1.0 / float64(numberOfBuckets)
+			// create and overflow bucket
+			overflow.buckets = 1
+			if len(w.freeOverflows) > 0 {
+				// take on free bucket
+				overflow.overPos = w.freeOverflows[0]
+				w.freeOverflows = w.freeOverflows[1:]
+			} else {
+				// append to overflowData
+				overflow.overPos = len(w.overData)
+				newBucket := make([]byte, accLength)
+				w.overData = append(w.overData, newBucket...)
+			}
+		}
+		return true
+	} else { // use the overflow bucket
+		start := overflow.overPos + (overflow.count-accPerBucket)*accLength
+		position := start + overflow.count*accLength
+		putHash(w.data, position, hash)
+		addTo(w.data, position+size, value)
+		overflow.count += 1
+		// check if overflow bucket is full and allocate more space
+		if overflow.count == (int(overflow.buckets)+1)*accPerBucket {
+			// extreme case in which overflow buckets = 255 force duplication
+			if overflow.buckets == 255 {
+				// TODO
+			}
+			newPosition := len(w.overData)
+			buckets := int(overflow.buckets)
+			overflow.buckets += 1
+			newBucket := make([]byte, accLength*int(overflow.buckets))
+			for n := 0; n < buckets*accPerBucket*accLength; n++ {
+				newBucket[n] = w.overData[position+n]
+				w.overData[position+n] = 0
+			}
+			w.overData = append(w.overData, newBucket...)
+			for n := 0; n < int(overflow.buckets); n++ {
+				w.freeOverflows = append(w.freeOverflows, overflow.overPos+n*accPerBucket*accLength)
+			}
+			w.freeOverflows = append(w.freeOverflows, overflow.overPos)
+			overflow.overPos = newPosition
+		}
+		return true
+	}
+}

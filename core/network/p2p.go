@@ -13,6 +13,9 @@ const (
 	TCPRequestBlock
 )
 
+type SyncSocket struct {
+}
+
 type TCPMessage []byte
 
 func (t TCPMessage) Kind() byte {
