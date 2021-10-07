@@ -6,20 +6,22 @@ import (
 	"os"
 )
 
-const (
-	BeginOfFile int = iota
-	CurrentPosition
-	EndOfFile
-)
-
 var errOverflow = errors.New("outside store")
 var errWhence = errors.New("unrecognized whence")
 
+// ByteStore is a panic on error semantics to store and retrieve raw bytes
+// on any medium.
+// It panics on any IO error and if ReadAt or WriteAt cannot be executed
+// at the current store size. Use append to enlarge the store.
+// New creates a new bytestore. If filebased, it should be interpreted as a
+// temporary file. On Merge, the temporary file is renamed to the current file.
+// On memory, current data is released to garbage collector and temporary data
+// is promoted to main data.
 type ByteStore interface {
-	Read([]byte) (int, error)
-	Write([]byte) (int, error)
-	Seek(int64, int) (int64, error)
-	New(int64) ByteStore
+	ReadAt(int64, int64) []byte
+	WriteAt(int64, []byte)
+	Append([]byte)
+	New(int64) ByteStore // create a new empty bytestore os size int64
 	Merge(ByteStore)
 	Size() int64
 }
@@ -57,16 +59,40 @@ func (f *FileStore) Size() int64 {
 	return f.size
 }
 
-func (f *FileStore) Seek(offset int64, whence int) (int64, error) {
-	return f.data.Seek(offset, whence)
+func (f *FileStore) WriteAt(offset int64, b []byte) {
+	if offset+int64(len(b)) >= f.size || offset < 0 {
+		panic("invalid offset")
+	}
+	if _, err := f.data.Seek(offset, 0); err != nil {
+		panic(err)
+	}
+	if n, err := f.data.Write(b); n != len(b) {
+		panic(err)
+	}
 }
 
-func (f *FileStore) Write(b []byte) (int, error) {
-	return f.data.Write(b)
+func (f *FileStore) Append(b []byte) {
+	if _, err := f.data.Seek(0, 2); err != nil {
+		panic(err)
+	}
+	if n, err := f.data.Write(b); n != len(b) {
+		panic(err)
+	}
+	f.size += int64(len(b))
 }
 
-func (f *FileStore) Read(b []byte) (int, error) {
-	return f.data.Read(b)
+func (f *FileStore) ReadAt(offset int64, nbytes int64) []byte {
+	if offset+nbytes >= f.size || offset < 0 || nbytes < 1 {
+		panic("invalid read parameters")
+	}
+	data := make([]byte, nbytes)
+	if _, err := f.data.Seek(offset, 0); err != nil {
+		panic(err)
+	}
+	if n, err := f.data.Read(data); int64(n) != nbytes {
+		panic(err)
+	}
+	return data
 }
 
 func (f *FileStore) New(size int64) ByteStore {
@@ -90,58 +116,37 @@ func (f *FileStore) Merge(another ByteStore) {
 }
 
 type MemoryStore struct {
-	length   int64
-	data     []byte
-	position int64
+	data []byte
+}
+
+func NewMemoryStore(size int64) *MemoryStore {
+	return &MemoryStore{
+		data: make([]byte, size),
+	}
 }
 
 func (m *MemoryStore) Size() int64 {
-	return m.length
+	return int64(len(m.data))
 }
 
-func (m *MemoryStore) Seek(offset int64, whence int) (int64, error) {
-	var newPosition int64
-	if whence == BeginOfFile {
-		newPosition = offset
-	} else if whence == CurrentPosition {
-		newPosition += offset
-	} else if whence == EndOfFile {
-		newPosition = m.length - offset
-	} else {
-		return -1, errWhence
+func (m *MemoryStore) WriteAt(offset int64, b []byte) {
+	if offset+int64(len(b)) >= int64(len(m.data)) || offset < 0 {
+		panic("invalid offset")
 	}
-	if newPosition < 0 {
-		return -1, errOverflow
-	}
-	if newPosition >= m.length {
-		return -1, errOverflow
-	}
-	return newPosition, nil
+	copy(m.data[offset:offset+int64(len(b))], b)
 }
 
-func (m *MemoryStore) Write(b []byte) (int, error) {
-	len64 := int64(len(b))
-	overflow := m.position + len64 - m.length
-	if overflow > 0 {
-		copy(m.data[m.position:m.length], b[0:m.length-m.position])
-		m.data = append(m.data, b[overflow:]...)
-		m.length += overflow
-	} else {
-		copy(m.data[m.position:m.position+len64], b[0:m.length-m.position])
-	}
-	m.position += len64
-	return len(b), nil
+func (m *MemoryStore) Append(b []byte) {
+	m.data = append(m.data, b...)
 }
 
-func (m *MemoryStore) Read(b []byte) (int, error) {
-	len64 := int64(len(b))
-	overflow := m.position + len64 - m.length
-	if overflow > 0 {
-		copy(b[0:overflow], m.data[m.position:])
-		return int(overflow), errOverflow
+func (m *MemoryStore) ReadAt(offset int64, ncount int64) []byte {
+	if offset+ncount >= int64(len(m.data)) || offset < 0 {
+		panic("invalid offset")
 	}
-	copy(b, m.data[m.position:m.position+len64])
-	return len(b), nil
+	data := make([]byte, ncount)
+	copy(data, m.data[offset:offset+ncount])
+	return data
 }
 
 func (m *MemoryStore) New(size int64) ByteStore {
@@ -154,14 +159,4 @@ func (m *MemoryStore) Merge(another ByteStore) {
 		panic("MemoryStore can only be merged with memory store")
 	}
 	m.data = newStore.data
-	m.length = newStore.length
-	m.position = 0
-}
-
-func NewMemoryStore(size int64) *MemoryStore {
-	return &MemoryStore{
-		data:     make([]byte, size),
-		length:   size,
-		position: 0,
-	}
 }
