@@ -299,12 +299,64 @@ The message must be submitted by the author and signed by the author.
 Serialization
 =============
 
-Specific details about serialization of messages will be provided.
+
 
 Cryptography
 ============
 
-Specific details about cryptographic keys requirements will be provided.
+The hash function and the public-key cryptography will be specified later.
+
+## Consensus
+
+The consensus mechanism should be able to produce one block per second. 
+
+## State 
+
+The state of the system after N block is given by
+
+* the wallet, namely a collection of hashes of public keys and strictly positive
+balances:
+```
+      wallet == {#[#PK,Balance],...}
+```
+* a collection of hashes of subscribers public keys
+```
+      subscribers == {#PK,...}
+```
+* a collection of hashes of power of attorney
+```
+      power of attorney == {#[#Atuhor PK,#Attorney PK],...}
+```
+* a collection of hashes of captions
+```
+      captions == {#Caption,...}
+```
+* a collection of hashes of audience
+```
+      audience == {#[#Audience Author,Audience Token],...}
+```
+* a collection of live audicence requests 
+```
+      audience request == {#[#Request Author,Audience Token],...}
+```
+* a collection of live Advertising offers
+
+## State Validation
+
+After each 15 minutes (multiples of 15*60*60 blocks) every validator must clone
+their state and broadcast to other validators hashes of their state in the
+following sense.
+
+For wallets, order (little ending 00..., then 10..., then 01... and so one) all 
+hashes with the eight bytes of the 64-bit uint little ending representation of 
+the balances and calculate the hash of the corresponding byte array.For the rest 
+order the hashes and calculate the hash of the colletion. Then calculate the
+hash of the all the hashes in the order specified in the state section above.
+Finally calculate the hash of the validator key and the full state hash and
+broadcast its value as state checksum to the network.
+
+Every validator must check if the state checksum of other validators agree with
+theirs and with each other. 
 
 
 Infrastructure Needs
