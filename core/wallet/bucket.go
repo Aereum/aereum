@@ -12,12 +12,16 @@
 // GNU Lesser General Public License for more details.
 //
 // You should have received a copy of the GNU Lesser General Public License
-// along with the go-ethereum library. If not, see <http://www.gnu.org/licenses/>.
+// along with the aereum library. If not, see <http://www.gnu.org/licenses/>.
 
-// Package message contains data types related to aereum network.
+// Package wallet contains the implementation of the hashtable data structure
+// used to store current state of the aereum system.
 package wallet
 
-import "encoding/binary"
+import (
+	"bytes"
+	"encoding/binary"
+)
 
 const maxCloningBlockSize = 1 << 20
 
@@ -32,14 +36,14 @@ type BucketStore struct {
 	bytes          ByteStore // ByteStore size = bucketCount * bucketBytes + headerBytes
 	bucketCount    int64     // number of buckets
 	itemBytes      int64     // bytes per item
-	bucketBytes    int64     // bytes per bucket = items per bucket * bytes per bucket + 8
+	bucketBytes    int64     // bytes per bucket = items per bucket * bytes per item + 8
 	itemsPerBucket int64     // items per bucket
 	headerBytes    int64     // bytes alocated for header
 	isCloning      bool      // for cloning state
 	journal        JournalStore
 	cloning        JournalStore
-	bucketsCloned  int64
-	bucketToClone  int64
+	bucketsCloned  int64 // number of buckets already cloned
+	bucketToClone  int64 // number of buckets at the start of cloning
 }
 
 type Bucket struct {
@@ -49,7 +53,7 @@ type Bucket struct {
 }
 
 func (b *BucketStore) toJournal(bucket int64, item byte, oldData, newData []byte) {
-	data := make([]byte, 2*b.itemBytes+9)
+	data := make([]byte, 2*len(oldData)+9)
 	binary.BigEndian.PutUint64(data[0:8], uint64(bucket))
 	data[8] = item
 	copy(data[9:9+b.bucketBytes], oldData)
@@ -58,10 +62,14 @@ func (b *BucketStore) toJournal(bucket int64, item byte, oldData, newData []byte
 }
 
 // create a new bucket store of size itemBytes
-func NewBucketStore(itemBytes, itemsPerBucket, headerBytes int64, bytes ByteStore) *BucketStore {
+func NewBucketStore(itemBytes, itemsPerBucket int64, bytes ByteStore) *BucketStore {
+	headerBytes := int64(56) // epoch + hash + itemBytes + itemsPerBucket
 	if (bytes.Size()-headerBytes)%(itemsPerBucket*itemBytes+8) != 0 {
 		panic("ByteStore size incompatible with bucket store")
 	}
+	header := make([]byte, headerBytes)
+	binary.LittleEndian.PutUint64(header[40:48], uint64(itemBytes))
+	binary.LittleEndian.PutUint64(header[48:56], uint64(itemsPerBucket))
 	return &BucketStore{
 		bytes:          bytes,
 		bucketCount:    (bytes.Size() - headerBytes) / (itemsPerBucket*itemBytes + 8),
@@ -215,4 +223,39 @@ func (b *Bucket) AppendOverflow() *Bucket {
 	overflow := b.buckets.Append()
 	b.WriteOverflow(overflow.n)
 	return overflow
+}
+
+// Recreate state of the bucket at clone request by undoing all the alterations
+// processed in the journal.
+// We follow the journal from end to start, checkin the state and undoing all
+// the modifications
+// The clone ByteStore is modificated in the process.
+func RecreateBucket(clone ByteStore, journal ByteStore) *BucketStore {
+	// read header
+	itemBytes := int64(binary.LittleEndian.Uint64(clone.ReadAt(40, 8)))
+	itemsPerBucket := int64(binary.LittleEndian.Uint64(clone.ReadAt(48, 8)))
+	bs := NewBucketStore(itemBytes, itemsPerBucket, clone)
+	eof := journal.Size()
+	journalEntry := 2*itemBytes + 9
+	for position := eof - journalEntry; position >= 0; position -= journalEntry {
+		entry := journal.ReadAt(position, journalEntry)
+		bucketPosition := int64(binary.LittleEndian.Uint64(entry[0:8]))
+		bucket := bs.ReadBucket(bucketPosition)
+		item := int64(entry[8])
+		if item == 255 {
+			oldOverflow := int64(binary.LittleEndian.Uint64(entry[9:17]))
+			newOverflow := int64(binary.LittleEndian.Uint64(entry[17:25]))
+			if bucket.ReadOverflow() != newOverflow {
+				panic("clone and journal are incompatible")
+			}
+			bs.Append().WriteOverflow(oldOverflow)
+		} else {
+			itemBytes := bucket.ReadItem(item)
+			if !bytes.Equal(itemBytes, entry[9:9+bs.itemBytes]) {
+				panic("clone and journal are incompatible")
+			}
+			bucket.WriteItem(item, entry[9:9+bs.itemBytes])
+		}
+	}
+	return bs
 }

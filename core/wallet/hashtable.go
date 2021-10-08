@@ -20,6 +20,7 @@ package wallet
 import (
 	"crypto/sha256"
 	"fmt"
+	"sort"
 	"time"
 )
 
@@ -282,7 +283,7 @@ func (w *HashStore) startDuplication() {
 	newByteStore := w.store.bytes.New(newStoreSize)
 	header := w.store.bytes.ReadAt(0, w.store.headerBytes)
 	newByteStore.WriteAt(0, header)
-	newBucketStore := NewBucketStore(w.store.itemBytes, w.store.itemsPerBucket, w.store.headerBytes, newByteStore)
+	newBucketStore := NewBucketStore(w.store.itemBytes, w.store.itemsPerBucket, newByteStore)
 	w.newHashStore = NewHashStore(w.name, newBucketStore, int(newStoreBitsForBucket), w.operation)
 	w.newHashStore.isReady = false
 	w.bitsTransferered = 0
@@ -319,4 +320,49 @@ func (hs *HashStore) continueCloning(start int64) {
 			hs.cloned <- true
 		}
 	}()
+}
+
+type itemsArray [][]byte
+
+func (ia itemsArray) Len() int {
+	return len(ia)
+}
+
+func (ia itemsArray) Less(i, j int) bool {
+	for n := 0; n < size; n++ {
+		if ia[i][n] < ia[j][n] {
+			return true
+		}
+		if ia[i][n] > ia[j][n] {
+			return false
+		}
+	}
+	return false
+}
+
+func (ia itemsArray) Swap(i, j int) {
+	ia[i], ia[j] = ia[j], ia[i]
+}
+
+func (hs *HashStore) Hash() Hash {
+	hasharray := make([]byte, 0)
+	hashBlock := 256 * 256 * 16 * hs.store.itemBytes
+	bucketCollection := make([]byte, 0, hashBlock)
+	for n := int64(0); n < 1<<hs.bitsForBucket; n++ {
+		buckets := itemsArray(hs.store.ReadBucket(n).ReadBulk(int64(hs.bitsCount[n])))
+		sort.Sort(buckets)
+		for _, b := range buckets {
+			bucketCollection = append(bucketCollection, b...)
+			if len(bucketCollection) >= int(hashBlock) {
+				hash := sha256.Sum256(bucketCollection)
+				hasharray = append(hasharray, hash[:]...)
+				bucketCollection = make([]byte, 0, hashBlock)
+			}
+		}
+	}
+	if len(bucketCollection) > 0 {
+		hash := sha256.Sum256(bucketCollection)
+		hasharray = append(hasharray, hash[:]...)
+	}
+	return Hash(sha256.Sum256(hasharray))
 }

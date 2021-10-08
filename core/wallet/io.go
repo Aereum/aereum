@@ -23,6 +23,8 @@ import (
 	"os"
 )
 
+const bufferIOBlockSize = 4096
+
 var errOverflow = errors.New("outside store")
 
 // JornalStore is a panic on error semantics to an append only raw bytes on any
