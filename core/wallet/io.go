@@ -197,8 +197,8 @@ func (m *MemoryStore) Size() int64 {
 }
 
 func (m *MemoryStore) WriteAt(offset int64, b []byte) {
-	if offset+int64(len(b)) >= int64(len(m.data)) || offset < 0 {
-		panic("invalid offset")
+	if offset+int64(len(b)) > int64(len(m.data)) || offset < 0 {
+		panic(fmt.Sprintf("invalid offset %v, %v, %v", offset, len(b), len(m.data)))
 	}
 	copy(m.data[offset:offset+int64(len(b))], b)
 }
@@ -208,8 +208,8 @@ func (m *MemoryStore) Append(b []byte) {
 }
 
 func (m *MemoryStore) ReadAt(offset int64, ncount int64) []byte {
-	if offset+ncount >= int64(len(m.data)) || offset < 0 {
-		panic("invalid offset")
+	if offset+ncount > int64(len(m.data)) || offset < 0 {
+		panic(fmt.Sprintf("invalid offset %v, %v, %v", offset, ncount, len(m.data)))
 	}
 	data := make([]byte, ncount)
 	copy(data, m.data[offset:offset+ncount])

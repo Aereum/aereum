@@ -52,8 +52,8 @@ func (hash Hash) Equals(b []byte) bool {
 const (
 	size       = int(sha256.Size)
 	size64     = int64(size)
-	NBuckets   = int64(2024)
-	loadFactor = int64(2) // number of overflow buckets that will trigger duplication
+	NBuckets   = int64(2048) // TODO: ajusta depois
+	loadFactor = int64(2)    // number of overflow buckets that will trigger duplication
 )
 
 type Item struct {
@@ -101,7 +101,7 @@ type HashStore struct {
 }
 
 func NewHashStore(name string, buckets *BucketStore, bitsForBucket int, operation QueryOperation) *HashStore {
-	if bitsForBucket < 12 {
+	if bitsForBucket < 6 {
 		panic("bitsForBucket too small")
 	}
 	return &HashStore{
@@ -116,6 +116,9 @@ func NewHashStore(name string, buckets *BucketStore, bitsForBucket int, operatio
 		query:            make(chan Query),
 		doubleJob:        make(chan int64),
 		stop:             make(chan chan bool),
+		cloneJob:         make(chan int64),
+		clone:            make(chan chan bool),
+		cloned:           make(chan bool),
 		isDoubling:       false,
 		bitsTransferered: 0,
 		newHashStore:     nil,
@@ -133,13 +136,14 @@ func (hs *HashStore) Start() {
 		for {
 			select {
 			case q := <-hs.query:
-				hs.findAndOperate(q)
+				resp := hs.findAndOperate(q)
+				q.response <- resp
 			case bucket := <-hs.doubleJob:
 				hs.continueDuplication(bucket)
 			case hs.cloned = <-hs.clone:
 				hs.StartCloning()
-			case bucket := <-hs.cloneJob:
-				hs.continueCloning(bucket)
+			case <-hs.cloneJob:
+				hs.continueCloning()
 			case ok := <-hs.stop:
 				// wait until cloning and doubling is complete
 				if hs.store.isCloning || hs.isDoubling {
@@ -171,16 +175,19 @@ func (ws *HashStore) findAndOperate(q Query) QueryResult {
 			if countAccounts > int(totalAccounts) {
 				resp := ws.operation(false, q.hash, bucket, item, q.param)
 				ws.ProcessMutation(hashMask, resp.added, resp.deleted, countAccounts)
-				q.response <- resp.result
+				return resp.result
 			}
 			data := bucket.ReadItem(item)
 			if q.hash.Equals(data) {
 				resp := ws.operation(true, q.hash, bucket, item, q.param)
 				ws.ProcessMutation(hashMask, resp.added, resp.deleted, countAccounts)
-				q.response <- resp.result
+				return resp.result
 			}
 		}
 		bucket = bucket.NextBucket()
+		if bucket == nil {
+			panic(fmt.Sprintf("could not get here: %v %v", countAccounts, totalAccounts))
+		}
 	}
 }
 
@@ -226,8 +233,7 @@ func (ws *HashStore) ProcessMutation(hashMask int64, added *Item, deleted *Item,
 
 func (w *HashStore) transferBuckets(starting, N int64) {
 	// mask to test the newer bit
-	highBit := uint64(1 << (w.newHashStore.bitsForBucket - 1))
-
+	highBit := uint64(1 << w.bitsForBucket)
 	for bucket := starting; bucket < starting+N; bucket++ {
 		// read items for the bucket
 		itemsCount := int64(w.bitsCount[bucket])
@@ -237,23 +243,31 @@ func (w *HashStore) transferBuckets(starting, N int64) {
 		hBitBucket := make([]byte, 0, len(items)/2)
 		for _, item := range items {
 			hashBit := (uint64(item[0]) + (uint64(item[1]) << 8) + (uint64(item[2]) << 16) +
-				(uint64(item[3]) << 24)) & highBit
-			if hashBit == highBit {
+				(uint64(item[3]) << 24))
+			hashBit = hashBit & highBit
+			if hashBit > 0 {
 				hBitBucket = append(hBitBucket, item...)
 			} else {
 				lBitBucket = append(lBitBucket, item...)
 			}
 		}
 		// put lBit and hBit items in new wallter
+		w.newHashStore.bitsCount[bucket] = len(lBitBucket) / int(w.store.itemBytes)
 		w.newHashStore.store.ReadBucket(bucket).WriteBulk(lBitBucket)
+		w.newHashStore.bitsCount[bucket+int64(highBit)] = len(hBitBucket) / int(w.store.itemBytes)
 		w.newHashStore.store.ReadBucket(bucket + int64(highBit)).WriteBulk(hBitBucket)
 	}
 	w.bitsTransferered = starting + N - 1
 }
 
 func (w *HashStore) continueDuplication(bucket int64) {
+	fmt.Println("continue duplication")
 	//for bucket := int64(0); bucket < 1<<w.bitsForBucket; bucket += NBuckets {
-	w.transferBuckets(bucket, NBuckets)
+	if bucket+NBuckets > 1<<w.bitsForBucket {
+		w.transferBuckets(bucket, 1<<w.bitsForBucket-bucket)
+	} else {
+		w.transferBuckets(bucket, NBuckets)
+	}
 	if bucket+NBuckets < 1<<w.bitsForBucket {
 		go func() {
 			sleep, _ := time.ParseDuration("10ms")
@@ -261,6 +275,7 @@ func (w *HashStore) continueDuplication(bucket int64) {
 			w.doubleJob <- bucket + NBuckets
 		}()
 	} else {
+		fmt.Println("end duplication")
 		// task completed merge stores
 		w.store.bytes.Merge(w.newHashStore.store.bytes)
 		w.bitsForBucket = w.newHashStore.bitsForBucket
@@ -276,6 +291,7 @@ func (w *HashStore) continueDuplication(bucket int64) {
 }
 
 func (w *HashStore) startDuplication() {
+	fmt.Println("start duplication")
 	w.isDoubling = true
 	newStoreBitsForBucket := int64(w.bitsForBucket + 1)
 	newStoreInitialBuckets := int64(1 << newStoreBitsForBucket)
@@ -297,13 +313,13 @@ func (hs *HashStore) StartCloning() {
 	hs.store.cloning = NewJournalStore(fmt.Sprintf("%v_clone_%v.dat", hs.name, timeStamp))
 }
 
-func (hs *HashStore) continueCloning(start int64) {
+func (hs *HashStore) continueCloning() {
 	bucketsToClone := maxCloningBlockSize / hs.store.bucketBytes
 	if hs.store.bucketsCloned+bucketsToClone > hs.store.bucketToClone {
 		bucketsToClone = hs.store.bucketToClone - hs.store.bucketsCloned
 	}
 	bytesCount := hs.store.bucketBytes * bucketsToClone
-	offset := hs.store.headerBytes + start*hs.store.bucketBytes
+	offset := hs.store.headerBytes + hs.store.bucketsCloned*hs.store.bucketBytes
 	data := hs.store.bytes.ReadAt(offset, bytesCount)
 	hs.store.bucketsCloned += bucketsToClone
 	go func() {

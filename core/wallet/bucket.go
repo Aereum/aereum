@@ -107,7 +107,7 @@ func (b *BucketStore) Append() *Bucket {
 // # of items * itemBytes into a chain of buckets starting at the calling bucket
 // and returns the number of buckets appended.
 // Writebulk does not preseve journaling semantics
-func (b *Bucket) WriteBulk(data []byte) int64 {
+func (b *Bucket) WriteBulk(data []byte) {
 	store := b.buckets.bytes
 	itemBytes := b.buckets.itemBytes
 	remaning := int64(len(data)) / b.buckets.itemBytes
@@ -116,22 +116,24 @@ func (b *Bucket) WriteBulk(data []byte) int64 {
 	}
 	processed := int64(0)
 	bucket := b
-	appended := 0
 	for {
 		if remaning == 0 {
-			return int64(appended)
-		} else if remaning <= b.buckets.itemsPerBucket {
+			return
+		} else if remaning < b.buckets.itemsPerBucket {
+			// if equal insert itemsPerBucket bellow and append a new bucket
+			// and return by above
 			offset := bucket.n*b.buckets.bucketBytes + b.buckets.headerBytes
 			bucketData := data[processed*itemBytes : (processed+remaning)*itemBytes]
 			store.WriteAt(offset, bucketData)
-			return int64(appended)
+			return
 		} else {
 			offset := bucket.n*b.buckets.bucketBytes + b.buckets.headerBytes
-			bucketData := data[processed*itemBytes : (processed+remaning)*itemBytes]
+			bucketData := data[processed*itemBytes : (processed+b.buckets.itemsPerBucket)*itemBytes]
 			store.WriteAt(offset, bucketData)
+			processed += b.buckets.itemsPerBucket
+			remaning -= b.buckets.itemsPerBucket
 		}
-		bucket = b.buckets.Append()
-		appended++
+		bucket = bucket.AppendOverflow()
 	}
 }
 
