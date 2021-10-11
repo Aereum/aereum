@@ -1,39 +1,115 @@
 package network
 
 import (
+	"crypto/cipher"
+	"crypto/ecdsa"
+	"fmt"
+	"hash"
+	"net"
+
+	"github.com/Aereum/aereum/core/hashdb"
+	"github.com/Aereum/aereum/core/logger"
 	"github.com/Aereum/aereum/core/message"
-	"gopkg.in/zeromq/goczmq.v4"
 )
 
 const (
-	TCPMessageVoid byte = iota
-	TCPMessageAuthor
-	TCPTransfer
-	TCPReceiveBlock
-	TCPRequestBlock
+	validationNodePort             = 7080
+	blockBroadcastPort             = 7801
+	messageReceiveConnectionPort   = 7802
+	messageBroadcastConnectionPort = 7803
+	syncPort                       = 7804
 )
 
-type SyncSocket struct {
+type MessageQueueRequest struct {
+	message  message.Message
+	response chan bool
 }
 
-type TCPMessage []byte
+type MessageUnqueueRequest struct {
+	response chan message.Message
+}
 
-func (t TCPMessage) Kind() byte {
-	if t == nil || len(TCPMessage{}) == 0 {
-		return 0
+type ValidMessageQueue struct {
+	queue   chan MessageQueueRequest
+	unqueue chan MessageUnqueueRequest
+}
+
+func NewValidMessageQueue() *ValidMessageQueue {
+	queue := make(chan MessageQueueRequest)
+	unqueue := make(chan MessageUnqueueRequest)
+	messages := make([]message.Message, 0)
+	hashes := make(map[hashdb.Hash]struct{})
+	go func() {
+		for {
+			select {
+			case req := <-queue:
+				//
+			case req := <-unqueue:
+				//
+			}
+		}
+	}()
+	return &ValidMessageQueue{
+		queue:   queue,
+		unqueue: unqueue,
 	}
-	return t[0]
 }
 
-func (t TCPMessage) AsMessage() (*message.Message, error) {
-	return message.ParseMessage(t[1:])
+func NewMessageServer() {
+	messages := NewValidMessageQueue()
+	service := fmt.Sprintf(":%v", messageReceiveConnectionPort)
+	tcpAddr, err := net.ResolveTCPAddr("tcp", service)
+	logger.MustOrPanic(err)
+	listener, err := net.ListenTCP("tcp", tcpAddr)
+	logger.MustOrPanic(err)
+	go func() {
+		for {
+			conn, err := listener.Accept()
+			if err != nil {
+
+			}
+
+		}
+	}()
 }
 
-func (t TCPMessage) AsTransaction() (*message.Transfer, error) {
-	return message.ParseTranfer(t[1:])
+type MessageReceiveConnection struct {
+	conn     *net.TCPConn
+	msgqueue *ValidMessageQueue
 }
 
-func NewRouter() {
-	goczmq.NewRouter("tcp://*:5555")
+// exchange keys for secure channel
+func Handshake(conn *net.TCPConn) error {
 
+}
+
+type Conn struct {
+	dialDest *ecdsa.PublicKey
+	conn     net.Conn
+	session  *sessionState
+
+	// These are the buffers for snappy compression.
+	// Compression is enabled if they are non-nil.
+	snappyReadBuffer  []byte
+	snappyWriteBuffer []byte
+}
+
+// sessionState contains the session keys.
+type sessionState struct {
+	enc cipher.Stream
+	dec cipher.Stream
+
+	egressMAC  hashMAC
+	ingressMAC hashMAC
+	rbuf       readBuffer
+	wbuf       writeBuffer
+}
+
+// hashMAC holds the state of the RLPx v4 MAC contraption.
+type hashMAC struct {
+	cipher     cipher.Block
+	hash       hash.Hash
+	aesBuffer  [16]byte
+	hashBuffer [32]byte
+	seedBuffer [32]byte
 }
