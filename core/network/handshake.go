@@ -125,6 +125,7 @@ func PerformClientHandShake(conn net.Conn, prvKey crypto.PrivateKey, remotePub c
 		return nil, errCouldNotSecure
 	}
 	return &SecureConnection{
+		hash:         crypto.Hasher(remotePub.ToBytes()),
 		conn:         conn,
 		cipher:       crypto.CipherFromKey(key),
 		cipherRemote: crypto.CipherFromKey(remoteKey),
@@ -168,6 +169,7 @@ func PerformServerHandShake(conn net.Conn, prvKey crypto.PrivateKey) (*SecureCon
 	msgToSend = append(msgToSend, prependLength(keyEncrypted)...)
 	writehs(conn, msgToSend)
 	return &SecureConnection{
+		hash:         crypto.Hasher(remoteKeyBytes),
 		conn:         conn,
 		cipher:       crypto.CipherFromKey(key),
 		cipherRemote: crypto.CipherFromKey(remoteCipherKey),

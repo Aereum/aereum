@@ -130,23 +130,28 @@ func NewMessage(AuthorKey, WalletKey *rsa.PrivateKey, msg Serializer,
 
 type Message struct {
 	MessageType     byte
+	Epoch           uint64
 	Author          []byte
 	Message         []byte
 	FeeWallet       []byte
 	FeeValue        uint64
-	Epoch           uint64
 	PowerOfAttorney []byte
 	Signature       []byte
 	WalletSignature []byte
 }
 
+func GetHashAndEpochFromMessage(m Message) (crypto.Hash, int) {
+	var h crypto.Hash
+	return h, 0
+}
+
 func (m *Message) serializeWithoutSignatures() []byte {
 	bytes := []byte{m.MessageType}
+	PutUint64(m.Epoch, &bytes)
 	PutByteArray(m.Author, &bytes)
 	PutByteArray(m.Message, &bytes)
 	PutByteArray(m.FeeWallet, &bytes)
 	PutUint64(m.FeeValue, &bytes)
-	PutUint64(m.Epoch, &bytes)
 	PutByteArray(m.PowerOfAttorney, &bytes)
 	return bytes
 }

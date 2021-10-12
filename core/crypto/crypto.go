@@ -12,7 +12,25 @@ import (
 
 // defines temporary crypto primitives
 
-const NonceSize = 12
+const (
+	NonceSize = 12
+	Size      = sha256.Size
+)
+
+type Hash [Size]byte
+
+func (h Hash) Equal(another Hash) bool {
+	for n := 0; n < Size; n++ {
+		if h[n] != another[n] {
+			return false
+		}
+	}
+	return true
+}
+
+func Hasher(data []byte) Hash {
+	return Hash(sha256.Sum256(data))
+}
 
 func RandomAsymetricKey() (PublicKey, PrivateKey) {
 	key, err := rsa.GenerateKey(rand.Reader, 512)

@@ -11,6 +11,7 @@ import (
 var errMessageTooLarge = errors.New("message size cannot be larger than 65.536 bytes")
 
 type SecureConnection struct {
+	hash         crypto.Hash
 	conn         net.Conn
 	cipher       crypto.Cipher
 	cipherRemote crypto.Cipher
@@ -35,7 +36,7 @@ func (s *SecureConnection) ReadMessage() ([]byte, error) {
 		return nil, err
 	}
 	lengthBytes := make([]byte, 2)
-	lenght := lengthBytes[0] + (lengthBytes[1] << 8)
+	lenght := int(lengthBytes[0]) + (int(lengthBytes[1]) << 8)
 	sealedMsg := make([]byte, lenght)
 	if n, err := s.conn.Read(sealedMsg); n != int(lenght) {
 		return nil, err
@@ -47,17 +48,9 @@ func (s *SecureConnection) ReadMessage() ([]byte, error) {
 	}
 }
 
-type ReceiveMessage struct {
-	Sender []byte
-	Msg    []byte
-}
+type handlePort func(conn *SecureConnection)
 
-type SendMessage struct {
-	Msg []byte
-	ok  bool
-}
-
-func ListenTCP(port int, receive chan ReceiveMessage, send chan SendMessage, prvKey crypto.PrivateKey) {
+func ListenTCP(port int, handler handlePort, prvKey crypto.PrivateKey) {
 	listener, err := net.Listen("tcp", fmt.Sprintf(":%v", port))
 	if err != nil {
 		panic(err)
@@ -65,8 +58,12 @@ func ListenTCP(port int, receive chan ReceiveMessage, send chan SendMessage, prv
 	for {
 		conn, err := listener.Accept()
 		if err == nil {
-			PerformServerHandShake(conn, prvKey)
-
+			secureConnection, err := PerformServerHandShake(conn, prvKey)
+			if err != nil {
+				conn.Close()
+			} else {
+				handler(secureConnection)
+			}
 		}
 	}
 }
