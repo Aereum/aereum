@@ -1,141 +1,175 @@
 package network
 
 import (
-	"crypto"
-	"crypto/rand"
-	"crypto/rsa"
-	"crypto/sha256"
-	"crypto/x509"
+	"crypto/subtle"
 	"errors"
 	"net"
+
+	"github.com/Aereum/aereum/core/crypto"
 )
 
-type HandshakeSecrets struct {
-	prvKey          *rsa.PrivateKey
-	cypherKey       [32]byte
-	cypherRemoteKey [32]byte
-	remotePubKey    *rsa.PublicKey
+var errCouldNotSecure = errors.New("could not secure communication")
+
+// Simple implementation of hasdshake for secure communication between nodes.
+// The secure channel should not be used to transmit confidential information.
+//
+// Both parties in the communication channel must be registered users within
+// the aereum network consensus blockchain.
+//
+// The caller must know from the onset not only the IP and port number for the
+// connection but also the connection public key on aereum network id.
+//
+// after establishing connection, the caller send the called the following
+// message: its public key naked and a AES-256 symetric key encrypted using the
+// caller aereum network public key.
+// The message is signed with the caller network private key.
+//
+// the called then sends the caller the following message: the decrypted
+// received AES-256 symetric key and another AES-256 symetric key, both
+// encrypted by the caller ephemeral public key.
+// The capacity to decrypt the original SHA-256 attests that the called is
+// in possession of the secret key associated without the need of a signature.
+//
+// the symetric keys are used to encryption and authentication for sucessive
+// messages using random nonce generated at the header of each message. The
+// caller uses the key provided itself provided the called its own.
+
+// read the first byte (n) and read subsequent n-bytes from connection
+func readhs(conn net.Conn) ([]byte, error) {
+	length := make([]byte, 1)
+	if n, err := conn.Read(length); n != 1 {
+		return nil, err
+	}
+	msg := make([]byte, length[0])
+	if n, err := conn.Read(msg); n != int(length[0]) {
+		return nil, err
+	}
+	return msg, nil
 }
 
-func send256Message(conn *net.TCPConn, msg []byte, prv *rsa.PrivateKey) error {
+func writehs(conn net.Conn, msg []byte) error {
 	if len(msg) > 256 {
-		return errors.New("msg to large to send256Message")
+		return errors.New("msg too large to send")
 	}
 	msgToSend := append([]byte{byte(len(msg))}, msg...)
-	nonce := make([]byte, 32)
-	if n, err := rand.Read(nonce); n != 32 {
-		return err
-	}
-	msgToSend = append(msgToSend, nonce...)
-	hashed := sha256.Sum256(msgToSend)
-	signature, err := rsa.SignPKCS1v15(nil, prv, crypto.SHA256, hashed[:])
-	if err != nil {
-		return err
-	}
-	signatureWithLength := append([]byte{byte(len(signature))}, signature...)
-	msgToSend = append(msgToSend, signatureWithLength...)
 	if n, err := conn.Write(msgToSend); n != len(msgToSend) {
 		return err
 	}
 	return nil
 }
 
-func receive256Message(conn *net.TCPConn, pub *rsa.PublicKey) ([]byte, error) {
-	length := make([]byte, 1)
-	if n, err := conn.Read(length); n != 1 {
-		return nil, err
+func writehsSigned(conn net.Conn, msg []byte, prv crypto.PrivateKey) error {
+	if len(msg) > 256 {
+		return errors.New("msg too large to send")
 	}
-	msg := make([]byte, length[0])
-	if n, err := conn.Read(msg); n != 1 {
-		return nil, err
+	signature, err := prv.Sign(msg)
+	if err != nil {
+		panic(err)
 	}
-	if pub == nil {
-		publicKeyBytes := msg[0 : len(msg)-32]
-		var err error
-		pub, err = x509.ParsePKCS1PublicKey(publicKeyBytes)
-		if err != nil {
-			return nil, err
-		}
+	if err := writehs(conn, msg); err != nil {
+		return err
 	}
-	signatureLength := make([]byte, 1)
-	if n, err := conn.Read(signatureLength); n != 1 {
-		return nil, err
+	if err := writehs(conn, signature); err != nil {
+		return err
 	}
-	signature := make([]byte, signatureLength[0])
-	if n, err := conn.Read(signature); n != 1 {
-		return nil, err
-	}
-	if err := rsa.VerifyPKCS1v15(pub, crypto.SHA256, msg, signature); err != nil {
-		return nil, err
-	}
-	return msg[0 : len(msg)-32], nil
+	return nil
 }
 
-func PerformClientHandShake(conn *net.TCPConn, prvKey *rsa.PrivateKey) error {
-	var hs HandshakeSecrets
-	hs.prvKey = prvKey
+func prependLength(msg []byte) []byte {
+	return append([]byte{byte(len(msg))}, msg...)
+}
+
+func prependRead(msg []byte) ([]byte, []byte) {
+	if len(msg) < 1 {
+		return nil, nil
+	}
+	length := msg[0]
+	if len(msg) < int(length)+1 {
+		return nil, nil
+	}
+	return msg[1 : length+1], msg[length+1:]
+}
+
+func PerformClientHandShake(conn net.Conn, prvKey crypto.PrivateKey, remotePub crypto.PublicKey) (*SecureConnection, error) {
+	// send public key and ephemeral public key
+	// 	subtle.ConstantTimeCompare()
+	PubKeyBytes := prvKey.PublicKey().ToBytes()
+	msg := prependLength(PubKeyBytes)
+	key := crypto.NewCipherKey()
+	keyEncrypted, err := remotePub.Encrypt(key)
+	if err != nil {
+		return nil, err
+	}
+	msg = append(msg, prependLength(keyEncrypted)...)
+	writehsSigned(conn, msg, prvKey)
+
 	// receive server public key
-	resp, err := receive256Message(conn, nil)
+	resp, err := readhs(conn)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	hs.remotePubKey, err = x509.ParsePKCS1PublicKey(resp)
+	keyBackEncrypted, resp := prependRead(resp)
+	keyBack, err := prvKey.Decrypt(keyBackEncrypted)
+	if err != nil || subtle.ConstantTimeCompare(key, keyBack) != 1 {
+		return nil, errCouldNotSecure
+	}
+	remoteKeyEncrypted, resp := prependRead(resp)
+	if remoteKeyEncrypted == nil {
+		return nil, errCouldNotSecure
+	}
+	remoteKey, err := prvKey.Decrypt(remoteKeyEncrypted)
 	if err != nil {
-		return err
+		return nil, errCouldNotSecure
 	}
-
-	// send public key
-	pubKey := &prvKey.PublicKey
-	pubKeyBytes := x509.MarshalPKCS1PublicKey(pubKey)
-	if err := send256Message(conn, pubKeyBytes, prvKey); err != nil {
-		return err
+	if len(resp) != 0 {
+		return nil, errCouldNotSecure
 	}
-
-	// receice ephemeral key
-	resp, err = receive256Message(conn, hs.remotePubKey)
-	if err != nil {
-		return err
-	}
-	if len(resp) != 32 {
-		return errors.New("wrone cypher length")
-	}
-	for n := 0; n < 32; n++ {
-		hs.cypherRemoteKey[n] = resp[n]
-	}
-
+	return &SecureConnection{
+		conn:         conn,
+		cipher:       crypto.CipherFromKey(key),
+		cipherRemote: crypto.CipherFromKey(remoteKey),
+	}, nil
 }
 
-func PerformServerHandShake(conn *net.TCPConn, prvKey *rsa.PrivateKey) error {
-	var hs HandshakeSecrets
-	hs.prvKey = prvKey
-	// send public key
-	pubKey := &prvKey.PublicKey
-	pubKeyBytes := x509.MarshalPKCS1PublicKey(pubKey)
-	if err := send256Message(conn, pubKeyBytes, prvKey); err != nil {
-		return err
-	}
-	// receive public key
-	resp, err := receive256Message(conn, nil)
+func PerformServerHandShake(conn net.Conn, prvKey crypto.PrivateKey) (*SecureConnection, error) {
+	resp, err := readhs(conn)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	hs.remotePubKey, err = x509.ParsePKCS1PublicKey(resp)
+	remoteKeyBytes, resp := prependRead(resp)
+	if remoteKeyBytes == nil {
+		return nil, errCouldNotSecure
+	}
+	remoteKey, err := crypto.PublicKeyFromBytes(remoteKeyBytes)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	// create cypher key
-	cypherKey := make([]byte, 32)
-	if n, err := rand.Read(cypherKey); n != 32 {
-		return err
+	remoteCipherKeyEncrypted, resp := prependRead(resp)
+	if remoteCipherKeyEncrypted == nil {
+		return nil, errCouldNotSecure
 	}
-	for n := 0; n < 32; n++ {
-		hs.cypherKey[n] = cypherKey[n]
+	if len(resp) != 0 {
+		return nil, errCouldNotSecure
 	}
-	// encrypt it
-	var cryptoCypher []byte
-	cryptoCypher, err = rsa.EncryptPKCS1v15(nil, hs.remotePubKey, cypherKey)
+	remoteCipherKey, err := prvKey.Decrypt(remoteCipherKeyEncrypted)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	send256Message(conn, cryptoCypher, prvKey)
+	remoteCipherKeyBackEncrypted, err := remoteKey.Encrypt(remoteCipherKey)
+	if err != nil {
+		return nil, err
+	}
+	key := crypto.NewCipherKey()
+	keyEncrypted, err := remoteKey.Encrypt(key)
+	if err != nil {
+		return nil, err
+	}
+	msgToSend := prependLength(remoteCipherKeyBackEncrypted)
+	msgToSend = append(msgToSend, prependLength(keyEncrypted)...)
+	writehs(conn, msgToSend)
+	return &SecureConnection{
+		conn:         conn,
+		cipher:       crypto.CipherFromKey(key),
+		cipherRemote: crypto.CipherFromKey(remoteCipherKey),
+	}, nil
 }
