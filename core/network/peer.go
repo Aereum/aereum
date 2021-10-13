@@ -2,6 +2,7 @@ package network
 
 import (
 	"github.com/Aereum/aereum/core/crypto"
+	"github.com/Aereum/aereum/core/message"
 )
 
 const maxEpochReceiveMessage = 100
@@ -17,13 +18,15 @@ func (p *Peers) BroadcastMessage(msg []byte) {
 }
 
 type HashedMessage struct {
+	msg   []byte
 	hash  crypto.Hash
 	epoch int
-	msg   []byte
 }
 
-func StartReceiveQueue(prvKey crypto.PrivateKey, validator chan HashedMessage, blockformation chan []HashedMessage, epoch int) {
-	msgChan := make(chan HashedMessage)
+// Receive Queue spins a goroutine that receives all messages from all peers and
+// strips out duplicated messages.
+func ReceiveQueue(prvKey crypto.PrivateKey, validator chan *message.Message, blockformation chan struct{}, epoch int) {
+	msgChan := make(chan *HashedMessage)
 	currentEpoch := epoch
 	recentHashes := make([]map[crypto.Hash]struct{}, maxEpochReceiveMessage)
 	for n := 0; n < maxEpochReceiveMessage; n++ {
@@ -33,7 +36,7 @@ func StartReceiveQueue(prvKey crypto.PrivateKey, validator chan HashedMessage, b
 		for {
 			select {
 			case hashMsg := <-msgChan:
-				if deltaEpoch := hashMsg.epoch - currentEpoch; deltaEpoch < 100 && deltaEpoch > 0 {
+				if deltaEpoch := int(hashMsg.epoch) - currentEpoch; deltaEpoch < 100 && deltaEpoch > 0 {
 					isNew := true
 					for hash, _ := range recentHashes[deltaEpoch] {
 						if hash.Equal(hashMsg.hash) {
@@ -42,39 +45,33 @@ func StartReceiveQueue(prvKey crypto.PrivateKey, validator chan HashedMessage, b
 						}
 					}
 					if isNew {
-						validator <- hashMsg
+						recentHashes[deltaEpoch][hashMsg.hash] = struct{}{}
+						parsed, err := message.ParseMessage(hashMsg.msg)
+						if err != nil {
+							validator <- parsed
+						}
 					}
 				}
-			case blockMessages := <-blockformation:
+			case <-blockformation:
 				currentEpoch += 1
 				// ignore all the messages marked to die at current epoch
 				newMap := make(map[crypto.Hash]struct{})
 				recentHashes = append([]map[crypto.Hash]struct{}{newMap}, recentHashes[1:]...)
-				// clear the queue with messages formed at the block
-				for _, msg := range blockMessages {
-					deltaEpoch := msg.epoch - currentEpoch
-					if deltaEpoch > 0 {
-						delete(recentHashes[deltaEpoch], msg.hash)
-					}
-				}
 			}
 		}
 	}()
-
-	ListenTCP(messageReceiveConnectionPort, NewMessageReceiver, prvKey)
+	go ListenTCP(messageReceiveConnectionPort, NewMessageReceiver(msgChan), prvKey)
 }
 
-func NewMessageReceiver(m *MessageQueue, conn *SecureConnection) {
-	m.messageSenders[conn.hash] = conn
-	go func() {
-		for {
-			msg, err := conn.ReadMessage()
-			if err != nil {
-				conn.conn.Close()
-				delete(m.messageSenders, conn.hash)
-				return
-			}
-			m.msgChan <- hashedMessage{hash: crypto.Hasher(msg), msg: msg}
+func NewMessageReceiver(msgChan chan *HashedMessage) handlePort {
+	return func(conn *SecureConnection) {
+		data, err := conn.ReadMessage()
+		if err != nil {
+			conn.conn.Close()
+			return
 		}
-	}()
+		hashed := HashedMessage{msg: data}
+		hashed.hash, hashed.epoch = message.GetHashAndEpochFromMessage(data)
+		msgChan <- &hashed
+	}
 }

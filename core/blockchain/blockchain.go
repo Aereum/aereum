@@ -19,12 +19,13 @@ package blockchain
 
 import (
 	"bytes"
-	"crypto/sha256"
 	"sync"
 
+	"github.com/Aereum/aereum/core/crypto"
 	"github.com/Aereum/aereum/core/hashdb"
 	"github.com/Aereum/aereum/core/message"
 	"github.com/Aereum/aereum/core/network"
+	"github.com/Aereum/aereum/core/wallet"
 )
 
 type Blockchain struct {
@@ -34,10 +35,6 @@ type Blockchain struct {
 type AudienceState struct {
 	Token     []byte
 	Followers []*message.Follower
-}
-
-func Hash256(data []byte) hashdb.Hash {
-	return hashdb.Hash(sha256.Sum256(data))
 }
 
 type SyncJob struct {
@@ -51,9 +48,9 @@ type State struct {
 	Epoch             uint64
 	Subscribers       hashdb.HashStore                    // subscriber token hash
 	Captions          hashdb.HashStore                    // caption string hash
-	Wallets           map[hashdb.Hash]int                 // wallet token hash
+	Wallets           wallet.Wallet                       // wallet token hash
 	Audiences         hashdb.HashStore                    // audience + Follower hash
-	AudienceRequests  map[hashdb.Hash]*[]*message.Message // audience hash
+	AudienceRequests  map[crypto.Hash]*[]*message.Message // audience hash
 	PowerOfAttorney   hashdb.HashStore                    // power of attonery token hash
 	AdvertisingOffers map[hashdb.Hash]*message.Message    // advertising offer hash
 	SyncJobs          []SyncJob
@@ -71,23 +68,27 @@ func (s *State) IncorporateMutations(mut NewBlockMuttations) {
 		// TODO: Treat Error
 	}
 	for wallet, delta := range mut.DeltaWallets {
-		s.Wallets[wallet] += delta
+		if delta < 0 {
+			s.Wallets.Debit(wallet, -uint64(delta))
+		} else {
+			s.Wallets.Credit(wallet, uint64(delta))
+		}
 	}
 
 }
 
 type NewBlockMuttations struct {
 	State                     *State
-	NewSubsribers             map[Hash]struct{}
-	NewCaptions               map[Hash]struct{}
-	DeltaWallets              map[Hash]int
-	NewAudiences              map[Hash]*[]*message.Follower
-	ChangeAudicences          map[Hash]*[]*message.Follower
-	NewAudinceRequests        map[Hash]*message.Message
-	GrantPowerOfAttorney      map[Hash]Hash
-	RevokePowerOfAttorney     map[Hash]struct{}
-	NewAdvertisingOffers      map[Hash]*message.Message
-	AcceptedAdvertisingOffers map[Hash]*message.Message
+	NewSubsribers             map[crypto.Hash]struct{}
+	NewCaptions               map[crypto.Hash]struct{}
+	DeltaWallets              map[crypto.Hash]int
+	NewAudiences              map[crypto.Hash]*[]*message.Follower
+	ChangeAudicences          map[crypto.Hash]*[]*message.Follower
+	NewAudinceRequests        map[crypto.Hash]*message.Message
+	GrantPowerOfAttorney      map[crypto.Hash]crypto.Hash
+	RevokePowerOfAttorney     map[crypto.Hash]struct{}
+	NewAdvertisingOffers      map[crypto.Hash]*message.Message
+	AcceptedAdvertisingOffers map[crypto.Hash]*message.Message
 	Messages                  []*message.Message
 	Transfers                 []*message.Transfer
 }
@@ -123,14 +124,14 @@ func (s *NewBlockMuttations) Transfer(t *message.Transfer) bool {
 	return true
 }
 
-func (s *NewBlockMuttations) RedistributeAdvertisemenetFee(value int, author Hash, audience []*message.Follower) {
+func (s *NewBlockMuttations) RedistributeAdvertisemenetFee(value int, author crypto.Hash, audience []*message.Follower) {
 	// 100% author provisory
 	s.Credit(author, value)
 }
 
-func (s *NewBlockMuttations) CanContent(m *message.Content, author, wallet Hash, fee int) bool {
+func (s *NewBlockMuttations) CanContent(m *message.Content, author, wallet crypto.Hash, fee int) bool {
 	if len(m.AdvertisingToken) > 0 {
-		hash := Hash256(m.AdvertisingToken)
+		hash := crypto.Hasher(m.AdvertisingToken)
 		if offerMsg, ok := s.State.AdvertisingOffers[hash]; ok {
 			if _, ok := s.AcceptedAdvertisingOffers[hash]; ok {
 				return false // message already reclaimed in the new block
@@ -183,7 +184,8 @@ func (s *NewBlockMuttations) CanSubscribe(m *message.Subscribe, author Hash) boo
 }
 
 func (s *NewBlockMuttations) CanCreateAudience(m *message.CreateAudience) bool {
-	audience := Hash256(m.Token)
+	audience := crypto.Hasher(m.Token)
+
 	if _, ok := s.State.Audiences[audience]; ok {
 		return false
 	}

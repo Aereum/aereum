@@ -77,7 +77,11 @@ func ParseAbout(data []byte) *About {
 }
 
 type CreateAudience struct {
-	Token       []byte
+	Token []byte // Private Key allows change in this structure
+	//Moderate []byte // Private Key allows to validate join requests
+	//Write    []byte // Private Key allows to submit messages to audience
+	//Reply    []byte // Private Key allows to interact with messages
+	//Read     []byte // Private Key allows to decrypt messages to audience
 	Description string
 }
 
