@@ -18,18 +18,16 @@
 package message
 
 import (
-	"crypto/rand"
-	"crypto/rsa"
-	"crypto/x509"
 	"reflect"
 	"testing"
+
+	"github.com/Aereum/aereum/core/crypto"
 )
 
 func TestTransfer(t *testing.T) {
-	FromPrivate, _ := rsa.GenerateKey(rand.Reader, 512)
-	FromPublic := x509.MarshalPKCS1PublicKey(&FromPrivate.PublicKey)
+	FromPublic, FromPrivate := crypto.RandomAsymetricKey()
 	transfer := &Transfer{
-		From:  FromPublic,
+		From:  FromPublic.ToBytes(),
 		To:    []byte{1, 2, 3, 4},
 		Value: 12,
 		Epoch: 1265,
@@ -49,15 +47,13 @@ func TestTransfer(t *testing.T) {
 }
 
 func TestMessage(t *testing.T) {
-	AuthorPrivate, _ := rsa.GenerateKey(rand.Reader, 512)
-	AuthorPublic := x509.MarshalPKCS1PublicKey(&AuthorPrivate.PublicKey)
-	WalletPrivate, _ := rsa.GenerateKey(rand.Reader, 512)
-	WalletPublic := x509.MarshalPKCS1PublicKey(&WalletPrivate.PublicKey)
+	AuthorPublic, AuthorPrivate := crypto.RandomAsymetricKey()
+	WalletPublic, WalletPrivate := crypto.RandomAsymetricKey()
 	message := &Message{
 		MessageType:     CreateAudienceMsg,
-		Author:          AuthorPublic,
+		Author:          AuthorPublic.ToBytes(),
 		Message:         []byte{1, 2, 3, 4, 5},
-		FeeWallet:       WalletPublic,
+		FeeWallet:       WalletPublic.ToBytes(),
 		FeeValue:        124,
 		Epoch:           1245252,
 		PowerOfAttorney: []byte{},
@@ -77,9 +73,9 @@ func TestMessage(t *testing.T) {
 }
 
 func TestMessagePowerOfAttorney(t *testing.T) {
-	AuthorPrivate, _ := rsa.GenerateKey(rand.Reader, 512)
-	WalletPrivate, _ := rsa.GenerateKey(rand.Reader, 512)
-	AttorneyPrivate, _ := rsa.GenerateKey(rand.Reader, 512)
+	_, AuthorPrivate := crypto.RandomAsymetricKey()
+	_, WalletPrivate := crypto.RandomAsymetricKey()
+	_, AttorneyPrivate := crypto.RandomAsymetricKey()
 
 	message := NewMessage(AuthorPrivate, WalletPrivate,
 		&About{Details: "Details"}, 10, 100, AttorneyPrivate)

@@ -15,14 +15,22 @@
 // along with the aereum library. If not, see <http://www.gnu.org/licenses/>.
 package wallet
 
-func DeleteOrInsert(found bool, hash Hash, b *Bucket, item int64, param int64) OperationResult {
+import "github.com/Aereum/aereum/core/crypto"
+
+const (
+	delete byte = iota
+	exists
+	insert
+)
+
+func DeleteOrInsert(found bool, hash crypto.Hash, b *Bucket, item int64, param []byte) OperationResult {
 	if found {
-		if param == -1 { //Delete
+		if param[0] == delete { //Delete
 			return OperationResult{
 				deleted: &Item{bucket: b, item: item},
 				result:  QueryResult{ok: true},
 			}
-		} else if param == 0 { // exists?
+		} else if param[0] == exists { // exists?
 			return OperationResult{
 				result: QueryResult{ok: true},
 			}
@@ -32,7 +40,7 @@ func DeleteOrInsert(found bool, hash Hash, b *Bucket, item int64, param int64) O
 			}
 		}
 	} else {
-		if param == 1 {
+		if param[0] == insert {
 			b.WriteItem(item, hash[:])
 			return OperationResult{
 				added:  &Item{bucket: b, item: item},
@@ -50,23 +58,23 @@ type HashVault struct {
 	hs *HashStore
 }
 
-func (w *HashVault) Exists(hash Hash, value uint64) bool {
+func (w *HashVault) Exists(hash crypto.Hash) bool {
 	response := make(chan QueryResult)
-	w.hs.Query(Query{hash: hash, param: 0, response: response})
+	w.hs.Query(Query{hash: hash, param: []byte{1}, response: response})
 	resp := <-response
 	return resp.ok
 }
 
-func (w *HashVault) Insert(hash Hash, value uint64) bool {
+func (w *HashVault) Insert(hash crypto.Hash) bool {
 	response := make(chan QueryResult)
-	w.hs.Query(Query{hash: hash, param: 1, response: response})
+	w.hs.Query(Query{hash: hash, param: []byte{2}, response: response})
 	resp := <-response
 	return resp.ok
 }
 
-func (w *HashVault) Remove(hash Hash, value uint64) bool {
+func (w *HashVault) Remove(hash crypto.Hash) bool {
 	response := make(chan QueryResult)
-	w.hs.Query(Query{hash: hash, param: -1, response: response})
+	w.hs.Query(Query{hash: hash, param: []byte{0}, response: response})
 	resp := <-response
 	return resp.ok
 }

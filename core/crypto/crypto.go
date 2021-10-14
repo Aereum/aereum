@@ -13,13 +13,29 @@ import (
 // defines temporary crypto primitives
 
 const (
-	NonceSize = 12
-	Size      = sha256.Size
+	NonceSize     = 12
+	Size          = sha256.Size
+	CipherKeySize = 32
+	CipherSize    = NonceSize + CipherKeySize
+	PublicKeySize = 42
 )
 
 type Hash [Size]byte
 
+func (hash Hash) ToInt64() int64 {
+	return int64(hash[0]) + (int64(hash[1]) << 8) + (int64(hash[2]) << 16) + (int64(hash[3]) << 24)
+}
+
 func (h Hash) Equal(another Hash) bool {
+	for n := 0; n < Size; n++ {
+		if h[n] != another[n] {
+			return false
+		}
+	}
+	return true
+}
+
+func (h Hash) Equals(another []byte) bool {
 	for n := 0; n < Size; n++ {
 		if h[n] != another[n] {
 			return false
@@ -80,6 +96,10 @@ func (p PublicKey) Encrypt(msg []byte) ([]byte, error) {
 func (p PrivateKey) Sign(msg []byte) ([]byte, error) {
 	hashed := sha256.Sum256(msg)
 	return rsa.SignPKCS1v15(nil, p.key, crypto.SHA256, hashed[:])
+}
+
+func (p PublicKey) VerifyHash(hash Hash, signature []byte) bool {
+	return rsa.VerifyPKCS1v15(p.key, crypto.SHA256, hash[:], signature) == nil
 }
 
 func (p PublicKey) Verify(msg []byte, signature []byte) bool {

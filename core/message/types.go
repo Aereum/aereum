@@ -17,6 +17,8 @@
 // Package message contains data types related to aereum network.
 package message
 
+import "github.com/Aereum/aereum/core/crypto"
+
 type Serializer interface {
 	Serialize() []byte
 	Kind() byte
@@ -259,6 +261,11 @@ type Content struct {
 	ContentType      string
 	ContentData      []byte
 	AdvertisingToken []byte
+	HashContent      []byte
+	SubmitSignature  []byte
+	PublishSignature []byte
+	SubmitHash       crypto.Hash
+	PublishHash      crypto.Hash
 }
 
 func (s *Content) Kind() byte {
@@ -272,6 +279,9 @@ func (s *Content) Serialize() []byte {
 	PutString(s.ContentType, &bytes)
 	PutByteArray(s.ContentData, &bytes)
 	PutByteArray(s.AdvertisingToken, &bytes)
+	PutByteArray(s.HashContent, &bytes)
+	PutByteArray(s.SubmitSignature, &bytes)
+	PutByteArray(s.PublishSignature, &bytes)
 	return bytes
 }
 
@@ -283,6 +293,11 @@ func ParseContent(data []byte) *Content {
 	s.ContentType, position = ParseString(data, position)
 	s.ContentData, position = ParseByteArray(data, position)
 	s.AdvertisingToken, position = ParseByteArray(data, position)
+	s.HashContent, position = ParseByteArray(data, position)
+	s.SubmitHash = crypto.Hasher(data[0:position])
+	s.SubmitSignature, position = ParseByteArray(data, position)
+	s.PublishHash = crypto.Hasher(data[0:position])
+	s.PublishSignature, position = ParseByteArray(data, position)
 	if position == len(data) {
 		return &s
 	}

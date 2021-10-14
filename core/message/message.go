@@ -138,6 +138,20 @@ type Message struct {
 	WalletSignature []byte
 }
 
+type Payment struct {
+	DebitAcc    crypto.Hash
+	DebitValue  uint64
+	CreditAcc   crypto.Hash
+	CreditValue uint64
+}
+
+func (m *Message) Payments() Payment {
+	return Payment{
+		DebitAcc:   crypto.Hasher(m.FeeWallet),
+		DebitValue: m.FeeValue,
+	}
+}
+
 func GetHashAndEpochFromMessage(msg []byte) (crypto.Hash, int) {
 	epoch, _ := ParseUint64(msg, 1)
 	return crypto.Hasher(msg), int(epoch)

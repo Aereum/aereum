@@ -21,11 +21,13 @@ package wallet
 import (
 	"crypto/rand"
 	"testing"
+
+	"github.com/Aereum/aereum/core/crypto"
 )
 
 func TestWallet(t *testing.T) {
 	var w = NewMemoryWalletStore(0, 6)
-	hash := Hash{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}
+	hash := crypto.Hash{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}
 	w.Credit(hash, 10)
 	if ok, balance := w.Balance(hash); !ok || balance != 10 {
 		t.Errorf("wrong balance %v, %v\n", ok, balance)
@@ -43,11 +45,11 @@ func TestWallet(t *testing.T) {
 
 func TestWalletDoubling(t *testing.T) {
 	var w = NewMemoryWalletStore(0, 6)
-	maptest := make(map[Hash]uint64)
+	maptest := make(map[crypto.Hash]uint64)
 	for n := 0; n < 4096; n++ {
 		h := make([]byte, 32)
 		rand.Read(h)
-		var hash Hash
+		var hash crypto.Hash
 		for m := 0; m < size; m++ {
 			hash[m] = h[m]
 		}

@@ -22,6 +22,8 @@ import (
 	"fmt"
 	"sort"
 	"time"
+
+	"github.com/Aereum/aereum/core/crypto"
 )
 
 var cloneInterval time.Duration
@@ -32,21 +34,6 @@ func init() {
 	if err != nil {
 		panic(err)
 	}
-}
-
-type Hash [size]byte
-
-func (hash Hash) ToInt64() int64 {
-	return int64(hash[0]) + (int64(hash[1]) << 8) + (int64(hash[2]) << 16) + (int64(hash[3]) << 24)
-}
-
-func (hash Hash) Equals(b []byte) bool {
-	for n := 0; n < size; n++ {
-		if hash[n] != b[n] {
-			return false
-		}
-	}
-	return true
 }
 
 const (
@@ -73,12 +60,12 @@ type QueryResult struct {
 }
 
 type Query struct {
-	hash     Hash
-	param    int64
+	hash     crypto.Hash
+	param    []byte
 	response chan QueryResult
 }
 
-type QueryOperation func(found bool, hash Hash, b *Bucket, item int64, param int64) OperationResult
+type QueryOperation func(found bool, hash crypto.Hash, b *Bucket, item int64, data []byte) OperationResult
 
 type HashStore struct {
 	name             string
@@ -360,7 +347,7 @@ func (ia itemsArray) Swap(i, j int) {
 	ia[i], ia[j] = ia[j], ia[i]
 }
 
-func (hs *HashStore) Hash() Hash {
+func (hs *HashStore) Hash() crypto.Hash {
 	hasharray := make([]byte, 0)
 	hashBlock := 256 * 256 * 16 * hs.store.itemBytes
 	bucketCollection := make([]byte, 0, hashBlock)
@@ -380,5 +367,5 @@ func (hs *HashStore) Hash() Hash {
 		hash := sha256.Sum256(bucketCollection)
 		hasharray = append(hasharray, hash[:]...)
 	}
-	return Hash(sha256.Sum256(hasharray))
+	return crypto.Hasher(hasharray)
 }

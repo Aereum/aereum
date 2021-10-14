@@ -22,9 +22,7 @@ import (
 	"sync"
 
 	"github.com/Aereum/aereum/core/crypto"
-	"github.com/Aereum/aereum/core/hashdb"
 	"github.com/Aereum/aereum/core/message"
-	"github.com/Aereum/aereum/core/network"
 	"github.com/Aereum/aereum/core/wallet"
 )
 
@@ -37,36 +35,46 @@ type AudienceState struct {
 	Followers []*message.Follower
 }
 
-type SyncJob struct {
-	EpochStart uint64
-	socket     *network.SyncSocket
-}
-
 // State incorporates only the necessary information on the blockchain to
 // validate new messages. It should be used on validation nodes.
 type State struct {
-	Epoch             uint64
-	Subscribers       hashdb.HashStore                    // subscriber token hash
-	Captions          hashdb.HashStore                    // caption string hash
-	Wallets           wallet.Wallet                       // wallet token hash
-	Audiences         hashdb.HashStore                    // audience + Follower hash
-	AudienceRequests  map[crypto.Hash]*[]*message.Message // audience hash
-	PowerOfAttorney   hashdb.HashStore                    // power of attonery token hash
-	AdvertisingOffers map[hashdb.Hash]*message.Message    // advertising offer hash
-	SyncJobs          []SyncJob
+	Epoch       uint64
+	Subscribers wallet.HashVault // subscriber token hash
+	Captions    wallet.HashVault // caption string hash
+	Wallets     wallet.Wallet    // wallet token hash
+	Audiences   wallet.Audience  // audience + Follower hash
+	//AudienceRequests  map[crypto.Hash]*[]*message.Message // audience hash
+	PowerOfAttorney   wallet.HashStore                 // power of attonery token hash
+	AdvertisingOffers map[crypto.Hash]*message.Message // advertising offer hash
+	//SyncJobs          []SyncJob
 	*sync.Mutex
 }
 
-func (s *State) IncorporateMutations(mut NewBlockMuttations) {
+// validate message against current epoch state.
+func (s *State) ValidateMessage(msg *message.Message) bool {
+	pays := msg.Payments()
+	if ok, balance := s.Wallets.Balance(pays.DebitAcc); !ok || pays.DebitValue > balance {
+		return false
+	}
+	return true
+}
+
+type StateMutations struct {
+	State        *State
+	DeltaWallets map[crypto.Hash]int
+	messages     []*message.Message
+}
+
+func (s *State) FromNewBlock() {
+	block := StateMutations{
+		State:        s,
+		DeltaWallets: make(map[crypto.Hash]int),
+		messages:     make([]*message.Message, 0),
+	}
+}
+
+func (s *State) IncorporateMutations(mut StateMutations) {
 	s.Epoch += 1
-	for subscriber, _ := range mut.NewSubsribers {
-		s.Subscribers.InsertIfNotExists(subscriber)
-		// TODO: Treat Error
-	}
-	for caption, _ := range mut.NewCaptions {
-		s.Captions.InsertIfNotExists(caption)
-		// TODO: Treat Error
-	}
 	for wallet, delta := range mut.DeltaWallets {
 		if delta < 0 {
 			s.Wallets.Debit(wallet, -uint64(delta))
@@ -77,46 +85,30 @@ func (s *State) IncorporateMutations(mut NewBlockMuttations) {
 
 }
 
-type NewBlockMuttations struct {
-	State                     *State
-	NewSubsribers             map[crypto.Hash]struct{}
-	NewCaptions               map[crypto.Hash]struct{}
-	DeltaWallets              map[crypto.Hash]int
-	NewAudiences              map[crypto.Hash]*[]*message.Follower
-	ChangeAudicences          map[crypto.Hash]*[]*message.Follower
-	NewAudinceRequests        map[crypto.Hash]*message.Message
-	GrantPowerOfAttorney      map[crypto.Hash]crypto.Hash
-	RevokePowerOfAttorney     map[crypto.Hash]struct{}
-	NewAdvertisingOffers      map[crypto.Hash]*message.Message
-	AcceptedAdvertisingOffers map[crypto.Hash]*message.Message
-	Messages                  []*message.Message
-	Transfers                 []*message.Transfer
-}
-
-func (s *NewBlockMuttations) Withdraw(acc Hash, value int) bool {
-	funds := s.State.Wallets[acc]
+func (s *StateMutations) Withdraw(acc crypto.Hash, value int) bool {
+	_, funds := s.State.Wallets.Balance(acc)
 	delta := s.DeltaWallets[acc]
-	if funds+delta > value {
+	if int(funds)+delta > value {
 		s.DeltaWallets[acc] = delta - value
 		return true
 	}
 	return false
 }
 
-func (s *NewBlockMuttations) Credit(acc Hash, value int) {
+func (s *StateMutations) Credit(acc crypto.Hash, value int) {
 	delta := s.DeltaWallets[acc]
 	s.DeltaWallets[acc] = delta + value
 }
 
-func (s *NewBlockMuttations) Transfer(t *message.Transfer) bool {
-	hashFrom := Hash256(t.From)
-	funds := s.State.Wallets[hashFrom]
+func (s *StateMutations) Transfer(t *message.Transfer) bool {
+	hashFrom := crypto.Hasher(t.From)
+	_, funds := s.State.Wallets.Balance(hashFrom)
 	delta := s.DeltaWallets[hashFrom]
 	value := int(t.Value)
-	if funds+delta < value {
+	if int(funds)+delta < value {
 		return false
 	}
-	hashTo := Hash256(t.To)
+	hashTo := crypto.Hasher(t.To)
 	deltaTo := s.DeltaWallets[hashTo]
 	s.DeltaWallets[hashFrom] = delta - value
 	s.DeltaWallets[hashTo] = deltaTo + value
@@ -124,48 +116,13 @@ func (s *NewBlockMuttations) Transfer(t *message.Transfer) bool {
 	return true
 }
 
-func (s *NewBlockMuttations) RedistributeAdvertisemenetFee(value int, author crypto.Hash, audience []*message.Follower) {
+func (s *StateMutations) RedistributeAdvertisemenetFee(value int, author crypto.Hash, audience []*message.Follower) {
 	// 100% author provisory
 	s.Credit(author, value)
 }
 
-func (s *NewBlockMuttations) CanContent(m *message.Content, author, wallet crypto.Hash, fee int) bool {
-	if len(m.AdvertisingToken) > 0 {
-		hash := crypto.Hasher(m.AdvertisingToken)
-		if offerMsg, ok := s.State.AdvertisingOffers[hash]; ok {
-			if _, ok := s.AcceptedAdvertisingOffers[hash]; ok {
-				return false // message already reclaimed in the new block
-			}
-			// check if advertising claim is valid
-			offer := offerMsg.AsAdvertisingOffer()
-			if !bytes.Equal(offer.Audience, m.Audience) {
-				return false
-			}
-			if offer.ContentType != m.ContentType {
-				return false
-			}
-			if !bytes.Equal(offer.ContentData, m.ContentData) {
-				return false
-			}
-			// check if advertiser wallet have funds to pay
-			value := int(offer.AdvertisingFee)
-			if !s.Withdraw(Hash256(offerMsg.FeeWallet), value) {
-				return false
-			}
-			// use protocol redistribution rule
-			s.RedistributeAdvertisemenetFee(value, author, nil)
-			// mark offer as accepted
-			s.AcceptedAdvertisingOffers[hash] = offerMsg
-			return true
-		} else {
-			return false
-		}
-	}
-	return true
-}
-
-func (s *NewBlockMuttations) CanSubscribe(m *message.Subscribe, author Hash) bool {
-	caption := Hash256([]byte(m.Caption))
+func (s *State) CanSubscribe(m *message.Subscribe, author crypto.Hash) bool {
+	caption := crypto.Hasher([]byte(m.Caption))
 	if _, ok := s.State.Subscribers[author]; ok {
 		return false
 	}
@@ -183,14 +140,55 @@ func (s *NewBlockMuttations) CanSubscribe(m *message.Subscribe, author Hash) boo
 	return true
 }
 
-func (s *NewBlockMuttations) CanCreateAudience(m *message.CreateAudience) bool {
-	audience := crypto.Hasher(m.Token)
-
-	if _, ok := s.State.Audiences[audience]; ok {
+func (s *State) CanPublish(m *message.Content) bool {
+	ok, keys := s.Audiences.GetKeys(crypto.Hasher(m.Audience))
+	if !ok {
 		return false
 	}
-	if _, ok := s.NewAudieces[audience]; ok {
+	submissionPub, err := crypto.PublicKeyFromBytes(keys[0:crypto.PublicKeySize])
+	if err != nil {
 		return false
 	}
+	if !submissionPub.VerifyHash(m.SubmitHash, m.SubmitSignature) {
+		return false
+	}
+	if len(m.PublishSignature) > 0 {
+		pulishPub, err := crypto.PublicKeyFromBytes(keys[crypto.PublicKeySize : 2*crypto.PublicKeySize])
+		if err != nil {
+			return false
+		}
+		if !pulishPub.VerifyHash(m.PublishHash, m.PublishSignature) {
+			return false
+		}
+	}
+	// does not check if the advertisement offer has resources in the walltet to
+	// pay, only if the offer exists and the content matches
+	if len(m.AdvertisingToken) > 0 {
+		hash := crypto.Hasher(m.AdvertisingToken)
+		if offerMsg, ok := s.AdvertisingOffers[hash]; ok {
+			// check if advertising claim is valid
+			offer := offerMsg.AsAdvertisingOffer()
+			if !bytes.Equal(offer.Audience, m.Audience) {
+				return false
+			}
+			if offer.ContentType != m.ContentType {
+				return false
+			}
+			if !bytes.Equal(offer.ContentData, m.ContentData) {
+				return false
+			}
+			return true
+		} else {
+			return false
+		}
+	}
+	return true
+}
 
+func (s *State) CanCreateAudience(m *message.CreateAudience) bool {
+	token := crypto.Hasher(m.Token)
+	if !s.Audiences.Exists(token) {
+		return false
+	}
+	return true
 }

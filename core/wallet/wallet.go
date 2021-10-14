@@ -19,18 +19,25 @@ package wallet
 
 import (
 	"encoding/binary"
+
+	"github.com/Aereum/aereum/core/crypto"
 )
 
-func CreditOrDebit(found bool, hash Hash, b *Bucket, item int64, param int64) OperationResult {
+func CreditOrDebit(found bool, hash crypto.Hash, b *Bucket, item int64, param []byte) OperationResult {
+	sign := int64(1)
+	if param[0] == 1 {
+		sign = -1 * sign
+	}
+	value := sign * int64(binary.LittleEndian.Uint64(param[1:]))
 	if found {
 		acc := b.ReadItem(item)
 		balance := int64(binary.LittleEndian.Uint64(acc[size:]))
-		if param == 0 {
+		if value == 0 {
 			return OperationResult{
 				result: QueryResult{ok: true, data: acc},
 			}
 		}
-		newbalance := balance + param
+		newbalance := balance + value
 		if newbalance > 0 {
 			// update balance
 			acc := make([]byte, size+8)
@@ -52,9 +59,9 @@ func CreditOrDebit(found bool, hash Hash, b *Bucket, item int64, param int64) Op
 			}
 		}
 	} else {
-		if param >= 0 {
+		if value > 0 {
 			acc := make([]byte, size+8)
-			binary.LittleEndian.PutUint64(acc[size:], uint64(param))
+			binary.LittleEndian.PutUint64(acc[size:], uint64(value))
 			copy(acc[0:size], hash[:])
 			b.WriteItem(item, acc)
 			return OperationResult{
@@ -75,24 +82,30 @@ type Wallet struct {
 	hs *HashStore
 }
 
-func (w *Wallet) Credit(hash Hash, value uint64) bool {
+func (w *Wallet) Credit(hash crypto.Hash, value uint64) bool {
 	response := make(chan QueryResult)
-	ok, _ := w.hs.Query(Query{hash: hash, param: int64(value), response: response})
+	param := make([]byte, 9)
+	binary.LittleEndian.PutUint64(param[1:], value)
+	ok, _ := w.hs.Query(Query{hash: hash, param: param, response: response})
 	return ok
 }
 
-func (w *Wallet) Balance(hash Hash) (bool, uint64) {
+func (w *Wallet) Balance(hash crypto.Hash) (bool, uint64) {
 	response := make(chan QueryResult)
-	ok, data := w.hs.Query(Query{hash: hash, param: 0, response: response})
+	param := make([]byte, 9)
+	ok, data := w.hs.Query(Query{hash: hash, param: param, response: response})
 	if ok {
 		return true, binary.LittleEndian.Uint64(data[32:])
 	}
 	return false, 0
 }
 
-func (w *Wallet) Debit(hash Hash, value uint64) bool {
+func (w *Wallet) Debit(hash crypto.Hash, value uint64) bool {
 	response := make(chan QueryResult)
-	ok, _ := w.hs.Query(Query{hash: hash, param: -int64(value), response: response})
+	param := make([]byte, 9)
+	param[0] = 1
+	binary.LittleEndian.PutUint64(param[1:], value)
+	ok, _ := w.hs.Query(Query{hash: hash, param: param, response: response})
 	return ok
 }
 
