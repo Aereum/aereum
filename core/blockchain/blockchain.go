@@ -63,6 +63,94 @@ type StateMutations struct {
 	State        *State
 	DeltaWallets map[crypto.Hash]int
 	messages     []*message.Message
+	transfers    []*message.Transfer
+}
+
+func (s *StateMutations) Validate(msg []byte) bool {
+	if message.IsTransfer(msg) {
+		transfer, _ := message.ParseTranfer(msg)
+		if transfer != nil {
+			return false
+		}
+		if s.Debit(crypto.Hasher(transfer.From), transfer.Value + transfer.Fee) {
+			s.Credit(transfer.To, int(transfer.Value))
+			s.transfers = append(s.transfers, transfer)
+			return true
+		}
+	} 
+	if !message.IsMessage(msg) {
+		return false
+	}
+	message, err := message.ParseMessage(msg)
+	if message == nil || err != nil {
+		return false
+	}
+	payments := message.Payments()
+	if !s.CanPay(payments) {
+		return false
+	}
+	switch message.MessageType(msg) {
+	case SubscribeMsg:
+		subscribe := message.AsSubscribe()
+		if subscribe == nil {
+			return false
+		} 
+		//
+	case AboutMsg:
+		about := message.AsAbout()
+		if about == nil {
+			return false
+		}
+		//
+	case CreateAudienceMsg:
+		createAudience := message.AsCreateAudiece()
+		if createAudience == nil {
+			return false
+		}
+
+	case JoinAudienceMsg:
+		joinAudience := message.AsJoinAudience()
+		if joinAudience == nil {
+			return false
+		}
+
+	case AudienceChangeMsg:
+		audienceChange := message.AsChangeAudience()
+		if audienceChange == nil {
+			return false
+		}
+	
+	case AdvertisingOfferMsg:
+		advertisingOffer := message.AsAdvertisingOffer()
+		if advertisingOffer == nil {
+			return false
+		}
+
+	case ContentMsg:
+		content := message.AsContent()
+		if content == nil {
+			return false
+		}
+
+	case GrantPowerOfAttorneyMsg:
+		grantPower := message.AsGrantPowerOfAttorney()
+		if grantPower == nil {
+			return false
+		}
+
+	case RevokePowerOfAttorneyMsg:
+		revokePower := message.AsRevokePowerOfAttorney()
+		if revokePower == nil {
+			return false
+		}	
+	}
+	for n, acc := range payments.DebitAcc {
+		s.Debit(acc, int(payments.DebitValue[n]))
+	}
+	for n, acc := range payments.CreditAcc {
+		s.Credit(acc, int(payments.CreditValue[n]))
+	}
+	return true
 }
 
 func (s *State) FromNewBlock() {
@@ -70,6 +158,18 @@ func (s *State) FromNewBlock() {
 		State:        s,
 		DeltaWallets: make(map[crypto.Hash]int),
 		messages:     make([]*message.Message, 0),
+	}
+	validator := make(chan []byte)
+	sealBlock := make(chan struct{}) 
+	go func () {
+		for {
+			select{
+			case msg := <-validator:
+				//
+			case <-sealBlock:
+				//
+			}
+		}
 	}
 }
 
@@ -85,7 +185,7 @@ func (s *State) IncorporateMutations(mut StateMutations) {
 
 }
 
-func (s *StateMutations) Withdraw(acc crypto.Hash, value int) bool {
+func (s *StateMutations) Debit(acc crypto.Hash, value int) bool {
 	_, funds := s.State.Wallets.Balance(acc)
 	delta := s.DeltaWallets[acc]
 	if int(funds)+delta > value {
@@ -98,6 +198,17 @@ func (s *StateMutations) Withdraw(acc crypto.Hash, value int) bool {
 func (s *StateMutations) Credit(acc crypto.Hash, value int) {
 	delta := s.DeltaWallets[acc]
 	s.DeltaWallets[acc] = delta + value
+}
+
+func (s *StateMutations) CanPay(payment message.Payment) bool {
+	for n, acc := range payment.DebitAcc {
+		_, funds := s.State.Wallets.Balance(acc)
+		delta := s.DeltaWallets[payment.DebitValue[n]]
+		if int(funds)+delta < value {
+			return false
+		}
+	}
+	return true
 }
 
 func (s *StateMutations) Transfer(t *message.Transfer) bool {
@@ -113,30 +224,6 @@ func (s *StateMutations) Transfer(t *message.Transfer) bool {
 	s.DeltaWallets[hashFrom] = delta - value
 	s.DeltaWallets[hashTo] = deltaTo + value
 	s.Transfers = append(s.Transfers, t)
-	return true
-}
-
-func (s *StateMutations) RedistributeAdvertisemenetFee(value int, author crypto.Hash, audience []*message.Follower) {
-	// 100% author provisory
-	s.Credit(author, value)
-}
-
-func (s *State) CanSubscribe(m *message.Subscribe, author crypto.Hash) bool {
-	caption := crypto.Hasher([]byte(m.Caption))
-	if _, ok := s.State.Subscribers[author]; ok {
-		return false
-	}
-	if _, ok := s.NewSubsribers[author]; ok {
-		return false
-	}
-	if _, ok := s.State.Captions[caption]; ok {
-		return false
-	}
-	if _, ok := s.NewCaptions[caption]; ok {
-		return false
-	}
-	s.NewSubsribers[author] = struct{}{}
-	s.NewCaptions[caption] = struct{}{}
 	return true
 }
 

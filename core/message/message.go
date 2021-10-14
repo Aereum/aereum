@@ -1,4 +1,4 @@
-// Copyright 2021 The aereum Authors
+// Copyright 2021 The Aereum Authors
 // This file is part of the aereum library.
 //
 // The aereum library is free software: you can redistribute it and/or modify
@@ -18,11 +18,15 @@
 package message
 
 import (
-	"crypto/sha256"
+	"errors"
 	"fmt"
 
 	"github.com/Aereum/aereum/core/crypto"
 )
+
+var ErrCouldNotParseMessage = errors.New("could not parse message")
+var ErrCouldNotParseSignature = errors.New("could not parse signature")
+var ErrInvalidSignature = errors.New("invalid signature")
 
 const (
 	GenesisMsg byte = iota
@@ -37,75 +41,8 @@ const (
 	ContentMsg
 	GrantPowerOfAttorneyMsg
 	RevokePowerOfAttorneyMsg
-	UnkownMessageType
-	// to be used in other versions
+	UnkownMessageType // to be used in other versions
 )
-
-type Genesis struct {
-}
-
-type Transfer struct {
-	From      []byte
-	To        []byte
-	Value     uint64
-	Epoch     uint64
-	Signature []byte
-}
-
-func (t *Transfer) serializeWithouSignature() []byte {
-	bytes := []byte{TransferMsg}
-	PutByteArray(t.From, &bytes)
-	PutByteArray(t.To, &bytes)
-	PutUint64(t.Value, &bytes)
-	PutUint64(t.Epoch, &bytes)
-	return bytes
-}
-
-func (t *Transfer) Sign(privateKey crypto.PrivateKey) bool {
-	bytes := t.serializeWithouSignature()
-	sign, err := privateKey.Sign(bytes)
-	if err != nil {
-		return false
-	}
-	t.Signature = sign
-	return true
-}
-
-func (t *Transfer) Serialize() []byte {
-	bytes := t.serializeWithouSignature()
-	PutByteArray(t.Signature, &bytes)
-	return bytes
-}
-
-func ParseTranfer(data []byte) (*Transfer, error) {
-	if len(data) == 0 || data[0] != TransferMsg {
-		return nil, fmt.Errorf("wrong message type")
-	}
-	length := len(data)
-	var msg Transfer
-	position := 1
-	msg.From, position = ParseByteArray(data, position)
-	msg.To, position = ParseByteArray(data, position)
-	msg.Value, position = ParseUint64(data, position)
-	msg.Epoch, position = ParseUint64(data, position)
-	if position >= length {
-		return nil, fmt.Errorf("could not parse message")
-	}
-	hashed := sha256.Sum256(data[0:position])
-	msg.Signature, position = ParseByteArray(data, position)
-	if position-1 > length || len(msg.Signature) == 0 {
-		return nil, fmt.Errorf("could not parse message")
-	}
-	// check signature
-	if publicKey, err := crypto.PublicKeyFromBytes(msg.From); err != nil {
-		return nil, fmt.Errorf("could not parse signature")
-	} else {
-		if !publicKey.Verify(hashed[:], msg.Signature) {
-			return nil, fmt.Errorf("invalid signature")
-		}
-	}
-	return &msg, nil
-}
 
 func NewMessage(AuthorKey, WalletKey crypto.PrivateKey, msg Serializer,
 	FeeValue, Epoch uint64, PowerOfAttorney crypto.PrivateKey) *Message {
@@ -126,29 +63,44 @@ func NewMessage(AuthorKey, WalletKey crypto.PrivateKey, msg Serializer,
 	return message
 }
 
+func MessageType(msg []byte) byte {
+	if len(msg) == 0 {
+		return UnkownMessageType
+	}
+	if msg[0] >= UnkownMessageType {
+		return UnkownMessageType
+	}
+	return msg[0]
+}
+
+func IsMessage(msg []byte) bool {
+	msgType := MessageType(msg)
+	return msgType > TransferMsg && msgType < UnkownMessageType
+}
+
 type Message struct {
 	MessageType     byte
 	Epoch           uint64
-	Author          []byte
+	Author          []byte // must be a subscriber public key, can be anonoymous on transfer
 	Message         []byte
-	FeeWallet       []byte
+	FeeWallet       []byte // can be any wallet
 	FeeValue        uint64
-	PowerOfAttorney []byte
-	Signature       []byte
+	PowerOfAttorney []byte // must be authorized by the subscriber
+	Signature       []byte // either author or power of attorney
 	WalletSignature []byte
 }
 
 type Payment struct {
-	DebitAcc    crypto.Hash
-	DebitValue  uint64
-	CreditAcc   crypto.Hash
-	CreditValue uint64
+	DebitAcc    []crypto.Hash
+	DebitValue  []uint64
+	CreditAcc   []crypto.Hash
+	CreditValue []uint64
 }
 
 func (m *Message) Payments() Payment {
 	return Payment{
-		DebitAcc:   crypto.Hasher(m.FeeWallet),
-		DebitValue: m.FeeValue,
+		DebitAcc:   []crypto.Hash{crypto.Hasher(m.FeeWallet)},
+		DebitValue: []uint64{m.FeeValue},
 	}
 }
 
@@ -214,7 +166,7 @@ func ParseMessage(data []byte) (*Message, error) {
 	msg.PowerOfAttorney, position = ParseByteArray(data, position)
 	// check author or power of attorney signature
 	if position-1 > length {
-		return nil, fmt.Errorf("could not parse message")
+		return nil, ErrCouldNotParseMessage
 	}
 	msgToVerify := data[0:position]
 	msg.Signature, position = ParseByteArray(data, position)
@@ -223,27 +175,27 @@ func ParseMessage(data []byte) (*Message, error) {
 		token = msg.PowerOfAttorney
 	}
 	if publicKey, err := crypto.PublicKeyFromBytes(token); err != nil {
-		return nil, fmt.Errorf("could not parse author key")
+		return nil, ErrCouldNotParseSignature
 	} else {
 		if !publicKey.Verify(msgToVerify, msg.Signature) {
-			return nil, fmt.Errorf("invalid author signature")
+			return nil, ErrInvalidSignature
 		}
 	}
 
 	// check wallet signature
 	if position-1 > length {
-		return nil, fmt.Errorf("could not parse message")
+		return nil, ErrCouldNotParseMessage
 	}
 	msgToVerify = data[0:position]
 	msg.WalletSignature, position = ParseByteArray(data, position)
 	if position != length {
-		return nil, fmt.Errorf("could not parse message")
+		return nil, ErrCouldNotParseMessage
 	}
 	if publicKey, err := crypto.PublicKeyFromBytes(msg.FeeWallet); err != nil {
-		return nil, fmt.Errorf("could not parse wallet key")
+		return nil, ErrCouldNotParseSignature
 	} else {
 		if !publicKey.Verify(msgToVerify, msg.WalletSignature) {
-			return nil, fmt.Errorf("invalid wallet signature")
+			return nil, ErrInvalidSignature
 		}
 	}
 	return &msg, nil
