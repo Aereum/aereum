@@ -72,7 +72,7 @@ func (w *Audience) Close() bool {
 }
 
 func NewMemoryAudienceStore(epoch uint64, bitsForBucket int64) *Wallet {
-	itemsize := int64(32 + 3*crypto.PublicKeySize)
+	itemsize := int64(32 + 2*crypto.PublicKeySize)
 	nbytes := 56 + int64(1<<bitsForBucket)*(itemsize*6+8)
 	bytestore := NewMemoryStore(nbytes)
 	bucketstore := NewBucketStore(itemsize, 6, bytestore)

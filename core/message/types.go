@@ -79,9 +79,9 @@ func ParseAbout(data []byte) *About {
 }
 
 type CreateAudience struct {
-	Token []byte // Private Key allows change in this structure
-	//Moderate []byte // Private Key allows to validate join requests
-	//Write    []byte // Private Key allows to submit messages to audience
+	Token    []byte // Private Key allows change in this structure
+	Moderate []byte // Private Key allows to validate join requests
+	Submit   []byte // Private Key allows to submit messages to audience
 	//Reply    []byte // Private Key allows to interact with messages
 	//Read     []byte // Private Key allows to decrypt messages to audience
 	Description string
@@ -94,6 +94,8 @@ func (s *CreateAudience) Kind() byte {
 func (s *CreateAudience) Serialize() []byte {
 	bytes := make([]byte, 0)
 	PutByteArray(s.Token, &bytes)
+	PutByteArray(s.Moderate, &bytes)
+	PutByteArray(s.Submit, &bytes)
 	PutString(s.Description, &bytes)
 	return bytes
 }
@@ -102,6 +104,17 @@ func ParseCreateAudience(data []byte) *CreateAudience {
 	s := CreateAudience{}
 	position := 0
 	s.Token, position = ParseByteArray(data, position)
+	if _, err := crypto.PublicKeyFromBytes(s.Token); err != nil {
+		return nil
+	}
+	s.Moderate, position = ParseByteArray(data, position)
+	if _, err := crypto.PublicKeyFromBytes(s.Moderate); err != nil {
+		return nil
+	}
+	s.Submit, position = ParseByteArray(data, position)
+	if _, err := crypto.PublicKeyFromBytes(s.Submit); err != nil {
+		return nil
+	}
 	s.Description, position = ParseString(data, position)
 	if position == len(data) {
 		return &s
@@ -111,7 +124,6 @@ func ParseCreateAudience(data []byte) *CreateAudience {
 
 type JoinAudience struct {
 	Audience []byte
-	Expire   uint64
 }
 
 func (s *JoinAudience) Kind() byte {
@@ -121,7 +133,6 @@ func (s *JoinAudience) Kind() byte {
 func (s *JoinAudience) Serialize() []byte {
 	bytes := make([]byte, 0)
 	PutByteArray(s.Audience, &bytes)
-	PutUint64(s.Expire, &bytes)
 	return bytes
 }
 
@@ -129,7 +140,50 @@ func ParseJoinAudience(data []byte) *JoinAudience {
 	s := JoinAudience{}
 	position := 0
 	s.Audience, position = ParseByteArray(data, position)
-	s.Expire, position = ParseUint64(data, position)
+	if position == len(data) {
+		return &s
+	}
+	return nil
+}
+
+type AcceptJoinAudience struct {
+	Request            *Message
+	ModeratorSignature []byte
+	Read               []byte
+	Moderate           []byte
+	Write              []byte
+}
+
+func (s *AcceptJoinAudience) Kind() byte {
+	return AcceptJoinAudienceMsg
+}
+
+func (s *AcceptJoinAudience) Serialize() []byte {
+	bytes := make([]byte, 0)
+	PutByteArray(s.Request.Serialize(), &bytes)
+	PutByteArray(s.ModeratorSignature, &bytes)
+	PutByteArray(s.Read, &bytes)
+	PutByteArray(s.Moderate, &bytes)
+	PutByteArray(s.Write, &bytes)
+	return bytes
+}
+
+func ParseAcceptJoinAudience(data []byte) *AcceptJoinAudience {
+	s := AcceptJoinAudience{}
+	position := 0
+	request, position := ParseByteArray(data, position)
+	msg, err := ParseMessage(request)
+	if err != nil {
+		return nil
+	}
+	if msg.AsJoinAudience() == nil {
+		return nil
+	}
+	s.Request = msg
+	s.ModeratorSignature, position = ParseByteArray(data, position)
+	s.Read, position = ParseByteArray(data, position)
+	s.Moderate, position = ParseByteArray(data, position)
+	s.Write, position = ParseByteArray(data, position)
 	if position == len(data) {
 		return &s
 	}
@@ -141,11 +195,50 @@ type Follower struct {
 	Secret []byte
 }
 
+func (f *Follower) Serialize() []byte {
+	bytes := make([]byte, 0)
+	PutByteArray(f.Token, &bytes)
+	PutByteArray(f.Secret, &bytes)
+	return bytes
+}
+
+func ParseFollowers(data []byte, position int) ([]*Follower, int) {
+	if position+1 >= len(data) {
+		return nil, len(data) + 1
+	}
+	addLength := int(data[position]) | int(data[position+1])<<8
+	position += 2
+	followers := make([]*Follower, addLength)
+	for n := 0; n < addLength; n++ {
+		followers[n] = &Follower{}
+		followers[n].Token, position = ParseByteArray(data, position)
+		followers[n].Secret, position = ParseByteArray(data, position)
+
+	}
+	return followers, position
+}
+
+func SerializeFollowers(followers []*Follower) []byte {
+	bytes := make([]byte, 0)
+	l := len(followers)
+	if l > 65535 {
+		l = 65535
+	}
+	bytes = append(bytes, byte(l), byte(l>>8))
+	for n := 0; n < l; n++ {
+		PutByteArray(followers[n].Serialize(), &bytes)
+	}
+	return bytes
+}
+
 type ChangeAudience struct {
-	Audience []byte
-	Add      []*Follower
-	Remove   []*Follower
-	Details  string
+	Audience     []byte
+	Moderate     []byte // Private Key allows to validate join requests
+	Submit       []byte // Private Key allows to submit messages to audience
+	ReadKeys     []*Follower
+	SubmitKeys   []*Follower
+	ModerateKeys []*Follower
+	Details      string
 }
 
 func (s *ChangeAudience) Kind() byte {
@@ -153,62 +246,26 @@ func (s *ChangeAudience) Kind() byte {
 }
 
 func (s *ChangeAudience) Serialize() []byte {
-	bytes := make([]byte, 0)
+	bytes := []byte{AudienceChangeMsg}
 	PutByteArray(s.Audience, &bytes)
-	l := len(s.Add)
-	if l > 65535 {
-		l = 65535
-	}
-	bytes = append(bytes, byte(l), byte(l>>8))
-	for n := 0; n < l; n++ {
-		PutByteArray(s.Add[n].Token, &bytes)
-		PutByteArray(s.Add[n].Secret, &bytes)
-	}
-	l = len(s.Remove)
-	if l > 65535 {
-		l = 65535
-	}
-	bytes = append(bytes, byte(l), byte(l>>8))
-	for n := 0; n < l; n++ {
-		PutByteArray(s.Remove[n].Token, &bytes)
-		PutByteArray(s.Remove[n].Secret, &bytes)
-	}
+	PutByteArray(s.Moderate, &bytes)
+	PutByteArray(s.Submit, &bytes)
+	PutByteArray(SerializeFollowers(s.ReadKeys), &bytes)
+	PutByteArray(SerializeFollowers(s.SubmitKeys), &bytes)
+	PutByteArray(SerializeFollowers(s.ModerateKeys), &bytes)
 	PutString(s.Details, &bytes)
 	return bytes
 }
 
 func ParseChangeAudience(data []byte) *ChangeAudience {
-	length := len(data)
 	s := ChangeAudience{}
 	position := 0
 	s.Audience, position = ParseByteArray(data, position)
-	if position+1 >= length {
-		return nil
-	}
-	addLength := int(data[position]) | int(data[position+1])<<8
-	position += 2
-	// add
-	add := make([]*Follower, addLength)
-	for n := 0; n < addLength; n++ {
-		f := Follower{}
-		f.Token, position = ParseByteArray(data, position)
-		f.Secret, position = ParseByteArray(data, position)
-		add[n] = &f
-	}
-	s.Add = add
-	if position+1 >= length {
-		return nil
-	}
-	removeLength := int(data[position]) | int(data[position+1])<<8
-	position += 2
-	remove := make([]*Follower, removeLength)
-	for n := 0; n < removeLength; n++ {
-		f := Follower{}
-		f.Token, position = ParseByteArray(data, position)
-		f.Secret, position = ParseByteArray(data, position)
-		remove[n] = &f
-	}
-	s.Remove = remove
+	s.Moderate, position = ParseByteArray(data, position)
+	s.Submit, position = ParseByteArray(data, position)
+	s.ReadKeys, position = ParseFollowers(data, position)
+	s.SubmitKeys, position = ParseFollowers(data, position)
+	s.ModerateKeys, position = ParseFollowers(data, position)
 	s.Details, position = ParseString(data, position)
 	if position == len(data) {
 		return &s
@@ -260,7 +317,7 @@ type Content struct {
 	ContentSecret    []byte
 	ContentType      string
 	ContentData      []byte
-	AdvertisingToken []byte
+	AdvertisingOffer *AdvertisingOffer
 	HashContent      []byte
 	SubmitSignature  []byte
 	PublishSignature []byte
@@ -278,7 +335,7 @@ func (s *Content) Serialize() []byte {
 	PutByteArray(s.ContentSecret, &bytes)
 	PutString(s.ContentType, &bytes)
 	PutByteArray(s.ContentData, &bytes)
-	PutByteArray(s.AdvertisingToken, &bytes)
+	PutByteArray(s.AdvertisingOffer.Serialize(), &bytes)
 	PutByteArray(s.HashContent, &bytes)
 	PutByteArray(s.SubmitSignature, &bytes)
 	PutByteArray(s.PublishSignature, &bytes)
@@ -292,7 +349,14 @@ func ParseContent(data []byte) *Content {
 	s.ContentSecret, position = ParseByteArray(data, position)
 	s.ContentType, position = ParseString(data, position)
 	s.ContentData, position = ParseByteArray(data, position)
-	s.AdvertisingToken, position = ParseByteArray(data, position)
+	advertisingoffer, position := ParseByteArray(data, position)
+	if len(advertisingoffer) > 0 {
+		parsed := ParseAdvertisingOffer(advertisingoffer)
+		if parsed == nil {
+			return nil
+		}
+		s.AdvertisingOffer = parsed
+	}
 	s.HashContent, position = ParseByteArray(data, position)
 	s.SubmitHash = crypto.Hasher(data[0:position])
 	s.SubmitSignature, position = ParseByteArray(data, position)
@@ -305,8 +369,7 @@ func ParseContent(data []byte) *Content {
 }
 
 type GrantPowerOfAttorney struct {
-	Token  []byte
-	Expire uint64
+	Token []byte
 }
 
 func (s *GrantPowerOfAttorney) Kind() byte {
@@ -316,7 +379,6 @@ func (s *GrantPowerOfAttorney) Kind() byte {
 func (s *GrantPowerOfAttorney) Serialize() []byte {
 	bytes := make([]byte, 0)
 	PutByteArray(s.Token, &bytes)
-	PutUint64(s.Expire, &bytes)
 	return bytes
 }
 
@@ -324,7 +386,6 @@ func ParseGrantPowerOfAttorney(data []byte) *GrantPowerOfAttorney {
 	s := GrantPowerOfAttorney{}
 	position := 0
 	s.Token, position = ParseByteArray(data, position)
-	s.Expire, position = ParseUint64(data, position)
 	if position == len(data) {
 		return &s
 	}

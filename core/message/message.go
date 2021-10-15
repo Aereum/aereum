@@ -36,6 +36,7 @@ const (
 	AboutMsg
 	CreateAudienceMsg
 	JoinAudienceMsg
+	AcceptJoinAudienceMsg
 	AudienceChangeMsg
 	AdvertisingOfferMsg
 	ContentMsg
@@ -215,6 +216,10 @@ func (m *Message) AsCreateAudiece() *CreateAudience {
 
 func (m *Message) AsJoinAudience() *JoinAudience {
 	return ParseJoinAudience(m.Message)
+}
+
+func (m *Message) AsAcceptJoinAudience() *AcceptJoinAudience {
+	return ParseAcceptJoinAudience(m.Message)
 }
 
 func (m *Message) AsChangeAudience() *ChangeAudience {
