@@ -239,6 +239,7 @@ type ChangeAudience struct {
 	SubmitKeys   []*Follower
 	ModerateKeys []*Follower
 	Details      string
+	Signature    []byte
 }
 
 func (s *ChangeAudience) Kind() byte {
@@ -254,6 +255,7 @@ func (s *ChangeAudience) Serialize() []byte {
 	PutByteArray(SerializeFollowers(s.SubmitKeys), &bytes)
 	PutByteArray(SerializeFollowers(s.ModerateKeys), &bytes)
 	PutString(s.Details, &bytes)
+	PutByteArray(s.Signature, &bytes)
 	return bytes
 }
 
@@ -267,10 +269,19 @@ func ParseChangeAudience(data []byte) *ChangeAudience {
 	s.SubmitKeys, position = ParseFollowers(data, position)
 	s.ModerateKeys, position = ParseFollowers(data, position)
 	s.Details, position = ParseString(data, position)
-	if position == len(data) {
-		return &s
+	hashed := crypto.Hasher(data[0:position])
+	s.Signature, position = ParseByteArray(data, position)
+	if position != len(data) {
+		return nil
 	}
-	return nil
+	key, err := crypto.PublicKeyFromBytes(s.Audience)
+	if err != nil {
+		return nil
+	}
+	if !key.VerifyHash(hashed, s.Signature) {
+		return nil
+	}
+	return &s
 }
 
 type AdvertisingOffer struct {

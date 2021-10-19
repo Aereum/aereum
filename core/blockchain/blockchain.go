@@ -26,17 +26,8 @@ import (
 	"github.com/Aereum/aereum/core/wallet"
 )
 
-type Blockchain struct {
-	Messages []message.Message
-}
 
-type AudienceState struct {
-	Token     []byte
-	Followers []*message.Follower
-}
-
-
-func (s *State) FromNewBlock() {
+func (s *State) FormNewBlock() {
 	block := StateMutations{
 		State:        s,
 		DeltaWallets: make(map[crypto.Hash]int),
@@ -48,7 +39,10 @@ func (s *State) FromNewBlock() {
 		for {
 			select{
 			case msg := <-validator:
-				//
+				if message.IsMessage(msg) {
+					s.ValidateMessage(msg)
+				}
+			
 			case <-sealBlock:
 				//
 			}

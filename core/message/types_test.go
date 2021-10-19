@@ -61,7 +61,6 @@ func TestCreateAudience(t *testing.T) {
 func TestJoinAudience(t *testing.T) {
 	s := &JoinAudience{
 		Audience: []byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10},
-		Expire:   15,
 	}
 	bytes := s.Serialize()
 	r := ParseJoinAudience(bytes)
@@ -71,7 +70,7 @@ func TestJoinAudience(t *testing.T) {
 }
 
 func TestChangeAudience(t *testing.T) {
-	f1 := Follower{
+	/*f1 := Follower{
 		Token:  []byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10},
 		Secret: []byte{1, 2, 3, 4, 5, 6, 7, 8, 13},
 	}
@@ -79,11 +78,9 @@ func TestChangeAudience(t *testing.T) {
 		Token:  []byte{1, 2, 3, 4, 5, 6, 7, 9, 10},
 		Secret: []byte{1, 2, 3, 4, 5, 6, 7, 13},
 	}
-
+	*/
 	s := &ChangeAudience{
 		Audience: []byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10},
-		Add:      []*Follower{&f1, &f2, &f1},
-		Remove:   []*Follower{&f2, &f1},
 		Details:  "Details",
 	}
 	bytes := s.Serialize()
@@ -111,11 +108,10 @@ func TestAdvertisingOffer(t *testing.T) {
 
 func TestContent(t *testing.T) {
 	s := &Content{
-		Audience:         []byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 11},
-		ContentSecret:    []byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 1},
-		ContentType:      "string",
-		ContentData:      []byte{13, 2, 3, 4, 5, 6, 7, 8, 9, 11},
-		AdvertisingToken: []byte{1, 2, 5, 6, 7, 8},
+		Audience:      []byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 11},
+		ContentSecret: []byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 1},
+		ContentType:   "string",
+		ContentData:   []byte{13, 2, 3, 4, 5, 6, 7, 8, 9, 11},
 	}
 	bytes := s.Serialize()
 	r := ParseContent(bytes)
@@ -126,8 +122,7 @@ func TestContent(t *testing.T) {
 
 func TestGrantPowerOfAttorney(t *testing.T) {
 	s := &GrantPowerOfAttorney{
-		Token:  []byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 11},
-		Expire: 167,
+		Token: []byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 11},
 	}
 	bytes := s.Serialize()
 	r := ParseGrantPowerOfAttorney(bytes)

@@ -38,6 +38,15 @@ type Transfer struct {
 	Signature   []byte
 }
 
+func (t *Transfer) Payments() Payment {
+	return Payment{
+		DebitAcc:    []crypto.Hash{crypto.Hasher(t.From)},
+		DebitValue:  []uint64{t.Value + t.Fee},
+		CreditAcc:   []crypto.Hash{crypto.Hasher(t.To)},
+		CreditValue: []uint64{t.Value},
+	}
+}
+
 func (t *Transfer) serializeWithouSignature() []byte {
 	bytes := []byte{TransferMsg}
 	PutUint64(t.Epoch, &bytes)
