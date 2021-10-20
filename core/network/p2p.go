@@ -60,11 +60,10 @@ func NewMessageServer() {
 	logger.MustOrPanic(err)
 	go func() {
 		for {
-			_, err := listener.Accept()
+			conn, err := listener.Accept()
 			if err != nil {
-
+				return
 			}
-
 		}
 	}()
 }
