@@ -11,11 +11,6 @@ import (
 
 const maxAdvertisingOfferDelay = 1000
 
-type MsgValidator struct {
-	msg []byte
-	ok  chan bool
-}
-
 type State struct {
 	Epoch             uint64
 	Subscribers       wallet.HashVault // subscriber token hash
@@ -259,6 +254,16 @@ func (s *State) ValidadeRevokePowerOfAttorney(revokePower message.RevokePowerOfA
 		return s.Mutations.IncorporateMessage(msg)
 	}
 	return true
+}
+
+func (s *State) Validate(info []byte) bool {
+	if message.IsTransfer(info) {
+		return s.ValidateTransfer(info)
+	}
+	if message.IsMessage(info) {
+		return s.ValidateMessage(info)
+	}
+	return false
 }
 
 func (s *State) ValidateTransfer(trf []byte) bool {

@@ -1,21 +1,18 @@
 package network
 
 import (
+	"github.com/Aereum/aereum/core/blockchain"
 	"github.com/Aereum/aereum/core/crypto"
 )
 
 const maxEpochReceiveMessage = 100
+const validatorBuffer = 1000
 
 type HashedMessage struct {
 	nonpeer bool
 	msg     []byte
 	hash    crypto.Hash
 	epoch   int
-}
-
-type ValidateMessage struct {
-	msg *HashedMessage
-	ok  chan ValidatedMessage
 }
 
 type ValidatedMessage struct {
@@ -25,21 +22,24 @@ type ValidatedMessage struct {
 
 // ReceiveQueue spins a goroutine that receives messages strips out duplicated
 // messages, send to validator.
-func ReceiveQueue(validator chan ValidateMessage, blockformation chan struct{},
-	epoch int) chan *HashedMessage {
-
-	msgChan := make(chan *HashedMessage)
+func ReceiveQueue(state blockchain.State, blockformation chan struct{}) chan *HashedMessage {
+	// one channel to receive messages from peer conections
+	msgReceiveChan := make(chan *HashedMessage)
+	// one channel to send non-repeated message for validade against state
+	toValidateChan := make(chan *HashedMessage, validatorBuffer) // buffered
+	// one channel to receive validation of message from state
 	validatedChan := make(chan ValidatedMessage)
-	currentEpoch := epoch
 	// stores all received hashes for each recent epoch
+	currentEpoch := state.epoch
 	recentHashes := make([]map[crypto.Hash]struct{}, maxEpochReceiveMessage)
 	for n := 0; n < maxEpochReceiveMessage; n++ {
 		recentHashes[n] = make(map[crypto.Hash]struct{})
 	}
+	// receiver message go-routine
 	go func() {
 		for {
 			select {
-			case hashMsg := <-msgChan:
+			case hashMsg := <-msgReceiveChan:
 				if deltaEpoch := int(hashMsg.epoch) - currentEpoch; deltaEpoch < 100 && deltaEpoch > 0 {
 					isNew := true
 					for hash, _ := range recentHashes[deltaEpoch] {
@@ -50,7 +50,7 @@ func ReceiveQueue(validator chan ValidateMessage, blockformation chan struct{},
 					}
 					if isNew {
 						recentHashes[deltaEpoch][hashMsg.hash] = struct{}{}
-						validator <- ValidateMessage{msg: hashMsg, ok: validatedChan}
+						toValidateChan <- ValidateMessage{msg: hashMsg, ok: validatedChan}
 					}
 				}
 			case validated := <-validatedChan:
@@ -65,5 +65,14 @@ func ReceiveQueue(validator chan ValidateMessage, blockformation chan struct{},
 			}
 		}
 	}()
+	// validation message go-routine
+	go func() {
+		for {
+			msg := <-toValidateChan
+			ok := state.Validate(msg.msg)
+			validatedChan <- ValidatedMessage{msg: msg, ok: ok}
+		}
+	}()
+
 	return msgChan
 }
