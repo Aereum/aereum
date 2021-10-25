@@ -1,36 +1,60 @@
 package network
 
 import (
-	"crypto"
+	"github.com/Aereum/aereum/core/crypto"
 
 	"github.com/Aereum/aereum/core/blockchain"
 )
 
+const (
+	validationNodePort             = 7080
+	blockBroadcastPort             = 7801
+	messageReceiveConnectionPort   = 7802
+	messageBroadcastConnectionPort = 7803
+	syncPort                       = 7804
+)
 
 type MsgValidator struct {
 	msg []byte
 	ok  chan bool
 }
 
-type MsgValidatorChan chan *MsgValidator 
-}
+type MsgValidatorChan chan *MsgValidator
 
 type Node struct {
 	State      blockchain.State
-	validation chan *HashedMessage
 	Validators ValidatorNetwork
+	Messengers MessengerNetwork
+	Atendees   AttendeeNetwork
 }
 
-type NodeState struct {
-	epoch         int
-	trustedPeers  map[crypto.Hash]string
-	validadorPort int
-	prvKey        crypto.PrivateKey
-}
-
-func NewNode(state NodeState) *Node {
+func NewNode(state blockchain.State,
+	prvKey crypto.PrivateKey,
+	trusted map[crypto.PublicKey]string) *Node {
+	//
+	hashedMsgChan, validateConnChan := ReceiveQueue(state, make(chan struct{}))
 	node := &Node{}
-	blockchain.MsgValidator
-	msgChan := ReceiveQueue(,) 
-	node.Validators = NewValidatorNetwork(state.validadorPort, state.prvKey, ,state.trustedPeers)
+	blockChan := make(chan *blockchain.Block)
+	node.Validators = NewValidatorNetwork(
+		validationNodePort,
+		prvKey,
+		hashedMsgChan,
+		validateConnChan,
+		trusted,
+	)
+
+	node.Messengers = *NewMessengerNetwork(
+		messageReceiveConnectionPort,
+		prvKey,
+		hashedMsgChan,
+		validateConnChan,
+	)
+
+	node.Atendees = NewAttendeeNetwork(
+		blockBroadcastPort,
+		prvKey,
+		blockChan,
+		validateConnChan,
+	)
+	return node
 }

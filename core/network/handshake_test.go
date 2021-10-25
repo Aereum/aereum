@@ -12,6 +12,15 @@ type ciphernonce struct {
 	nonce []byte
 }
 
+var validator chan ValidatedConnection = func() chan ValidatedConnection {
+	validator := make(chan ValidatedConnection)
+	go func() {
+		validate := <-validator
+		validate.ok <- true
+	}()
+	return validator
+}()
+
 func TestSecureConnection(t *testing.T) {
 
 	pubSv, prvSv := crypto.RandomAsymetricKey()
@@ -19,7 +28,7 @@ func TestSecureConnection(t *testing.T) {
 	cipher := make(chan ciphernonce)
 	go func() {
 		conn, _ := listener.Accept()
-		sec, err := PerformServerHandShake(conn, prvSv)
+		sec, err := PerformServerHandShake(conn, prvSv, validator)
 		if err != nil {
 			t.Error(err)
 		}

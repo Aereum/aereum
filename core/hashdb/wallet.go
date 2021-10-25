@@ -1,21 +1,11 @@
-package main
+package hashdb
 
-import (
+/*import (
 	"crypto/rand"
-	"crypto/sha256"
 	"fmt"
 	"sync"
 	"time"
 )
-
-const size = sha256.Size
-
-type Hash [size]byte
-
-type account struct {
-	token   Hash
-	balance int
-}
 
 func (one Hash) Equal(another Hash) bool {
 	for n := 0; n < size; n++ {
@@ -26,11 +16,8 @@ func (one Hash) Equal(another Hash) bool {
 	return true
 }
 
-const bucketSize = 6
 const accountSize = size + 8
 const bucketBytes = bucketSize * accountSize
-
-var zeroHash = Hash{}
 
 type walletMap struct {
 	bitsForBucket int
@@ -38,26 +25,6 @@ type walletMap struct {
 	data          []account
 	bucketCount   []uint8
 	overflows     map[Hash]int
-}
-
-type Wallet struct {
-	wallet *walletMap
-	*sync.Mutex
-}
-
-func NewWallet(bitsForBucket int) *Wallet {
-	if bitsForBucket > 4*8 || bitsForBucket < 0 {
-		panic("invalid wallet parameters")
-	}
-	return &Wallet{
-		wallet: &walletMap{
-			bitsForBucket: bitsForBucket,
-			mask:          1<<bitsForBucket - 1,
-			bucketCount:   make([]uint8, 1<<bitsForBucket),
-			data:          make([]account, bucketSize*(1<<(bitsForBucket))),
-			overflows:     make(map[Hash]int),
-		},
-	}
 }
 
 func (b *Wallet) Withdraw(hash Hash, value int) bool {
@@ -190,3 +157,4 @@ func main() {
 	fmt.Println(time.Since(start))
 
 }
+*/

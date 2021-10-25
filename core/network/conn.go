@@ -50,7 +50,7 @@ func (s *SecureConnection) ReadMessage() ([]byte, error) {
 
 type handlePort func(conn *SecureConnection)
 
-func ListenTCP(port int, handler handlePort, prvKey crypto.PrivateKey) {
+func ListenTCP(port int, handler handlePort, prvKey crypto.PrivateKey, validator chan ValidatedConnection) {
 	listener, err := net.Listen("tcp", fmt.Sprintf(":%v", port))
 	if err != nil {
 		panic(err)
@@ -58,7 +58,7 @@ func ListenTCP(port int, handler handlePort, prvKey crypto.PrivateKey) {
 	for {
 		conn, err := listener.Accept()
 		if err == nil {
-			secureConnection, err := PerformServerHandShake(conn, prvKey)
+			secureConnection, err := PerformServerHandShake(conn, prvKey, validator)
 			if err != nil {
 				conn.Close()
 			} else {

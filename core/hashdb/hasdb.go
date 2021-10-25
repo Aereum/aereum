@@ -17,21 +17,18 @@
 // Package message contains data types related to aereum network.
 package hashdb
 
+/*
 import (
 	"bytes"
-	"crypto/sha256"
 	"errors"
 	"os"
 )
 
 // these configurations should be altered latter
 const maxHashesPerSegment = 10
-const size = sha256.Size
 
 var errSegmentIsFull = errors.New("hash segment is full")
 var errFileOfWrongSize = errors.New("data file size incompatible with segments bytes")
-
-type Hash [size]byte
 
 type HashStore interface {
 	Exists(hash Hash) (bool, error)
@@ -211,3 +208,4 @@ func MultipleFileHashDb(files []ReaderWriterAt, segmentsBytes int) *MultipleFile
 		files:         files,
 	}
 }
+*/

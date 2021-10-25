@@ -18,39 +18,54 @@
 package blockchain
 
 import (
-	"bytes"
-	"sync"
+	"time"
 
 	"github.com/Aereum/aereum/core/crypto"
-	"github.com/Aereum/aereum/core/message"
-	"github.com/Aereum/aereum/core/wallet"
 )
 
+type Block struct {
+	Parent       crypto.Hash
+	Hash         crypto.Hash
+	Publisher    []byte
+	PublishedAt  time.Time
+	Messages     [][]byte
+	Transactions [][]byte
+}
 
-func (s *State) FormNewBlock() {
-	block := StateMutations{
-		State:        s,
-		DeltaWallets: make(map[crypto.Hash]int),
-		messages:     make([]*message.Message, 0),
-	}
-	validator := make(chan []byte)
-	sealBlock := make(chan struct{}) 
-	go func () {
-		for {
-			select{
-			case msg := <-validator:
-				if message.IsMessage(msg) {
-					s.ValidateMessage(msg)
-				}
-			
-			case <-sealBlock:
-				//
-			}
+func (b *Block) Serialize() []byte {
+	return nil
+}
+
+func (s *State) FreezeBlock() {
+
+}
+
+func (s *State) SealBlock() {
+	for hash, delta := range s.Mutations.DeltaWallets {
+		if delta > 0 {
+			s.Wallets.Credit(hash, uint64(delta))
+		} else if delta < 0 {
+			s.Wallets.Debit(hash, uint64(-delta))
 		}
+	}
+	for hash := range s.Mutations.GrantPower {
+		s.PowerOfAttorney.Insert(hash)
+	}
+	for hash := range s.Mutations.RevokePower {
+		s.PowerOfAttorney.Remove(hash)
+	}
+	for hash := range s.Mutations.NewSubscriber {
+		s.Subscribers.Insert(hash)
+	}
+	for hash := range s.Mutations.NewCaption {
+		s.Captions.Insert(hash)
+	}
+	for audience, keys := range s.Mutations.NewAudiences {
+		s.Audiences.SetKeys(audience, keys)
 	}
 }
 
-func (s *State) IncorporateMutations(mut StateMutations) {
+/*func (s *State) IncorporateMutations(mut StateMutations) {
 	s.Epoch += 1
 	for wallet, delta := range mut.DeltaWallets {
 		if delta < 0 {
@@ -103,4 +118,4 @@ func (s *StateMutations) Transfer(t *message.Transfer) bool {
 	s.Transfers = append(s.Transfers, t)
 	return true
 }
-
+*/

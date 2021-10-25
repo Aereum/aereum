@@ -2,7 +2,6 @@ package blockchain
 
 import (
 	"bytes"
-	"sync"
 
 	"github.com/Aereum/aereum/core/crypto"
 	"github.com/Aereum/aereum/core/message"
@@ -17,28 +16,30 @@ type State struct {
 	Captions          wallet.HashVault // caption string hash
 	Wallets           wallet.Wallet    // wallet token hash
 	Audiences         wallet.Audience  // audience + Follower hash
-	AdvertisingOffers map[uint64]wallet.HashStore
-	PowerOfAttorney   wallet.HashStore // power of attonery token hash
+	AdvertisingOffers map[uint64]wallet.HashVault
+	PowerOfAttorney   wallet.HashVault // power of attonery token hash
+	Frozen            *StateMutations
 	IsMutating        bool
 	Mutations         *StateMutations
-	*sync.Mutex
 }
 
 func (s *State) AuthorExists(m *message.Message) bool {
-	return s.Subscribers.Exists(crypto.Hasher(Author))
+	return s.Subscribers.Exists(crypto.Hasher(m.Author))
 }
 
-func (s *State) ValidadeSubscribe(msg message.Message) bool {
+func (s *State) ValidadeSubscribe(msg *message.Message) bool {
 	subscribe := msg.AsSubscribe()
 	if subscribe == nil {
 		return false
 	}
 	// token must be new... caption must be new.
-	if s.AuthorExists(msg) || s.Captions.Exists(crypto.Hasher([]byte(message.Caption))) {
+	isNew := s.Subscribers.Exists(crypto.Hasher(msg.Author)) ||
+		s.Captions.Exists(crypto.Hasher([]byte(subscribe.Caption)))
+	if isNew {
 		return false
 	}
 	if s.IsMutating {
-		if !s.Mutations.SetNewHash(subscribe.Token) {
+		if !s.Mutations.SetNewSubscriber(crypto.Hasher(subscribe.Token), crypto.Hasher([]byte(subscribe.Caption))) {
 			return false
 		}
 		return s.Mutations.IncorporateMessage(msg)
@@ -46,13 +47,14 @@ func (s *State) ValidadeSubscribe(msg message.Message) bool {
 	return true
 }
 
-func (s *State) ValidateAbout(msg message.Message) bool {
+func (s *State) ValidateAbout(msg *message.Message) bool {
+	about := msg.AsAbout()
 	if about == nil {
 		return false
 	}
 	// no further tests are necessary
 	if s.IsMutating {
-		hash := about.Author
+		hash := crypto.Hasher(msg.Author)
 		if !s.Mutations.SetNewHash(hash) {
 			return false
 		}
@@ -61,18 +63,18 @@ func (s *State) ValidateAbout(msg message.Message) bool {
 	return true
 }
 
-func (s *State) ValidadeCreateAudience(msg message.Message) bool {
+func (s *State) ValidadeCreateAudience(msg *message.Message) bool {
 	createAudience := msg.AsCreateAudiece()
 	if createAudience == nil {
 		return false
 	}
 	// must be a new audience token
 	hash := crypto.Hasher(createAudience.Token)
-	if s.Audiences.Exists(crypto.Hasher(createAudince.Token)) {
+	if s.Audiences.Exists(crypto.Hasher(createAudience.Token)) {
 		return false
 	}
 	if s.IsMutating {
-		if !s.Mutations.SetNewHash(hash) {
+		if !s.Mutations.SetNewAudience(hash, append(createAudience.Moderate, createAudience.Submit...)) {
 			return false
 		}
 		return s.Mutations.IncorporateMessage(msg)
@@ -80,8 +82,8 @@ func (s *State) ValidadeCreateAudience(msg message.Message) bool {
 	return true
 }
 
-func (s *State) ValidadeJoinAudience(msg message.Message) bool {
-	joinAudience = msg.AsJoinAudience()
+func (s *State) ValidadeJoinAudience(msg *message.Message) bool {
+	joinAudience := msg.AsJoinAudience()
 	if joinAudience == nil {
 		return false
 	}
@@ -98,7 +100,7 @@ func (s *State) ValidadeJoinAudience(msg message.Message) bool {
 	return true
 }
 
-func (s *State) ValidadeAcceptJoinAudience(msg message.Message) bool {
+func (s *State) ValidadeAcceptJoinAudience(msg *message.Message) bool {
 	acceptJoinAudience := msg.AsAcceptJoinAudience()
 	if acceptJoinAudience == nil {
 		return false
@@ -120,7 +122,7 @@ func (s *State) ValidadeAcceptJoinAudience(msg message.Message) bool {
 		return false
 	}
 	if s.IsMutating {
-		hash := append(request.Audience, acceptJoinAudience.Request.Author...)
+		hash := crypto.Hasher(append(request.Audience, acceptJoinAudience.Request.Author...))
 		if !s.Mutations.SetNewHash(hash) {
 			return false
 		}
@@ -129,13 +131,13 @@ func (s *State) ValidadeAcceptJoinAudience(msg message.Message) bool {
 	return true
 }
 
-func (s *State) ValidadeAudienceChange(msg message.Message) bool {
+func (s *State) ValidadeAudienceChange(msg *message.Message) bool {
 	audienceChange := msg.AsChangeAudience()
 	if audienceChange == nil {
 		return false
 	}
 	if s.IsMutating {
-		if !s.Mutations.SetNewHash(crypto.Hasher(audienceChange.Audience)) {
+		if !s.Mutations.SetNewAudience(crypto.Hasher(audienceChange.Audience), append(audienceChange.Moderate, audienceChange.Submit...)) {
 			return false
 		}
 		return s.Mutations.IncorporateMessage(msg)
@@ -143,7 +145,7 @@ func (s *State) ValidadeAudienceChange(msg message.Message) bool {
 	return true
 }
 
-func (s *State) ValidadateAdvertisingOffer(msg message.Message) bool {
+func (s *State) ValidadateAdvertisingOffer(msg *message.Message) bool {
 	advertisingOffer := msg.AsAdvertisingOffer()
 	if advertisingOffer == nil {
 		return false
@@ -160,7 +162,7 @@ func (s *State) ValidadateAdvertisingOffer(msg message.Message) bool {
 	return true
 }
 
-func (s *State) ValidateContent(msg message.Message) bool {
+func (s *State) ValidateContent(msg *message.Message) bool {
 	m := msg.AsContent()
 	if m == nil {
 		return false
@@ -190,9 +192,10 @@ func (s *State) ValidateContent(msg message.Message) bool {
 	// pay, only if the offer exists and the content matches
 	if m.AdvertisingOffer != nil {
 		// check if living adv offer is within the block state
+		offer := m.AdvertisingOffer
 		hashed := crypto.Hasher(m.AdvertisingOffer.Serialize())
 		if advHashStore, ok := s.AdvertisingOffers[m.AdvertisingOffer.Expire]; ok {
-			if !advHashStore.Exists(hashed) {
+			if !(advHashStore.Exists(hashed)) {
 				return false
 			}
 		} else {
@@ -209,29 +212,28 @@ func (s *State) ValidateContent(msg message.Message) bool {
 			return false
 		}
 		if s.IsMutating {
-			if !s.Mutations.SetNewHash(hashed) {
+			if !s.Mutations.SetNewUseAdvOffer(hashed) {
 				return false
 			}
 			return s.Mutations.IncorporateMessage(msg)
 		}
 		return true
-	} else {
-		return false
 	}
-	return true
+	return false
 }
 
-func (s *State) ValidateGrantPowerOfAttorney(grantPower message.GrantPowerOfAttorney) bool {
+func (s *State) ValidateGrantPowerOfAttorney(msg *message.Message) bool {
+	grantPower := msg.AsGrantPowerOfAttorney()
 	if grantPower == nil {
 		return false
 	}
-	if !s.AuthorExists(crypto.Hasher(grantPower.Token)) {
+	if !s.AuthorExists(msg) {
 		return false
 	}
 	// TOCHECK is it possible to recycle a Grant PoA after revoking?
 	if s.IsMutating {
-		hash := crypto.Hasher(append(message.Author, grantPower.Token...))
-		if !s.Mutations.SetNewHash(hash) {
+		hash := crypto.Hasher(append(msg.Author, grantPower.Token...))
+		if !s.Mutations.SetNewGrantPower(hash) {
 			return false
 		}
 		return s.Mutations.IncorporateMessage(msg)
@@ -239,16 +241,17 @@ func (s *State) ValidateGrantPowerOfAttorney(grantPower message.GrantPowerOfAtto
 	return true
 }
 
-func (s *State) ValidadeRevokePowerOfAttorney(revokePower message.RevokePowerOfAttorney) bool {
+func (s *State) ValidadeRevokePowerOfAttorney(msg *message.Message) bool {
+	revokePower := msg.AsRevokePowerOfAttorney()
 	if revokePower == nil {
 		return false
 	}
-	hash := crypto.Hasher(append(message.Author, grantPower.Token...))
+	hash := crypto.Hasher(append(msg.Author, revokePower.Token...))
 	if !s.PowerOfAttorney.Exists(hash) {
 		return false
 	}
 	if s.IsMutating {
-		if !s.Mutations.SetNewHash(hash) {
+		if !s.Mutations.SetNewRevokePower(hash) {
 			return false
 		}
 		return s.Mutations.IncorporateMessage(msg)
@@ -267,12 +270,12 @@ func (s *State) Validate(info []byte) bool {
 }
 
 func (s *State) ValidateTransfer(trf []byte) bool {
-	transfer, err := message.ParseTranfer()
+	transfer, err := message.ParseTranfer(trf)
 	if err != nil {
 		return false
 	}
 	if s.IsMutating {
-		payments := trf.Payments()
+		payments := transfer.Payments()
 		if !s.Mutations.CanPay(payments) {
 			return false
 		}
@@ -289,33 +292,34 @@ func (s *State) ValidateMessage(msg []byte) bool {
 		return false
 	}
 	parsed, err := message.ParseMessage(msg)
-	if message == nil || err != nil {
+	if parsed == nil || err != nil {
 		return false
 	}
-	if !s.Subscribers.Exists(crypto.Hasher(Author)) && message.MessageType(msg) != message.SubscribeMsg {
+	if !s.Subscribers.Exists(crypto.Hasher(parsed.Author)) &&
+		message.MessageType(msg) != message.SubscribeMsg {
 		return false
 	}
 	switch message.MessageType(msg) {
-	case SubscribeMsg:
-		return s.ValidadeSubscribe(parsed.AsSubscribe())
-	case AboutMsg:
-		return s.ValidateAbout(parsed.AsAbout())
-	case CreateAudienceMsg:
-		return s.ValidadeCreateAudience(parsed.AsCreateAudiece())
-	case JoinAudienceMsg:
-		return s.ValidadeJoinAudience(parsed.AsJoinAudience())
-	case AcceptJoinAudienceMsg:
-		return s.ValidadeAcceptJoinAudience(parsed.AsAcceptJoinAudience())
-	case AudienceChangeMsg:
-		return s.ValidadeAudienceChange(parsed.AsChangeAudience())
-	case AdvertisingOfferMsg:
-		return s.ValidadateAdvertisingOffer(parsed.AsAdvertisingOffer())
-	case ContentMsg:
-		return s.ValidadeContent(parsed.AsContent())
-	case GrantPowerOfAttorneyMsg:
-		return s.ValidateGrantPowerOfAttorney(parsed.AsGrantPowerOfAttorney())
-	case RevokePowerOfAttorneyMsg:
-		return s.ValidateGrantPowerOfAttorney(parsed.AsRevokePowerOfAttorney())
+	case message.SubscribeMsg:
+		return s.ValidadeSubscribe(parsed)
+	case message.AboutMsg:
+		return s.ValidateAbout(parsed)
+	case message.CreateAudienceMsg:
+		return s.ValidadeCreateAudience(parsed)
+	case message.JoinAudienceMsg:
+		return s.ValidadeJoinAudience(parsed)
+	case message.AcceptJoinAudienceMsg:
+		return s.ValidadeAcceptJoinAudience(parsed)
+	case message.AudienceChangeMsg:
+		return s.ValidadeAudienceChange(parsed)
+	case message.AdvertisingOfferMsg:
+		return s.ValidadateAdvertisingOffer(parsed)
+	case message.ContentMsg:
+		return s.ValidateContent(parsed)
+	case message.GrantPowerOfAttorneyMsg:
+		return s.ValidateGrantPowerOfAttorney(parsed)
+	case message.RevokePowerOfAttorneyMsg:
+		return s.ValidateGrantPowerOfAttorney(parsed)
 	}
 	return true
 }

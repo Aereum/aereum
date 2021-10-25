@@ -30,7 +30,7 @@ func (v ValidatorNetwork) Broadcast(msg []byte, msgType byte, token crypto.Hash)
 }
 
 func NewValidatorNetwork(port int, prvKey crypto.PrivateKey, comm chan *HashedMessage,
-	dial map[crypto.PublicKey]string) ValidatorNetwork {
+	validator chan ValidatedConnection, dial map[crypto.PublicKey]string) ValidatorNetwork {
 	listener, err := net.Listen("tcp", fmt.Sprintf(":%v", port))
 	network := make(ValidatorNetwork)
 	if err != nil {
@@ -41,7 +41,7 @@ func NewValidatorNetwork(port int, prvKey crypto.PrivateKey, comm chan *HashedMe
 		for {
 			conn, err := listener.Accept()
 			if err == nil {
-				secureConnection, err := PerformServerHandShake(conn, prvKey)
+				secureConnection, err := PerformServerHandShake(conn, prvKey, validator)
 				if err != nil {
 					conn.Close()
 				} else {
@@ -52,7 +52,7 @@ func NewValidatorNetwork(port int, prvKey crypto.PrivateKey, comm chan *HashedMe
 		}
 	}()
 	for publicKey, address := range dial {
-		go func() {
+		go func(address string, publicKey crypto.PublicKey) {
 			net, err := net.Dial("tcp", address)
 			if err != nil {
 				return
@@ -63,7 +63,7 @@ func NewValidatorNetwork(port int, prvKey crypto.PrivateKey, comm chan *HashedMe
 			}
 			network[crypto.Hasher(publicKey.ToBytes())] = conn
 			handleValidatorConnection(conn, comm)
-		}()
+		}(address, publicKey)
 	}
 	return network
 }

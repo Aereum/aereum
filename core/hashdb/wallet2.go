@@ -1,6 +1,6 @@
 package hashdb
 
-import (
+/*import (
 	"crypto/sha256"
 	"sync"
 )
@@ -58,3 +58,4 @@ func (w *Wallet) Withdraw(hash Hash, value int) boll {
 		bucket[n].has
 	}
 }
+*/

@@ -20,9 +20,14 @@ type ValidatedMessage struct {
 	ok  bool
 }
 
+type ValidatedConnection struct {
+	token crypto.Hash
+	ok    chan bool
+}
+
 // ReceiveQueue spins a goroutine that receives messages strips out duplicated
 // messages, send to validator.
-func ReceiveQueue(state blockchain.State, blockformation chan struct{}) chan *HashedMessage {
+func ReceiveQueue(state blockchain.State, blockformation chan struct{}) (chan *HashedMessage, chan ValidatedConnection) {
 	// one channel to receive messages from peer conections
 	msgReceiveChan := make(chan *HashedMessage)
 	// one channel to send non-repeated message for validade against state
@@ -30,7 +35,8 @@ func ReceiveQueue(state blockchain.State, blockformation chan struct{}) chan *Ha
 	// one channel to receive validation of message from state
 	validatedChan := make(chan ValidatedMessage)
 	// stores all received hashes for each recent epoch
-	currentEpoch := state.epoch
+	validConnChan := make(chan ValidatedConnection)
+	currentEpoch := int(state.Epoch)
 	recentHashes := make([]map[crypto.Hash]struct{}, maxEpochReceiveMessage)
 	for n := 0; n < maxEpochReceiveMessage; n++ {
 		recentHashes[n] = make(map[crypto.Hash]struct{})
@@ -50,7 +56,7 @@ func ReceiveQueue(state blockchain.State, blockformation chan struct{}) chan *Ha
 					}
 					if isNew {
 						recentHashes[deltaEpoch][hashMsg.hash] = struct{}{}
-						toValidateChan <- ValidateMessage{msg: hashMsg, ok: validatedChan}
+						toValidateChan <- hashMsg
 					}
 				}
 			case validated := <-validatedChan:
@@ -65,14 +71,18 @@ func ReceiveQueue(state blockchain.State, blockformation chan struct{}) chan *Ha
 			}
 		}
 	}()
-	// validation message go-routine
+	// validation message//connection go-routine
 	go func() {
 		for {
-			msg := <-toValidateChan
-			ok := state.Validate(msg.msg)
-			validatedChan <- ValidatedMessage{msg: msg, ok: ok}
+			select {
+			case msg := <-toValidateChan:
+				ok := state.Validate(msg.msg)
+				validatedChan <- ValidatedMessage{msg: msg, ok: ok}
+			case validConn := <-validConnChan:
+				validConn.ok <- state.Subscribers.Exists(validConn.token)
+			}
 		}
 	}()
 
-	return msgChan
+	return msgReceiveChan, validConnChan
 }

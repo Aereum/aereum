@@ -18,30 +18,30 @@
 package blockchain
 
 import (
-	"github.com/Aereum/aereum/core/hashdb"
+	"github.com/Aereum/aereum/core/crypto"
 	"github.com/Aereum/aereum/core/message"
 )
 
 type Header struct {
 	Token        []byte
-	Parent       hashdb.Hash
+	Parent       crypto.Hash
 	ProofOfChain []byte
 	Mutations    StateMutation
 }
 
 type StateMutation struct {
 	parentState               *State
-	NewSubsribers             map[hashdb.Hash]struct{} // hash token -> hash caption
-	NewCaptions               map[hashdb.Hash]struct{}
-	DeltaWallets              map[hashdb.Hash]int
-	NewAudiences              map[hashdb.Hash]struct{} // Author + Token hash
-	GrantPowerOfAttorney      map[hashdb.Hash]struct{}
-	RevokePowerOfAttorney     map[hashdb.Hash]struct{}
-	NewAdvertisingOffers      map[hashdb.Hash]*message.Message
-	AcceptedAdvertisingOffers map[hashdb.Hash]struct{}
+	NewSubsribers             map[crypto.Hash]struct{} // hash token -> hash caption
+	NewCaptions               map[crypto.Hash]struct{}
+	DeltaWallets              map[crypto.Hash]int
+	NewAudiences              map[crypto.Hash]struct{} // Author + Token hash
+	GrantPowerOfAttorney      map[crypto.Hash]struct{}
+	RevokePowerOfAttorney     map[crypto.Hash]struct{}
+	NewAdvertisingOffers      map[crypto.Hash]*message.Message
+	AcceptedAdvertisingOffers map[crypto.Hash]struct{}
 	messages                  []*[]byte
 }
 
 func (s *StateMutation) Serialize() []byte {
-
+	return nil
 }

@@ -132,7 +132,7 @@ func PerformClientHandShake(conn net.Conn, prvKey crypto.PrivateKey, remotePub c
 	}, nil
 }
 
-func PerformServerHandShake(conn net.Conn, prvKey crypto.PrivateKey) (*SecureConnection, error) {
+func PerformServerHandShake(conn net.Conn, prvKey crypto.PrivateKey, validator chan ValidatedConnection) (*SecureConnection, error) {
 	resp, err := readhs(conn)
 	if err != nil {
 		return nil, err
@@ -140,6 +140,13 @@ func PerformServerHandShake(conn net.Conn, prvKey crypto.PrivateKey) (*SecureCon
 	remoteKeyBytes, resp := prependRead(resp)
 	if remoteKeyBytes == nil {
 		return nil, errCouldNotSecure
+	}
+	// check if public key is a member: TODO check if is a validator
+	ok := make(chan bool)
+	validator <- ValidatedConnection{token: crypto.Hasher(remoteKeyBytes), ok: ok}
+	if !<-ok {
+		conn.Close()
+		return nil, errors.New("not a valid public key")
 	}
 	remoteKey, err := crypto.PublicKeyFromBytes(remoteKeyBytes)
 	if err != nil {
