@@ -20,6 +20,23 @@ type StateMutations struct {
 	transfers     []*message.Transfer
 }
 
+func NewStateMutation(state *State) *StateMutations {
+	return &StateMutations{
+		State:         state,
+		DeltaWallets:  make(map[crypto.Hash]int),
+		Hashes:        make(map[crypto.Hash]struct{}),
+		GrantPower:    make(map[crypto.Hash]struct{}),
+		RevokePower:   make(map[crypto.Hash]struct{}),
+		UseAdvOffer:   make(map[crypto.Hash]uint64),
+		NewAdvOffer:   make(map[crypto.Hash]uint64),
+		NewSubscriber: make(map[crypto.Hash]struct{}),
+		NewCaption:    make(map[crypto.Hash]struct{}),
+		NewAudiences:  make(map[crypto.Hash][]byte),
+		messages:      make([]*message.Message, 0),
+		transfers:     make([]*message.Transfer, 0),
+	}
+}
+
 func (s *StateMutations) SetNewHash(hash crypto.Hash) bool {
 	if _, ok := s.Hashes[hash]; ok {
 		return false

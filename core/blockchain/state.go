@@ -2,6 +2,7 @@ package blockchain
 
 import (
 	"bytes"
+	"time"
 
 	"github.com/Aereum/aereum/core/crypto"
 	"github.com/Aereum/aereum/core/message"
@@ -22,9 +23,10 @@ type State struct {
 	//Frozen            *StateMutations
 	IsMutating bool
 	Mutations  *StateMutations
+	Key        crypto.PrivateKey
 }
 
-func (s *State) IncorporateMutations() *Block {
+func (s *State) IncorporateMutations() []byte {
 	for hash, delta := range s.Mutations.DeltaWallets {
 		if delta > 0 {
 			s.Wallets.Credit(hash, uint64(delta))
@@ -63,7 +65,23 @@ func (s *State) IncorporateMutations() *Block {
 		delete(s.AdvertisingOffers, s.Epoch+1)
 	}
 	s.Epoch += 1
-	return nil
+	block := Block{
+		Parent:       s.Hash,
+		Publisher:    s.Key.PublicKey().ToBytes(),
+		PublishedAt:  time.Now(),
+		Messages:     make([][]byte, len(s.Mutations.messages)),
+		Transactions: make([][]byte, len(s.Mutations.transfers)),
+	}
+	for n, msg := range s.Mutations.messages {
+		block.Messages[n] = msg.Serialize()
+	}
+	for n, trf := range s.Mutations.transfers {
+		block.Transactions[n] = trf.Serialize()
+	}
+	s.Mutations = NewStateMutation(s)
+	data, hash := block.Serialize()
+	s.Hash = hash
+	return data
 }
 
 func (s *State) AuthorExists(m *message.Message) bool {
@@ -366,26 +384,3 @@ func (s *State) ValidateMessage(msg []byte) bool {
 	}
 	return true
 }
-
-/*if message.IsTransfer(msg) {
-	transfer, _ := message.ParseTranfer(msg)
-	if transfer != nil {
-		return false
-	}
-	if s.Debit(crypto.Hasher(transfer.From), transfer.Value+transfer.Fee) {
-		s.Credit(transfer.To, int(transfer.Value))
-		s.transfers = append(s.transfers, transfer)
-		return true
-	}
-}*/
-
-//for n, acc := range payments.DebitAcc {
-//	s.Debit(acc, int(payments.DebitValue[n]))
-//}
-//for n, acc := range payments.CreditAcc {
-//	s.Credit(acc, int(payments.CreditValue[n]))
-//}
-//payments := message.Payments()
-//if !s.CanPay(payments) {
-//	return false
-//}

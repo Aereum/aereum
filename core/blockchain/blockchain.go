@@ -49,10 +49,10 @@ func (b *Block) SerializeWithoutHash() []byte {
 	return serialized
 }
 
-func (b *Block) Serialize() []byte {
+func (b *Block) Serialize() ([]byte, crypto.Hash) {
 	serialized := b.SerializeWithoutHash()
 	hash := crypto.Hasher(serialized)
-	return append(serialized[0:crypto.Size], hash[:]...)
+	return append(serialized[0:crypto.Size], hash[:]...), hash
 }
 
 func ParseBlock(data []byte) *Block {

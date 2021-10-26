@@ -53,7 +53,8 @@ func (m AttendeeNetwork) handleAttendeeConnection(conn *SecureConnection, comm c
 	for {
 		block := <-comm
 		for hash, conn := range m.attendees {
-			if err := conn.WriteMessage(block.Serialize()); err != nil {
+			blockBytes, _ := block.Serialize()
+			if err := conn.WriteMessage(blockBytes); err != nil {
 				conn.conn.Close()
 				delete(m.attendees, hash)
 			}
