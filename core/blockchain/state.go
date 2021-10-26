@@ -11,6 +11,7 @@ import (
 const maxAdvertisingOfferDelay = 1000
 
 type State struct {
+	Hash              crypto.Hash
 	Epoch             uint64
 	Subscribers       wallet.HashVault // subscriber token hash
 	Captions          wallet.HashVault // caption string hash
@@ -18,9 +19,51 @@ type State struct {
 	Audiences         wallet.Audience  // audience + Follower hash
 	AdvertisingOffers map[uint64]wallet.HashVault
 	PowerOfAttorney   wallet.HashVault // power of attonery token hash
-	Frozen            *StateMutations
-	IsMutating        bool
-	Mutations         *StateMutations
+	//Frozen            *StateMutations
+	IsMutating bool
+	Mutations  *StateMutations
+}
+
+func (s *State) IncorporateMutations() *Block {
+	for hash, delta := range s.Mutations.DeltaWallets {
+		if delta > 0 {
+			s.Wallets.Credit(hash, uint64(delta))
+		} else if delta < 0 {
+			s.Wallets.Debit(hash, uint64(-delta))
+		}
+	}
+	for hash := range s.Mutations.GrantPower {
+		s.PowerOfAttorney.Insert(hash)
+	}
+	for hash := range s.Mutations.RevokePower {
+		s.PowerOfAttorney.Remove(hash)
+	}
+	for hash := range s.Mutations.NewSubscriber {
+		s.Subscribers.Insert(hash)
+	}
+	for hash := range s.Mutations.NewCaption {
+		s.Captions.Insert(hash)
+	}
+	for hash, keys := range s.Mutations.NewAudiences {
+		s.Audiences.SetKeys(hash, keys)
+	}
+	for hash, epoch := range s.Mutations.UseAdvOffer {
+		hashvault := s.AdvertisingOffers[epoch]
+		hashvault.Remove(hash)
+	}
+	for hash, epoch := range s.Mutations.NewAdvOffer {
+		if hashvault, ok := s.AdvertisingOffers[epoch]; ok {
+			hashvault.Insert(hash)
+		} else {
+			//wallet.NewHashVault("advertising", epoch, )
+		}
+	}
+	if hashvault, ok := s.AdvertisingOffers[s.Epoch+1]; ok {
+		hashvault.Close()
+		delete(s.AdvertisingOffers, s.Epoch+1)
+	}
+	s.Epoch += 1
+	return nil
 }
 
 func (s *State) AuthorExists(m *message.Message) bool {
@@ -212,7 +255,7 @@ func (s *State) ValidateContent(msg *message.Message) bool {
 			return false
 		}
 		if s.IsMutating {
-			if !s.Mutations.SetNewUseAdvOffer(hashed) {
+			if !s.Mutations.SetNewUseAdvOffer(hashed, offer.Expire) {
 				return false
 			}
 			return s.Mutations.IncorporateMessage(msg)

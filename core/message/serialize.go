@@ -17,6 +17,8 @@
 // Package message contains data types related to aereum network.
 package message
 
+import "time"
+
 func PutByteArray(b []byte, data *[]byte) {
 	if len(b) == 0 {
 		*data = append(*data, 0, 0)
@@ -83,4 +85,22 @@ func ParseUint64(data []byte, position int) (uint64, int) {
 		uint64(data[position+6])<<48 |
 		uint64(data[position+7])<<56
 	return value, position + 8
+}
+
+func PutTime(value time.Time, data *[]byte) {
+	bytes, err := value.MarshalBinary()
+	if err != nil {
+		panic("invalid time")
+	}
+	PutByteArray(bytes, data)
+}
+
+func ParseTime(data []byte, position int) (time.Time, int) {
+	bytes, newposition := ParseByteArray(data, position)
+	var t *time.Time
+	if err := t.UnmarshalBinary(bytes); err != nil {
+		panic("cannot parse time")
+	}
+	return *t, newposition
+
 }

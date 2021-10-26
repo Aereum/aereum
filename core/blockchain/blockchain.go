@@ -21,48 +21,62 @@ import (
 	"time"
 
 	"github.com/Aereum/aereum/core/crypto"
+	"github.com/Aereum/aereum/core/message"
 )
 
 type Block struct {
 	Parent       crypto.Hash
-	Hash         crypto.Hash
 	Publisher    []byte
 	PublishedAt  time.Time
 	Messages     [][]byte
 	Transactions [][]byte
+	Hash         crypto.Hash
+}
+
+func (b *Block) SerializeWithoutHash() []byte {
+	serialized := b.Parent[:]
+	message.PutByteArray(b.Publisher, &serialized)
+	message.PutUint64(uint64(b.PublishedAt.UnixNano()), &serialized)
+	message.PutUint64(uint64(len(b.Messages)), &serialized)
+	for _, msg := range b.Messages {
+		message.PutByteArray(msg, &serialized)
+	}
+	message.PutUint64(uint64(b.PublishedAt.UnixNano()), &serialized)
+	message.PutUint64(uint64(len(b.Transactions)), &serialized)
+	for _, transaction := range b.Transactions {
+		message.PutByteArray(transaction, &serialized)
+	}
+	return serialized
 }
 
 func (b *Block) Serialize() []byte {
-	return nil
+	serialized := b.SerializeWithoutHash()
+	hash := crypto.Hasher(serialized)
+	return append(serialized[0:crypto.Size], hash[:]...)
 }
 
-func (s *State) FreezeBlock() {
-
-}
-
-func (s *State) SealBlock() {
-	for hash, delta := range s.Mutations.DeltaWallets {
-		if delta > 0 {
-			s.Wallets.Credit(hash, uint64(delta))
-		} else if delta < 0 {
-			s.Wallets.Debit(hash, uint64(-delta))
-		}
+func ParseBlock(data []byte) *Block {
+	block := &Block{}
+	block.Parent = crypto.BytesToHash(data[0:crypto.Size])
+	position := crypto.Size
+	block.Publisher, position = message.ParseByteArray(data, position)
+	block.PublishedAt, position = message.ParseTime(data, position)
+	var count uint64
+	count, position = message.ParseUint64(data, position)
+	block.Messages = make([][]byte, int(count))
+	for n := 0; n < int(count); n++ {
+		block.Messages[n], position = message.ParseByteArray(data, position)
 	}
-	for hash := range s.Mutations.GrantPower {
-		s.PowerOfAttorney.Insert(hash)
+	count, position = message.ParseUint64(data, position)
+	block.Transactions = make([][]byte, int(count))
+	for n := 0; n < int(count); n++ {
+		block.Transactions[n], position = message.ParseByteArray(data, position)
 	}
-	for hash := range s.Mutations.RevokePower {
-		s.PowerOfAttorney.Remove(hash)
+	if len(data)-position != crypto.Size {
+		return nil
 	}
-	for hash := range s.Mutations.NewSubscriber {
-		s.Subscribers.Insert(hash)
-	}
-	for hash := range s.Mutations.NewCaption {
-		s.Captions.Insert(hash)
-	}
-	for audience, keys := range s.Mutations.NewAudiences {
-		s.Audiences.SetKeys(audience, keys)
-	}
+	block.Hash = crypto.BytesToHash(data[position:])
+	return block
 }
 
 /*func (s *State) IncorporateMutations(mut StateMutations) {

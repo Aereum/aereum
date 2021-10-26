@@ -26,6 +26,17 @@ func (hash Hash) ToInt64() int64 {
 	return int64(hash[0]) + (int64(hash[1]) << 8) + (int64(hash[2]) << 16) + (int64(hash[3]) << 24)
 }
 
+func BytesToHash(bytes []byte) Hash {
+	if len(bytes) != Size {
+		panic("invalid hash")
+	}
+	var h Hash
+	for n := 0; n < Size; n++ {
+		h[n] = bytes[n]
+	}
+	return h
+}
+
 func (h Hash) Equal(another Hash) bool {
 	for n := 0; n < Size; n++ {
 		if h[n] != another[n] {

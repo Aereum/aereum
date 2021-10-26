@@ -11,7 +11,7 @@ type StateMutations struct {
 	Hashes        map[crypto.Hash]struct{} // hashes with no incorporation into state
 	GrantPower    map[crypto.Hash]struct{}
 	RevokePower   map[crypto.Hash]struct{}
-	UseAdvOffer   map[crypto.Hash]struct{}
+	UseAdvOffer   map[crypto.Hash]uint64
 	NewAdvOffer   map[crypto.Hash]uint64
 	NewSubscriber map[crypto.Hash]struct{}
 	NewCaption    map[crypto.Hash]struct{}
@@ -44,11 +44,19 @@ func (s *StateMutations) SetNewRevokePower(hash crypto.Hash) bool {
 	return true
 }
 
-func (s *StateMutations) SetNewUseAdvOffer(hash crypto.Hash) bool {
+func (s *StateMutations) SetNewUseAdvOffer(hash crypto.Hash, expire uint64) bool {
 	if _, ok := s.UseAdvOffer[hash]; ok {
 		return false
 	}
-	s.UseAdvOffer[hash] = struct{}{}
+	s.UseAdvOffer[hash] = expire
+	return true
+}
+
+func (s *StateMutations) SetNewAdvOffer(hash crypto.Hash, expire uint64) bool {
+	if _, ok := s.UseAdvOffer[hash]; ok {
+		return false
+	}
+	s.NewAdvOffer[hash] = expire
 	return true
 }
 
@@ -61,10 +69,6 @@ func (s *StateMutations) SetNewSubscriber(tokenHash crypto.Hash, captionHash cry
 	}
 	s.NewSubscriber[tokenHash] = struct{}{}
 	s.NewCaption[captionHash] = struct{}{}
-	return true
-}
-
-func (s *StateMutations) SetNewAdvOffer(hash crypto.Hash, expire uint64) bool {
 	return true
 }
 
