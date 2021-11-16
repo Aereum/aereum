@@ -19,7 +19,7 @@ package blockchain
 
 import (
 	"github.com/Aereum/aereum/core/crypto"
-	"github.com/Aereum/aereum/core/message"
+	"github.com/Aereum/aereum/core/instruction"
 )
 
 type Header struct {
@@ -37,7 +37,7 @@ type StateMutation struct {
 	NewAudiences              map[crypto.Hash]struct{} // Author + Token hash
 	GrantPowerOfAttorney      map[crypto.Hash]struct{}
 	RevokePowerOfAttorney     map[crypto.Hash]struct{}
-	NewAdvertisingOffers      map[crypto.Hash]*message.Message
+	NewAdvertisingOffers      map[crypto.Hash]*instruction.Message
 	AcceptedAdvertisingOffers map[crypto.Hash]struct{}
 	messages                  []*[]byte
 }

@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/Aereum/aereum/core/crypto"
-	"github.com/Aereum/aereum/core/message"
+	"github.com/Aereum/aereum/core/instruction"
 	"github.com/Aereum/aereum/core/wallet"
 )
 
@@ -84,11 +84,11 @@ func (s *State) IncorporateMutations() []byte {
 	return data
 }
 
-func (s *State) AuthorExists(m *message.Message) bool {
+func (s *State) AuthorExists(m *instruction.Message) bool {
 	return s.Subscribers.Exists(crypto.Hasher(m.Author))
 }
 
-func (s *State) ValidadeSubscribe(msg *message.Message) bool {
+func (s *State) ValidadeSubscribe(msg *instruction.Message) bool {
 	subscribe := msg.AsSubscribe()
 	if subscribe == nil {
 		return false
@@ -108,7 +108,7 @@ func (s *State) ValidadeSubscribe(msg *message.Message) bool {
 	return true
 }
 
-func (s *State) ValidateAbout(msg *message.Message) bool {
+func (s *State) ValidateAbout(msg *instruction.Message) bool {
 	about := msg.AsAbout()
 	if about == nil {
 		return false
@@ -124,7 +124,7 @@ func (s *State) ValidateAbout(msg *message.Message) bool {
 	return true
 }
 
-func (s *State) ValidadeCreateAudience(msg *message.Message) bool {
+func (s *State) ValidadeCreateAudience(msg *instruction.Message) bool {
 	createAudience := msg.AsCreateAudiece()
 	if createAudience == nil {
 		return false
@@ -143,7 +143,7 @@ func (s *State) ValidadeCreateAudience(msg *message.Message) bool {
 	return true
 }
 
-func (s *State) ValidadeJoinAudience(msg *message.Message) bool {
+func (s *State) ValidadeJoinAudience(msg *instruction.Message) bool {
 	joinAudience := msg.AsJoinAudience()
 	if joinAudience == nil {
 		return false
@@ -161,7 +161,7 @@ func (s *State) ValidadeJoinAudience(msg *message.Message) bool {
 	return true
 }
 
-func (s *State) ValidadeAcceptJoinAudience(msg *message.Message) bool {
+func (s *State) ValidadeAcceptJoinAudience(msg *instruction.Message) bool {
 	acceptJoinAudience := msg.AsAcceptJoinAudience()
 	if acceptJoinAudience == nil {
 		return false
@@ -192,7 +192,7 @@ func (s *State) ValidadeAcceptJoinAudience(msg *message.Message) bool {
 	return true
 }
 
-func (s *State) ValidadeAudienceChange(msg *message.Message) bool {
+func (s *State) ValidadeAudienceChange(msg *instruction.Message) bool {
 	audienceChange := msg.AsChangeAudience()
 	if audienceChange == nil {
 		return false
@@ -206,7 +206,7 @@ func (s *State) ValidadeAudienceChange(msg *message.Message) bool {
 	return true
 }
 
-func (s *State) ValidadateAdvertisingOffer(msg *message.Message) bool {
+func (s *State) ValidadateAdvertisingOffer(msg *instruction.Message) bool {
 	advertisingOffer := msg.AsAdvertisingOffer()
 	if advertisingOffer == nil {
 		return false
@@ -223,7 +223,7 @@ func (s *State) ValidadateAdvertisingOffer(msg *message.Message) bool {
 	return true
 }
 
-func (s *State) ValidateContent(msg *message.Message) bool {
+func (s *State) ValidateContent(msg *instruction.Message) bool {
 	m := msg.AsContent()
 	if m == nil {
 		return false
@@ -283,7 +283,7 @@ func (s *State) ValidateContent(msg *message.Message) bool {
 	return false
 }
 
-func (s *State) ValidateGrantPowerOfAttorney(msg *message.Message) bool {
+func (s *State) ValidateGrantPowerOfAttorney(msg *instruction.Message) bool {
 	grantPower := msg.AsGrantPowerOfAttorney()
 	if grantPower == nil {
 		return false
@@ -302,7 +302,7 @@ func (s *State) ValidateGrantPowerOfAttorney(msg *message.Message) bool {
 	return true
 }
 
-func (s *State) ValidadeRevokePowerOfAttorney(msg *message.Message) bool {
+func (s *State) ValidadeRevokePowerOfAttorney(msg *instruction.Message) bool {
 	revokePower := msg.AsRevokePowerOfAttorney()
 	if revokePower == nil {
 		return false
@@ -321,17 +321,17 @@ func (s *State) ValidadeRevokePowerOfAttorney(msg *message.Message) bool {
 }
 
 func (s *State) Validate(info []byte) bool {
-	if message.IsTransfer(info) {
+	if instruction.IsTransfer(info) {
 		return s.ValidateTransfer(info)
 	}
-	if message.IsMessage(info) {
+	if instruction.IsMessage(info) {
 		return s.ValidateMessage(info)
 	}
 	return false
 }
 
 func (s *State) ValidateTransfer(trf []byte) bool {
-	transfer, err := message.ParseTranfer(trf)
+	transfer, err := instruction.ParseTranfer(trf)
 	if err != nil {
 		return false
 	}
@@ -349,37 +349,37 @@ func (s *State) ValidateTransfer(trf []byte) bool {
 // State incorporates only the necessary information on the blockchain to
 // validate new messages. It should be used on validation nodes.
 func (s *State) ValidateMessage(msg []byte) bool {
-	if !message.IsMessage(msg) {
+	if !instruction.IsMessage(msg) {
 		return false
 	}
-	parsed, err := message.ParseMessage(msg)
+	parsed, err := instruction.ParseMessage(msg)
 	if parsed == nil || err != nil {
 		return false
 	}
 	if !s.Subscribers.Exists(crypto.Hasher(parsed.Author)) &&
-		message.MessageType(msg) != message.SubscribeMsg {
+		instruction.MessageType(msg) != instruction.SubscribeMsg {
 		return false
 	}
-	switch message.MessageType(msg) {
-	case message.SubscribeMsg:
+	switch instruction.MessageType(msg) {
+	case instruction.SubscribeMsg:
 		return s.ValidadeSubscribe(parsed)
-	case message.AboutMsg:
+	case instruction.AboutMsg:
 		return s.ValidateAbout(parsed)
-	case message.CreateAudienceMsg:
+	case instruction.CreateAudienceMsg:
 		return s.ValidadeCreateAudience(parsed)
-	case message.JoinAudienceMsg:
+	case instruction.JoinAudienceMsg:
 		return s.ValidadeJoinAudience(parsed)
-	case message.AcceptJoinAudienceMsg:
+	case instruction.AcceptJoinAudienceMsg:
 		return s.ValidadeAcceptJoinAudience(parsed)
-	case message.AudienceChangeMsg:
+	case instruction.AudienceChangeMsg:
 		return s.ValidadeAudienceChange(parsed)
-	case message.AdvertisingOfferMsg:
+	case instruction.AdvertisingOfferMsg:
 		return s.ValidadateAdvertisingOffer(parsed)
-	case message.ContentMsg:
+	case instruction.ContentMsg:
 		return s.ValidateContent(parsed)
-	case message.GrantPowerOfAttorneyMsg:
+	case instruction.GrantPowerOfAttorneyMsg:
 		return s.ValidateGrantPowerOfAttorney(parsed)
-	case message.RevokePowerOfAttorneyMsg:
+	case instruction.RevokePowerOfAttorneyMsg:
 		return s.ValidateGrantPowerOfAttorney(parsed)
 	}
 	return true

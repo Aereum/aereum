@@ -2,7 +2,7 @@ package blockchain
 
 import (
 	"github.com/Aereum/aereum/core/crypto"
-	"github.com/Aereum/aereum/core/message"
+	"github.com/Aereum/aereum/core/instruction"
 )
 
 type StateMutations struct {
@@ -16,8 +16,8 @@ type StateMutations struct {
 	NewSubscriber map[crypto.Hash]struct{}
 	NewCaption    map[crypto.Hash]struct{}
 	NewAudiences  map[crypto.Hash][]byte
-	messages      []*message.Message
-	transfers     []*message.Transfer
+	messages      []*instruction.Message
+	transfers     []*instruction.Transfer
 }
 
 func NewStateMutation(state *State) *StateMutations {
@@ -32,8 +32,8 @@ func NewStateMutation(state *State) *StateMutations {
 		NewSubscriber: make(map[crypto.Hash]struct{}),
 		NewCaption:    make(map[crypto.Hash]struct{}),
 		NewAudiences:  make(map[crypto.Hash][]byte),
-		messages:      make([]*message.Message, 0),
-		transfers:     make([]*message.Transfer, 0),
+		messages:      make([]*instruction.Message, 0),
+		transfers:     make([]*instruction.Transfer, 0),
 	}
 }
 
@@ -97,7 +97,7 @@ func (s *StateMutations) SetNewAudience(hash crypto.Hash, keys []byte) bool {
 	return true
 }
 
-func (m *StateMutations) CanPay(payments message.Payment) bool {
+func (m *StateMutations) CanPay(payments instruction.Payment) bool {
 	for n, debitAcc := range payments.DebitAcc {
 		ok, stateBalance := m.State.Wallets.Balance(debitAcc)
 		if !ok {
@@ -116,7 +116,7 @@ func (m *StateMutations) CanPay(payments message.Payment) bool {
 	return true
 }
 
-func (m *StateMutations) TransferPayments(payments message.Payment) {
+func (m *StateMutations) TransferPayments(payments instruction.Payment) {
 	for n, debitAcc := range payments.DebitAcc {
 		if delta, ok := m.DeltaWallets[debitAcc]; ok {
 			m.DeltaWallets[debitAcc] = delta - int(payments.DebitValue[n])
@@ -133,7 +133,7 @@ func (m *StateMutations) TransferPayments(payments message.Payment) {
 	}
 }
 
-func (m *StateMutations) IncorporateMessage(msg *message.Message) bool {
+func (m *StateMutations) IncorporateMessage(msg *instruction.Message) bool {
 	payment := msg.Payments()
 	if !m.CanPay(payment) {
 		return false

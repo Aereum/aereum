@@ -21,7 +21,7 @@ import (
 	"time"
 
 	"github.com/Aereum/aereum/core/crypto"
-	"github.com/Aereum/aereum/core/message"
+	"github.com/Aereum/aereum/core/instruction"
 )
 
 type Block struct {
@@ -36,16 +36,16 @@ type Block struct {
 
 func (b *Block) SerializeWithoutHash() []byte {
 	serialized := b.Parent[:]
-	message.PutByteArray(b.Publisher, &serialized)
-	message.PutUint64(uint64(b.PublishedAt.UnixNano()), &serialized)
-	message.PutUint64(uint64(len(b.Messages)), &serialized)
+	instruction.PutByteArray(b.Publisher, &serialized)
+	instruction.PutUint64(uint64(b.PublishedAt.UnixNano()), &serialized)
+	instruction.PutUint64(uint64(len(b.Messages)), &serialized)
 	for _, msg := range b.Messages {
-		message.PutByteArray(msg, &serialized)
+		instruction.PutByteArray(msg, &serialized)
 	}
-	message.PutUint64(uint64(b.PublishedAt.UnixNano()), &serialized)
-	message.PutUint64(uint64(len(b.Transactions)), &serialized)
+	instruction.PutUint64(uint64(b.PublishedAt.UnixNano()), &serialized)
+	instruction.PutUint64(uint64(len(b.Transactions)), &serialized)
 	for _, transaction := range b.Transactions {
-		message.PutByteArray(transaction, &serialized)
+		instruction.PutByteArray(transaction, &serialized)
 	}
 	return serialized
 }
@@ -60,18 +60,18 @@ func ParseBlock(data []byte) *Block {
 	block := &Block{}
 	block.Parent = crypto.BytesToHash(data[0:crypto.Size])
 	position := crypto.Size
-	block.Publisher, position = message.ParseByteArray(data, position)
-	block.PublishedAt, position = message.ParseTime(data, position)
+	block.Publisher, position = instruction.ParseByteArray(data, position)
+	block.PublishedAt, position = instruction.ParseTime(data, position)
 	var count uint64
-	count, position = message.ParseUint64(data, position)
+	count, position = instruction.ParseUint64(data, position)
 	block.Messages = make([][]byte, int(count))
 	for n := 0; n < int(count); n++ {
-		block.Messages[n], position = message.ParseByteArray(data, position)
+		block.Messages[n], position = instruction.ParseByteArray(data, position)
 	}
-	count, position = message.ParseUint64(data, position)
+	count, position = instruction.ParseUint64(data, position)
 	block.Transactions = make([][]byte, int(count))
 	for n := 0; n < int(count); n++ {
-		block.Transactions[n], position = message.ParseByteArray(data, position)
+		block.Transactions[n], position = instruction.ParseByteArray(data, position)
 	}
 	if len(data)-position != crypto.Size {
 		return nil

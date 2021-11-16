@@ -15,7 +15,7 @@
 // along with the go-ethereum library. If not, see <http://www.gnu.org/licenses/>.
 
 // Package message contains data types related to aereum network.
-package message
+package instruction
 
 import (
 	"errors"
@@ -78,6 +78,8 @@ func IsMessage(msg []byte) bool {
 	msgType := MessageType(msg)
 	return msgType > TransferMsg && msgType < UnkownMessageType
 }
+
+type Instruction []byte
 
 type Message struct {
 	MessageType     byte

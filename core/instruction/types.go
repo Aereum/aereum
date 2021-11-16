@@ -15,7 +15,7 @@
 // along with the go-ethereum library. If not, see <http://www.gnu.org/licenses/>.
 
 // Package message contains data types related to aereum network.
-package message
+package instruction
 
 import "github.com/Aereum/aereum/core/crypto"
 
