@@ -26,6 +26,7 @@ import (
 
 type Block struct {
 	Parent       crypto.Hash
+	Epoch        uint64
 	Publisher    []byte
 	PublishedAt  time.Time
 	Messages     [][]byte
