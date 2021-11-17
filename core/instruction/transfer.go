@@ -18,24 +18,34 @@
 //
 package instruction
 
-type recipent struct {
-	token []byte
-	value uint64
-  }
-
-
 import (
 	"errors"
 
 	"github.com/Aereum/aereum/core/crypto"
 )
 
+type Recipient struct {
+	Token []byte
+	Value uint64
+  }
+
+type Transfer struct {
+	Version 	byte
+	Instruction	byte
+	Epoch 		uint64
+	From        []byte
+	To          []Recipient
+	Reason      string
+	Fee         uint64
+	Signature   []byte
+}
+
 func NewTransfer(epoch uint64, wallet crypto.PrivateKey, to []recipent, reason string, fee uint64) *Transfer {
 	t := &Transfer{
 		Version:		0,
 		Instruction:	0,
 		Epoch: 			epoch,
-		From:			wallet.PublicKey().ToBytes(), // precisa passar para bytes aqui?
+		From:			wallet.PublicKey().ToBytes(), 
 		To:				to,
 		Reason: 		reason,
 		Fee:         	fee,
@@ -49,13 +59,3 @@ func NewTransfer(epoch uint64, wallet crypto.PrivateKey, to []recipent, reason s
 	return t
 }
 
-type Transfer struct {
-	Version 	byte
-	Instruction	byte
-	Epoch 		uint64
-	From        []byte
-	To          []recipent
-	Reason      string
-	Fee         uint64
-	Signature   []byte
-}

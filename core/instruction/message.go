@@ -19,227 +19,127 @@ package instruction
 
 import (
 	"errors"
-	"fmt"
 
 	"github.com/Aereum/aereum/core/crypto"
 )
 
-var ErrCouldNotParseMessage = errors.New("could not parse message")
-var ErrCouldNotParseSignature = errors.New("could not parse signature")
-var ErrInvalidSignature = errors.New("invalid signature")
+// Basic template used for all message types
+type MessageTemplate struct {
+	Version			byte
+	Instruction		byte
+	Epoch			uint64
+	Author			[]byte	//public key token
+	Message			[]byte
+	Wallet			[]byte	//public key token
+	Fee				uint64
+	WalletSignature	[]byte
+	Attorney		[]byte	//public key token
+	Signature		[]byte 
+}
 
-const (
-	GenesisMsg byte = iota
-	// version 0
-	TransferMsg
-	SubscribeMsg
-	AboutMsg
-	CreateAudienceMsg
-	JoinAudienceMsg
-	AcceptJoinAudienceMsg
-	AudienceChangeMsg
-	AdvertisingOfferMsg
-	ContentMsg
-	GrantPowerOfAttorneyMsg
-	RevokePowerOfAttorneyMsg
-	UnkownMessageType // to be used in other versions
+func NewMessageTemplate(epoch uint64, author crypto.PrivateKey, message []byte, wallet crypto.PrivateKey,
+	fee uint64, attorney crypto.PrivateKey) *MessageTemplate {
+	m := &MessageTemplate {
+		Version:		0,
+		Instruction:	1,
+		Epoch: 			epoch,
+		Author:			author.PublicKey().ToBytes(), 
+		Message:		message,
+	}
+	// If there's a wallet assigned, they are paying for instruction fee
+	if wallet != nil{
+		m.Wallet := wallet.PublicKey().ToBytes(), 
+		m.Fee := fee,
+		hashed := crypto.Hasher(t.serializeWithouSignature())
+		var err error
+		m.WalletSignature, err = wallet.Sign(hashed[:])
+		if err != nil {
+			return nil
+		}
+		return m
+	// Else author is paying and there will be no wallet field
+	} else {
+		m.Fee := fee,
+		hashed := crypto.Hasher(t.serializeWithouSignature())
+		var err error
+		m.WalletSignature, err = author.Sign(hashed[:])
+		if err != nil {
+			return nil
+		}
+		return m
+	}
+	// If there's an attorney assigned they must sign the instruction
+	if attorney != nil {
+		m.Attorney := attorney.PublicKey().ToBytes()
+		hashed := crypto.Hasher(t.serializeWithouSignature())
+		var err error
+		m.Signature, err = attorney.Sign(hashed[:])
+		if err != nil {
+			return nil
+		}
+		return m
+	// Else instruction is signed by the author and there will be no attorney field
+	} else {
+		hashed := crypto.Hasher(t.serializeWithouSignature())
+		var err error
+		m.Signature, err = author.Sign(hashed[:])
+		if err != nil {
+			return nil
+		}
+		return m
+	}
+}
+
+// "Message" field in MessageTemplate struct can be of one of the following types
+// JoinNetwork, UpdateInfo, CreateAudience..
+
+type JoinNetwork struct {
+	MessageType		byte
+	Caption			string
+	Details			map[string]
+}
+
+func NewJoinNetwork(caption string, details map[string]) *JoinNetwork {
+	jn := &JoinNetwork {
+		MessageType:	0,
+		Caption:		string,
+		Details: 		map[string], // nao sei exatamente como declarar que vai ser um json aqui
+	}
+	return jn
+}
+
+// // Vai precisar de uma funcao pra mandar pra byte array pra MessageTemplate receber do jeito certo
+// func JoinNetworkToByteArray() *JoinNetwork {
+// 	//???
+// }
+
+type UpdateInfo struct {
+	MessageType	byte
+	Details		map[string]
+}
+
+func NewUpdateInfo(details map[string]) *UpdateInfo {
+	ui := &UpdateInfo {
+		MessageType:	1,
+		Details:		details,
+	}
+	return ui
+}
+
+// func UpdateInfoToByteArray()
+
+type CreateAudience {
+	MessageType byte
+	Audience		[]byte
+	Sumission		[]byte
+	Moderation		[]byte
+	AudienceKey		[]byte
+	SumissionKey	[]byte
+	ModerationKey	[]byte
+	Flag			byte
+	Description		string
+}
+
+func NewCreateAudience(audience crypto.PrivateKey, submission crypto.PrivateKey, 
+	moderation crypto.PrivateKey, audienceKey 
 )
-
-func NewMessage(AuthorKey, WalletKey crypto.PrivateKey, msg Serializer,
-	FeeValue, Epoch uint64, PowerOfAttorney crypto.PrivateKey) *Message {
-	message := &Message{
-		MessageType: msg.Kind(),
-		Author:      AuthorKey.PublicKey().ToBytes(),
-		Message:     msg.Serialize(),
-		FeeWallet:   WalletKey.PublicKey().ToBytes(),
-		Epoch:       Epoch,
-	}
-	if PowerOfAttorney.IsValid() {
-		message.PowerOfAttorney = PowerOfAttorney.PublicKey().ToBytes()
-		message.Sign(PowerOfAttorney, WalletKey)
-	} else {
-		message.PowerOfAttorney = []byte{}
-		message.Sign(AuthorKey, WalletKey)
-	}
-	return message
-}
-
-func MessageType(msg []byte) byte {
-	if len(msg) == 0 {
-		return UnkownMessageType
-	}
-	if msg[0] >= UnkownMessageType {
-		return UnkownMessageType
-	}
-	return msg[0]
-}
-
-func IsMessage(msg []byte) bool {
-	msgType := MessageType(msg)
-	return msgType > TransferMsg && msgType < UnkownMessageType
-}
-
-type Instruction []byte
-
-type Message struct {
-	MessageType     byte
-	Epoch           uint64
-	Author          []byte // must be a subscriber public key, can be anonoymous on transfer
-	Message         []byte
-	FeeWallet       []byte // can be any wallet
-	FeeValue        uint64
-	PowerOfAttorney []byte // must be authorized by the subscriber
-	Signature       []byte // either author or power of attorney
-	WalletSignature []byte
-}
-
-type Payment struct {
-	DebitAcc    []crypto.Hash
-	DebitValue  []uint64
-	CreditAcc   []crypto.Hash
-	CreditValue []uint64
-}
-
-func (m *Message) Payments() Payment {
-	return Payment{
-		DebitAcc:   []crypto.Hash{crypto.Hasher(m.FeeWallet)},
-		DebitValue: []uint64{m.FeeValue},
-	}
-}
-
-func GetHashAndEpochFromMessage(msg []byte) (crypto.Hash, int) {
-	epoch, _ := ParseUint64(msg, 1)
-	return crypto.Hasher(msg), int(epoch)
-}
-
-func (m *Message) serializeWithoutSignatures() []byte {
-	bytes := []byte{m.MessageType}
-	PutUint64(m.Epoch, &bytes)
-	PutByteArray(m.Author, &bytes)
-	PutByteArray(m.Message, &bytes)
-	PutByteArray(m.FeeWallet, &bytes)
-	PutUint64(m.FeeValue, &bytes)
-	PutByteArray(m.PowerOfAttorney, &bytes)
-	return bytes
-}
-
-func (m *Message) Sign(author, wallet crypto.PrivateKey) bool {
-	bytes := m.serializeWithoutSignatures()
-	signAuthor, err := author.Sign(bytes)
-	if err != nil {
-		return false
-	}
-	PutByteArray(signAuthor, &bytes)
-	signWallet, errWallet := wallet.Sign(bytes)
-	if errWallet != nil {
-		return false
-	}
-	m.Signature = signAuthor
-	m.WalletSignature = signWallet
-	return true
-}
-
-func (m *Message) Serialize() []byte {
-	bytes := m.serializeWithoutSignatures()
-	PutByteArray(m.Signature, &bytes)
-	PutByteArray(m.WalletSignature, &bytes)
-	return bytes
-}
-
-func ParseGenesis(data []byte) *Genesis {
-	if data[0] != GenesisMsg {
-		return nil
-	}
-	return &Genesis{}
-}
-
-func ParseMessage(data []byte) (*Message, error) {
-	if data[0] >= UnkownMessageType || data[0] <= TransferMsg {
-		return nil, fmt.Errorf("wrong message type")
-	}
-	length := len(data)
-	var msg Message
-	msg.MessageType = data[0]
-	position := 1
-	msg.Epoch, position = ParseUint64(data, position)
-	msg.Author, position = ParseByteArray(data, position)
-	msg.Message, position = ParseByteArray(data, position)
-	msg.FeeWallet, position = ParseByteArray(data, position)
-	msg.FeeValue, position = ParseUint64(data, position)
-	msg.PowerOfAttorney, position = ParseByteArray(data, position)
-	// check author or power of attorney signature
-	if position-1 > length {
-		return nil, ErrCouldNotParseMessage
-	}
-	msgToVerify := data[0:position]
-	msg.Signature, position = ParseByteArray(data, position)
-	token := msg.Author
-	if len(msg.PowerOfAttorney) > 0 {
-		token = msg.PowerOfAttorney
-	}
-	if publicKey, err := crypto.PublicKeyFromBytes(token); err != nil {
-		return nil, ErrCouldNotParseSignature
-	} else {
-		if !publicKey.Verify(msgToVerify, msg.Signature) {
-			return nil, ErrInvalidSignature
-		}
-	}
-
-	// check wallet signature
-	if position-1 > length {
-		return nil, ErrCouldNotParseMessage
-	}
-	msgToVerify = data[0:position]
-	msg.WalletSignature, position = ParseByteArray(data, position)
-	if position != length {
-		return nil, ErrCouldNotParseMessage
-	}
-	if publicKey, err := crypto.PublicKeyFromBytes(msg.FeeWallet); err != nil {
-		return nil, ErrCouldNotParseSignature
-	} else {
-		if !publicKey.Verify(msgToVerify, msg.WalletSignature) {
-			return nil, ErrInvalidSignature
-		}
-	}
-	return &msg, nil
-}
-
-func (m *Message) AsSubscribe() *Subscribe {
-	return ParseSubscribe(m.Message)
-}
-
-func (m *Message) AsAbout() *About {
-	return ParseAbout(m.Message)
-}
-
-func (m *Message) AsCreateAudiece() *CreateAudience {
-	return ParseCreateAudience(m.Message)
-}
-
-func (m *Message) AsJoinAudience() *JoinAudience {
-	return ParseJoinAudience(m.Message)
-}
-
-func (m *Message) AsAcceptJoinAudience() *AcceptJoinAudience {
-	return ParseAcceptJoinAudience(m.Message)
-}
-
-func (m *Message) AsChangeAudience() *ChangeAudience {
-	return ParseChangeAudience(m.Message)
-}
-
-func (m *Message) AsAdvertisingOffer() *AdvertisingOffer {
-	return ParseAdvertisingOffer(m.Message)
-}
-
-func (m *Message) AsContent() *Content {
-	return ParseContent(m.Message)
-}
-
-func (m *Message) AsGrantPowerOfAttorney() *GrantPowerOfAttorney {
-	return ParseGrantPowerOfAttorney(m.Message)
-}
-
-func (m *Message) AsRevokePowerOfAttorney() *RevokePowerOfAttorney {
-	return ParseRevokePowerOfAttorney(m.Message)
-}
