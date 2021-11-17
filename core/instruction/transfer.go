@@ -1,4 +1,28 @@
+// Copyright 2021 The aereum Authors
+// This file is part of the aereum library.
+//
+// The aereum library is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Lesser General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// The aereum library is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// GNU Lesser General Public License for more details.
+//
+// You should have received a copy of the GNU Lesser General Public License
+// along with the go-ethereum library. If not, see <http://www.gnu.org/licenses/>.
+
+// Package message contains data types related to aereum network.
+//
 package instruction
+
+type recipent struct {
+	name string
+	age  int
+  }
+
 
 import (
 	"errors"
@@ -6,18 +30,15 @@ import (
 	"github.com/Aereum/aereum/core/crypto"
 )
 
-func IsTransfer(msg []byte) bool {
-	return len(msg) > 0 && msg[0] == TransferMsg
-}
-
-func NewTransfer(wallet crypto.PrivateKey, to crypto.Hash, value uint64, fee uint64, epoch uint64) *Transfer {
+func NewTransfer(epoch uint64, wallet crypto.PrivateKey, to []recipent, reason string, fee uint64) *Transfer {
 	t := &Transfer{
-		MessageType: TransferMsg,
-		Epoch:       epoch,
-		From:        wallet.PublicKey().ToBytes(),
-		To:          to[:],
-		Value:       value,
-		Fee:         fee,
+		Version:		0,
+		Instruction:	0,
+		Epoch: 			epoch,
+		From:			wallet.PublicKey().ToBytes(), // precisa passar para bytes aqui?
+		To:				to,
+		Reason: 		reason,
+		Fee:         	fee,
 	}
 	hashed := crypto.Hasher(t.serializeWithouSignature())
 	var err error
@@ -29,78 +50,12 @@ func NewTransfer(wallet crypto.PrivateKey, to crypto.Hash, value uint64, fee uin
 }
 
 type Transfer struct {
-	MessageType byte
-	Epoch       uint64
+	Version 	byte
+	Instruction	byte
+	Epoch 		uint64
 	From        []byte
-	To          []byte
-	Value       uint64
+	To          []recipent
+	Reason      string
 	Fee         uint64
 	Signature   []byte
-}
-
-func (t *Transfer) Payments() Payment {
-	return Payment{
-		DebitAcc:    []crypto.Hash{crypto.Hasher(t.From)},
-		DebitValue:  []uint64{t.Value + t.Fee},
-		CreditAcc:   []crypto.Hash{crypto.Hasher(t.To)},
-		CreditValue: []uint64{t.Value},
-	}
-}
-
-func (t *Transfer) serializeWithouSignature() []byte {
-	bytes := []byte{TransferMsg}
-	PutUint64(t.Epoch, &bytes)
-	PutByteArray(t.From, &bytes)
-	PutByteArray(t.To, &bytes)
-	PutUint64(t.Value, &bytes)
-	PutUint64(t.Fee, &bytes)
-	return bytes
-}
-
-func (t *Transfer) Sign(privateKey crypto.PrivateKey) bool {
-	bytes := t.serializeWithouSignature()
-	sign, err := privateKey.Sign(bytes)
-	if err != nil {
-		return false
-	}
-	t.Signature = sign
-	return true
-}
-
-func (t *Transfer) Serialize() []byte {
-	bytes := t.serializeWithouSignature()
-	PutByteArray(t.Signature, &bytes)
-	return bytes
-}
-
-// tries to parse and verifies signature.
-func ParseTranfer(data []byte) (*Transfer, error) {
-	if len(data) == 0 || data[0] != TransferMsg {
-		return nil, errors.New("wrong message type")
-	}
-	length := len(data)
-	var msg Transfer
-	position := 1
-	msg.Epoch, position = ParseUint64(data, position)
-	msg.From, position = ParseByteArray(data, position)
-	msg.To, position = ParseByteArray(data, position)
-	msg.Value, position = ParseUint64(data, position)
-	msg.Fee, position = ParseUint64(data, position)
-	if position >= length {
-		return nil, ErrCouldNotParseMessage
-	}
-	hashed := crypto.Hasher(data[0:position])
-	msg.Signature, position = ParseByteArray(data, position)
-	if position-1 > length || len(msg.Signature) == 0 {
-		return nil, ErrCouldNotParseMessage
-	}
-	// check signature
-	if publicKey, err := crypto.PublicKeyFromBytes(msg.From); err != nil {
-		return nil, ErrCouldNotParseSignature
-	} else {
-		if !publicKey.Verify(hashed[:], msg.Signature) {
-			return nil, ErrInvalidSignature
-		}
-	}
-	return &msg, nil
 }
