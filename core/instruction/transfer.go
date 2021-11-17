@@ -19,8 +19,8 @@
 package instruction
 
 type recipent struct {
-	name string
-	age  int
+	token []byte
+	value uint64
   }
 
 
