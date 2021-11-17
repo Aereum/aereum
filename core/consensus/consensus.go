@@ -2,8 +2,7 @@ package consensus
 
 import (
 	"github.com/Aereum/aereum/core/crypto"
-
-	"github.com/Aereum/aereum/core/message"
+	"github.com/Aereum/aereum/core/instruction"
 )
 
 type BlockSignature struct {
@@ -12,7 +11,12 @@ type BlockSignature struct {
 	Signature []byte
 }
 
+type HashInstruction struct {
+	Instruction *instruction.Instruction
+	Hash        crypto.Hash
+}
+
 type Consensus interface {
 	AppendSignature(signature BlockSignature) bool
-	NewInstruction(m *message.Message)
+	NewInstruction(m *instruction.Instruction)
 }

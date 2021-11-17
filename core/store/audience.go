@@ -1,4 +1,4 @@
-package wallet
+package store
 
 import (
 	"github.com/Aereum/aereum/core/crypto"

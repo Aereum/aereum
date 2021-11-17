@@ -16,7 +16,7 @@
 
 // Package wallet contains the implementation of the hashtable data structure
 // used to store current state of the aereum system.
-package wallet
+package store
 
 import (
 	"crypto/rand"

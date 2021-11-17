@@ -5,7 +5,7 @@ import (
 	"net"
 
 	"github.com/Aereum/aereum/core/crypto"
-	"github.com/Aereum/aereum/core/message"
+	"github.com/Aereum/aereum/core/instruction"
 )
 
 const (
@@ -76,7 +76,7 @@ func handleValidatorConnection(conn *SecureConnection, comm chan *HashedMessage)
 			return
 		}
 		hashed := HashedMessage{msg: data}
-		hashed.hash, hashed.epoch = message.GetHashAndEpochFromMessage(data)
+		hashed.hash, hashed.epoch = instruction.GetHashAndEpochFromMessage(data)
 		comm <- &hashed
 	}
 }

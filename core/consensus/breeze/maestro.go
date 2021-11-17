@@ -2,7 +2,6 @@ package breeze
 
 import (
 	"github.com/Aereum/aereum/core/consensus"
-	"github.com/Aereum/aereum/core/message"
 	"github.com/Aereum/aereum/core/network"
 )
 
@@ -14,8 +13,10 @@ type Maestro struct {
 	Slots          []network.SecureConnection
 	LiveCheckPoint uint64
 	Proposed       map[uint64]*CheckPoint
-	Instruction    chan *message.Message
+	Instruction    chan *consensus.HashInstruction
 	Signature      chan *consensus.BlockSignature
+	IsLeader       bool
+	Pool           *InstructionPool
 }
 
 func (maestro *Maestro) AppendSignature(signature *consensus.BlockSignature) {
@@ -38,20 +39,30 @@ func (maestro *Maestro) appendSignature(signature *consensus.BlockSignature) {
 	}
 }
 
-func (maestro *Maestro) NewInstruction(m *message.Message) {
+func (maestro *Maestro) NewInstruction(m *consensus.HashInstruction) {
 	maestro.Instruction <- m
 }
 
-func (maestro *Maestro) newInstruction(m *message.Message) {
-
+func (maestro *Maestro) newInstruction(m *consensus.HashInstruction) {
+	if !maestro.IsLeader {
+		maestro.Pool.Queue(m.Instruction, m.Hash)
+	}
 }
 
 func NewMaestro() *Maestro {
-
-	maestro = Maestro{}
-
+	maestro := Maestro{
+		Instruction: make(chan *consensus.HashInstruction),
+		Signature:   make(chan *consensus.BlockSignature),
+	}
 	go func() {
-
+		for {
+			select {
+			case signature := <-maestro.Signature:
+				maestro.appendSignature(signature)
+			case instruction := <-maestro.Instruction:
+				maestro.newInstruction(instruction)
+			}
+		}
 	}()
-
+	return &maestro
 }

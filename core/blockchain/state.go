@@ -6,7 +6,7 @@ import (
 
 	"github.com/Aereum/aereum/core/crypto"
 	"github.com/Aereum/aereum/core/instruction"
-	"github.com/Aereum/aereum/core/wallet"
+	"github.com/Aereum/aereum/core/store"
 )
 
 const maxAdvertisingOfferDelay = 1000
@@ -14,12 +14,12 @@ const maxAdvertisingOfferDelay = 1000
 type State struct {
 	Hash              crypto.Hash
 	Epoch             uint64
-	Subscribers       wallet.HashVault // subscriber token hash
-	Captions          wallet.HashVault // caption string hash
-	Wallets           wallet.Wallet    // wallet token hash
-	Audiences         wallet.Audience  // audience + Follower hash
-	AdvertisingOffers map[uint64]wallet.HashVault
-	PowerOfAttorney   wallet.HashVault // power of attonery token hash
+	Subscribers       store.HashVault // subscriber token hash
+	Captions          store.HashVault // caption string hash
+	Wallets           store.Wallet    // wallet token hash
+	Audiences         store.Audience  // audience + Follower hash
+	AdvertisingOffers map[uint64]store.HashVault
+	PowerOfAttorney   store.HashVault // power of attonery token hash
 	//Frozen            *StateMutations
 	IsMutating bool
 	Mutations  *StateMutations

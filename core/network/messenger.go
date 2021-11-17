@@ -5,7 +5,7 @@ import (
 	"net"
 
 	"github.com/Aereum/aereum/core/crypto"
-	"github.com/Aereum/aereum/core/message"
+	"github.com/Aereum/aereum/core/instruction"
 )
 
 type MessengerNetwork struct {
@@ -50,7 +50,7 @@ func (m *MessengerNetwork) handleMessengerConnection(conn *SecureConnection, com
 			return
 		}
 		hashed := HashedMessage{msg: data}
-		hashed.hash, hashed.epoch = message.GetHashAndEpochFromMessage(data)
+		hashed.hash, hashed.epoch = instruction.GetHashAndEpochFromMessage(data)
 		comm <- &hashed
 	}
 }

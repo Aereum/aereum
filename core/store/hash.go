@@ -13,7 +13,7 @@
 //
 // You should have received a copy of the GNU Lesser General Public License
 // along with the aereum library. If not, see <http://www.gnu.org/licenses/>.
-package wallet
+package store
 
 import "github.com/Aereum/aereum/core/crypto"
 
