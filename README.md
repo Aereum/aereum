@@ -1,39 +1,57 @@
-**This is a very preliminary draft!**
+**This is draft!**
 
-Proposal
+Vision
 ========
 
-Aereum should be a protocol capable of providing stable and resilient
-descentralized infrastructure for publishing and dissemination of original 
-content for controled audiences. The protocol is based on the following 
-hypothesis:
+Aereum is a protocol and peer-to-peer network capable of providing stable,
+relisiant and descentralized infrastructure for human digital communication. 
+It is based on the concept of audiences where network participant can create
+to perform moderated, authorized and encrypted messages exchanges. 
 
-* Advertising should be capable of providing real economic resources to
-keep the necessary infrastructure of the network, remuneration for content 
-creators and organic growth.
+It can be conceived as a TCP/IP for humans. Every subscriber is associated to
+an unique token and an unique caption that can be used across distinct devices,
+different apps and even different other protocols constructed on top of Aereum.
+TCP/IP was conceived on a world of multiple users per machine. Aereum is 
+conceived for the world of multiple devices per user. Every subscriber can 
+create several audiences, grant or revoke moderating, submission and reading 
+powers to other users. 
 
-* All members, in all capacities, should be genuine stakeholders of the network.
+Subscribers and grant or revoke power of attorney for other subscribers to sign 
+messages on their behalf. This enhances user experience, by providing a 
+mechanism to use one or more specialized third party services to engage with the
+network.
 
-* There should be no possibility of top-down censoring, but there should be
-effective blacklisting mechanisms. 
+Advertising is a first class entity within the protocol. By submiting
+advertising offers one subscriber shows interest to be broadcasted to audiences.
+Once acceptedm the fee colection from the offer can be shared by the creator of
+the audience with other participants, without any intermediary. All advertising
+traffic is unencrypted, mitigating the risks of abuse of the network to perform
+illegal activities. 
 
-* No hidden illegal business entirely based on the network should be possible.
-The advertising content should be entirely public.
+Being a neutral information transmission protocol, there is no scope for 
+top-down censoring. Nonetheless specialized protocols built on top of Aereum
+can provide filtered communication or blacklisting mechanisms accordingly.
+
+All members, in all capacities, are geuine stakeholders of the network. They 
+can stake their tokens to network validation pools in order to enhance stability
+of the network by preventing 51% attacks.
 
 Aero
 ====
 
-Aero is the name of the token of the protocol. It is created out of thin air, 
-through a mining mechanism, provided either by a proof of work or proof of 
-stake blockchain formation mechanism. 
+Aero is the name of the currency token of the protocol. One aero is composed of 
+one million oxygens that is the smallest denomination possible. New aeros are 
+created at the blockformation process. Initially the consensus protocol is 
+based on Proof of Work, in order to guarantee proper distribution of tokens. At
+a predetermined age the protocol shifts to a pre-established proof of stake.
 
-It should be designed exclusively to be a means of exchange within the network,
-through which real economic value is traded between actors, but should not be
-relied as a long-term medium for storage of value.
-
-In principle unlimited units of aero can be created as the monetary base grows
-along with activity in network itself. Parameters should be calibrated in order
-to provide a slightly inflationary behavior of aero over longer periods of time.
+The number of aero created are in conformity with the growth of the network. It 
+is calibrated to be used as a means of exchange within the network, and not to
+be relied as a long-term medium of value storage. In principle unlimited units 
+of aero can be created as the monetary base grows along with activity in network 
+itself. Being cushioned on real economic activity (message exchange and basic
+advertising) one expects that its value over time to be more stable than other
+tokens of more speculative kind.
 
 Nodes
 =====
