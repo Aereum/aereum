@@ -76,6 +76,45 @@ func (s *Block) ValidadeCreateAudience(msg *instruction.Message) bool {
 	return s.IncorporateMessage(msg)
 }
 
+func (s *Block) ValidadeAcceptJoinAudience(msg *instruction.Message) bool {
+	acceptJoinAudience := msg.AsAcceptJoinAudience()
+	if acceptJoinAudience == nil {
+		return false
+	}
+	// check if moderator signature is valid
+	request := acceptJoinAudience.Request.AsJoinAudience()
+	if request == nil {
+		return false
+	}
+	ok, keys := s.state.GetAudince(crypto.Hasher(request.Audience))
+	if !ok {
+		return false
+	}
+	moderator, err := crypto.PublicKeyFromBytes(keys[0:crypto.PublicKeySize])
+	if err != nil {
+		return false
+	}
+	if !moderator.Verify(request.Serialize(), acceptJoinAudience.ModeratorSignature) {
+		return false
+	}
+	hash := crypto.Hasher(append(request.Audience, acceptJoinAudience.Request.Author...))
+	if !s.mutations.SetNewHash(hash) {
+		return false
+	}
+	return s.IncorporateMessage(msg)
+}
+
+func (s *Block) ValidadeAudienceChange(msg *instruction.Message) bool {
+	audienceChange := msg.AsChangeAudience()
+	if audienceChange == nil {
+		return false
+	}
+	if !s.mutations.SetNewAudience(crypto.Hasher(audienceChange.Audience), append(audienceChange.Moderate, audienceChange.Submit...)) {
+		return false
+	}
+	return s.IncorporateMessage(msg)
+}
+
 func (s *Block) ValidadeJoinAudience(msg *instruction.Message) bool {
 	joinAudience := msg.AsJoinAudience()
 	if joinAudience == nil {
