@@ -16,7 +16,7 @@
 
 // Package message contains data types related to aereum network.
 //
-package instruction2
+package instructions
 
 import (
 	"errors"
@@ -38,24 +38,5 @@ type Transfer struct {
 	Reason      string
 	Fee         uint64
 	Signature   []byte
-}
-
-func NewTransfer(epoch uint64, wallet crypto.PrivateKey, to []recipent, reason string, fee uint64) *Transfer {
-	t := &Transfer{
-		Version:		0,
-		Instruction:	0,
-		Epoch: 			epoch,
-		From:			wallet.PublicKey().ToBytes(), 
-		To:				to,
-		Reason: 		reason,
-		Fee:         	fee,
-	}
-	hashed := crypto.Hasher(t.serializeWithouSignature())
-	var err error
-	t.Signature, err = wallet.Sign(hashed[:])
-	if err != nil {
-		return nil
-	}
-	return t
 }
 

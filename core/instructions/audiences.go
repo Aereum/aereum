@@ -15,7 +15,7 @@
 // along with the go-ethereum library. If not, see <http://www.gnu.org/licenses/>.
 
 // Package message contains data types related to aereum network.
-package instruction2
+package instructions
 
 import (
 	"errors"
@@ -23,32 +23,15 @@ import (
 	"github.com/Aereum/aereum/core/crypto"
 )
 
-// Basic template used for all message types
-type MessageTemplate struct {
-	Version			byte
-	Instruction		byte
-	Epoch			uint64
-	Author			[]byte	//public key token
-	Message			[]byte
-	Wallet			[]byte	//public key token
-	Fee				uint64
-	WalletSignature	[]byte
-	Attorney		[]byte	//public key token
-	Signature		[]byte 
+
+type CreateAudience {
+	MessageType byte
+	Audience		[]byte
+	Sumission		[]byte
+	Moderation		[]byte
+	AudienceKey		[]byte
+	SumissionKey	[]byte
+	ModerationKey	[]byte
+	Flag			byte
+	Description		string
 }
-
-
-// "Message" field in MessageTemplate struct can be of one of the following types
-// JoinNetwork, UpdateInfo, CreateAudience..
-
-type JoinNetwork struct {
-	MessageType		byte
-	Caption			string
-	Details			map[string]
-}
-
-type UpdateInfo struct {
-	MessageType	byte
-	Details		map[string]
-}
-

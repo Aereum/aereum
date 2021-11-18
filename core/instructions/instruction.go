@@ -1,4 +1,4 @@
-package instruction2
+package instructions
 
 import (
 	"fmt"
