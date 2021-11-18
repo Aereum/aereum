@@ -29,7 +29,7 @@ type Recipient struct {
 	Value uint64
   }
 
-type Transfer struct {
+type ITransfer struct {
 	Version 	byte
 	Instruction	byte
 	Epoch 		uint64
@@ -39,4 +39,15 @@ type Transfer struct {
 	Fee         uint64
 	Signature   []byte
 }
+
+type IDeposit struct {
+	
+}
+
+type IWithdraw struct {
+	
+}
+
+
+
 

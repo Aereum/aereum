@@ -49,6 +49,14 @@ func PutUint64(v uint64, data *[]byte) {
 	*data = append(*data, b...)
 }
 
+func PutTime(value time.Time, data *[]byte) {
+	bytes, err := value.MarshalBinary()
+	if err != nil {
+		panic("invalid time")
+	}
+	PutByteArray(bytes, data)
+}
+
 func ParseByteArray(data []byte, position int) ([]byte, int) {
 	if position+1 >= len(data) {
 		return []byte{}, position
@@ -85,14 +93,6 @@ func ParseUint64(data []byte, position int) (uint64, int) {
 		uint64(data[position+6])<<48 |
 		uint64(data[position+7])<<56
 	return value, position + 8
-}
-
-func PutTime(value time.Time, data *[]byte) {
-	bytes, err := value.MarshalBinary()
-	if err != nil {
-		panic("invalid time")
-	}
-	PutByteArray(bytes, data)
 }
 
 func ParseTime(data []byte, position int) (time.Time, int) {

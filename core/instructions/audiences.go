@@ -25,8 +25,7 @@ import (
 
 
 type CreateAudience {
-	MessageType byte
-	Audience		[]byte
+	Audience		[]byte	
 	Sumission		[]byte
 	Moderation		[]byte
 	AudienceKey		[]byte
@@ -34,4 +33,17 @@ type CreateAudience {
 	ModerationKey	[]byte
 	Flag			byte
 	Description		string
+}
+
+
+type JoinAudience {
+	Version 		byte
+	MessageType		byte
+	
+	Audience		[]byte
+
+	Presentation	string
+
+
+
 }
