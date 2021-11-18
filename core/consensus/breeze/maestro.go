@@ -1,20 +1,24 @@
 package breeze
 
 import (
+	"time"
+
 	"github.com/Aereum/aereum/core/consensus"
 	"github.com/Aereum/aereum/core/network"
+	"github.com/Aereum/aereum/core/state"
 )
 
 const ChecksumWindows = 50000
 const ValidatorsCount = 10
 
 type Maestro struct {
+	GenesisTime    time.Time
 	Peers          network.ValidatorNetwork
 	Slots          []network.SecureConnection
+	State          state.State
 	LiveCheckPoint uint64
-	Proposed       map[uint64]*CheckPoint
-	Instruction    chan *consensus.HashInstruction
-	Signature      chan *consensus.BlockSignature
+	Proposed       map[uint64]*state.Block
+	Recent         map[uint64]*state.Block
 	IsLeader       bool
 	Pool           *InstructionPool
 }
