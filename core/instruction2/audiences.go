@@ -1,4 +1,4 @@
-// Copyright 2021 The aereum Authors
+// Copyright 2021 The Aereum Authors
 // This file is part of the aereum library.
 //
 // The aereum library is free software: you can redistribute it and/or modify
@@ -15,7 +15,6 @@
 // along with the go-ethereum library. If not, see <http://www.gnu.org/licenses/>.
 
 // Package message contains data types related to aereum network.
-//
 package instruction2
 
 import (
@@ -24,38 +23,15 @@ import (
 	"github.com/Aereum/aereum/core/crypto"
 )
 
-type Recipient struct {
-	Token []byte
-	Value uint64
-  }
 
-type Transfer struct {
-	Version 	byte
-	Instruction	byte
-	Epoch 		uint64
-	From        []byte
-	To          []Recipient
-	Reason      string
-	Fee         uint64
-	Signature   []byte
+type CreateAudience {
+	MessageType byte
+	Audience		[]byte
+	Sumission		[]byte
+	Moderation		[]byte
+	AudienceKey		[]byte
+	SumissionKey	[]byte
+	ModerationKey	[]byte
+	Flag			byte
+	Description		string
 }
-
-func NewTransfer(epoch uint64, wallet crypto.PrivateKey, to []recipent, reason string, fee uint64) *Transfer {
-	t := &Transfer{
-		Version:		0,
-		Instruction:	0,
-		Epoch: 			epoch,
-		From:			wallet.PublicKey().ToBytes(), 
-		To:				to,
-		Reason: 		reason,
-		Fee:         	fee,
-	}
-	hashed := crypto.Hasher(t.serializeWithouSignature())
-	var err error
-	t.Signature, err = wallet.Sign(hashed[:])
-	if err != nil {
-		return nil
-	}
-	return t
-}
-
