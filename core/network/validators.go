@@ -5,7 +5,7 @@ import (
 	"net"
 
 	"github.com/Aereum/aereum/core/crypto"
-	"github.com/Aereum/aereum/core/instruction"
+	"github.com/Aereum/aereum/core/instructions"
 )
 
 const (
@@ -18,17 +18,12 @@ const (
 
 type ValidatorNetwork map[crypto.Hash]*SecureConnection
 
-func (v ValidatorNetwork) Broadcast(msg []byte, msgType byte, token crypto.Hash) {
+func (v ValidatorNetwork) Broadcast(msg *NetworkMessageTemplate) {
+	msgToSend := msg.Serialize()
 	for _, peer := range v {
-		/*msgToSend := []byte{msgType}
-		msgToSend = append(msgToSend, token[:]...)
-		msgToSend = append(msgToSend, msg...)
-		peer.WriteMessage(msgToSend)*/
-		peer.WriteMessage(msg)
-
+		peer.WriteMessage(msgToSend)
 	}
 }
-
 func NewValidatorNetwork(port int, prvKey crypto.PrivateKey, comm chan *HashedMessage,
 	validator chan ValidatedConnection, dial map[crypto.PublicKey]string) ValidatorNetwork {
 	listener, err := net.Listen("tcp", fmt.Sprintf(":%v", port))
@@ -36,7 +31,6 @@ func NewValidatorNetwork(port int, prvKey crypto.PrivateKey, comm chan *HashedMe
 	if err != nil {
 		panic(err)
 	}
-
 	go func() {
 		for {
 			conn, err := listener.Accept()
@@ -76,7 +70,8 @@ func handleValidatorConnection(conn *SecureConnection, comm chan *HashedMessage)
 			return
 		}
 		hashed := HashedMessage{msg: data}
-		hashed.hash, hashed.epoch = instruction.GetHashAndEpochFromMessage(data)
+		hashed.hash = crypto.Hasher(data)
+		hashed.epoch = int(instructions.GetEpochFromByteArray(data))
 		comm <- &hashed
 	}
 }

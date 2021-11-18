@@ -5,6 +5,7 @@ import (
 
 	"github.com/Aereum/aereum/core/crypto"
 	"github.com/Aereum/aereum/core/instruction"
+	"github.com/Aereum/aereum/core/instructions"
 )
 
 type Block struct {
@@ -20,7 +21,7 @@ type Block struct {
 	forming      bool
 }
 
-func (s *Block) ValidadeSubscribe(msg *instruction.Message) bool {
+func (s *Block) ValidadeSubscribe(msg *instructions.Instruction) bool {
 	subscribe := msg.AsSubscribe()
 	if subscribe == nil {
 		return false
@@ -191,13 +192,13 @@ func (s *Block) ValidadeRevokePowerOfAttorney(msg *instruction.Message) bool {
 
 func (b *Block) SerializeWithoutHash() []byte {
 	serialized := b.Parent[:]
-	instruction.PutByteArray(b.Publisher, &serialized)
-	instruction.PutUint64(b.Epoch, &serialized)
-	instruction.PutUint64(uint64(len(b.Instructions)), &serialized)
+	instructions.PutByteArray(b.Publisher, &serialized)
+	instructions.PutUint64(b.Epoch, &serialized)
+	instructions.PutUint64(uint64(len(b.Instructions)), &serialized)
 	for _, msg := range b.Instructions {
-		instruction.PutByteArray(msg, &serialized)
+		instructions.PutByteArray(msg, &serialized)
 	}
-	instruction.PutUint64(uint64(b.PublishedAt.UnixNano()), &serialized)
+	instructions.PutUint64(uint64(b.PublishedAt.UnixNano()), &serialized)
 	return serialized
 }
 
@@ -211,13 +212,13 @@ func ParseBlock(data []byte) *Block {
 	block := &Block{}
 	block.Parent = crypto.BytesToHash(data[0:crypto.Size])
 	position := crypto.Size
-	block.Publisher, position = instruction.ParseByteArray(data, position)
-	block.PublishedAt, position = instruction.ParseTime(data, position)
+	block.Publisher, position = instructions.ParseByteArray(data, position)
+	block.PublishedAt, position = instructions.ParseTime(data, position)
 	var count uint64
-	count, position = instruction.ParseUint64(data, position)
+	count, position = instructions.ParseUint64(data, position)
 	block.Instructions = make([][]byte, int(count))
 	for n := 0; n < int(count); n++ {
-		block.Instructions[n], position = instruction.ParseByteArray(data, position)
+		block.Instructions[n], position = instructions.ParseByteArray(data, position)
 	}
 	if len(data)-position != crypto.Size {
 		return nil

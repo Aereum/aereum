@@ -10,6 +10,11 @@ import (
 
 var errCouldNotSecure = errors.New("could not secure communication")
 
+type ValidatedConnection struct {
+	token crypto.Hash
+	ok    chan bool
+}
+
 // Simple implementation of hasdshake for secure communication between nodes.
 // The secure channel should not be used to transmit confidential information.
 //

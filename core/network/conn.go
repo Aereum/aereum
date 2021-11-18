@@ -67,3 +67,49 @@ func ListenTCP(port int, handler handlePort, prvKey crypto.PrivateKey, validator
 		}
 	}
 }
+
+func ConnectTCP(address string, prvKey crypto.PrivateKey, pubKey crypto.PublicKey) *SecureConnection {
+	conn, err := net.Dial("tcp", address)
+	if err != nil {
+		return nil
+	}
+	secureConnection, err := PerformClientHandShake(conn, prvKey, pubKey)
+	if err != nil {
+		conn.Close()
+		return nil
+	}
+	return secureConnection
+}
+
+type connResult struct {
+	hash crypto.Hash
+	conn *SecureConnection
+}
+
+func ConnectTCPPool(trusted map[crypto.PublicKey]string, prvKey crypto.PrivateKey) map[crypto.Hash]*SecureConnection {
+	remaining := len(trusted)
+	resp := make(chan connResult)
+	connections := make(map[crypto.Hash]*SecureConnection)
+	for pubKey, addr := range trusted {
+		go func(pubKey crypto.PublicKey, addr string) {
+			conn := ConnectTCP(addr, prvKey, pubKey)
+			resp <- connResult{
+				hash: crypto.Hasher(pubKey.ToBytes()),
+				conn: conn,
+			}
+		}(pubKey, addr)
+	}
+	go func() {
+		for {
+			newConn := <-resp
+			remaining -= 1
+			if newConn.conn != nil {
+				connections[newConn.hash] = newConn.conn
+			}
+			if remaining == 0 {
+				break
+			}
+		}
+	}()
+	return connections
+}

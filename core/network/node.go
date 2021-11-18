@@ -1,6 +1,8 @@
 package network
 
 import (
+	"time"
+
 	"github.com/Aereum/aereum/core/crypto"
 
 	"github.com/Aereum/aereum/core/blockchain"
@@ -14,6 +16,9 @@ const (
 	syncPort                       = 7804
 )
 
+var BlockWindow, _ = time.ParseDuration("1s")
+var GenesisTime = time.Date(2021, time.November, 18, 0, 0, 0, 0, time.UTC)
+
 type MsgValidator struct {
 	msg []byte
 	ok  chan bool
@@ -24,7 +29,7 @@ type MsgValidatorChan chan *MsgValidator
 type Node struct {
 	State      blockchain.State
 	Validators ValidatorNetwork
-	Messengers MessengerNetwork
+	Messengers InstructionNetwork
 	Atendees   AttendeeNetwork
 }
 
@@ -32,6 +37,10 @@ func NewNode(state blockchain.State,
 	prvKey crypto.PrivateKey,
 	trusted map[crypto.PublicKey]string) *Node {
 	//
+
+	trustedConnections := ConnectTCPPool(trusted, prvKey)
+	instructionQueue := NewInstructionQueue(prvKey)
+
 	hashedMsgChan, validateConnChan := ReceiveQueue(state, make(chan struct{}))
 	node := &Node{}
 	blockChan := make(chan *blockchain.Block)
@@ -43,7 +52,7 @@ func NewNode(state blockchain.State,
 		trusted,
 	)
 
-	node.Messengers = *NewMessengerNetwork(
+	node.Messengers = *InstructionNetwork(
 		messageReceiveConnectionPort,
 		prvKey,
 		hashedMsgChan,

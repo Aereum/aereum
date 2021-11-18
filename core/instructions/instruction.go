@@ -1,6 +1,7 @@
 package instructions
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/Aereum/aereum/core/crypto"
@@ -27,10 +28,70 @@ const (
 	IUnkown
 )
 
+var ErrCouldNotParseMessage = errors.New("could not parse message")
+var ErrCouldNotParseSignature = errors.New("could not parse signature")
+var ErrInvalidSignature = errors.New("invalid signature")
+
+type Payment struct {
+	DebitAcc    []crypto.Hash
+	DebitValue  []uint64
+	CreditAcc   []crypto.Hash
+	CreditValue []uint64
+}
+
 type Instruction interface {
 	Kind() byte
 	Epoch() uint64
 	Serialize() []byte
+}
+
+func GetEpochFromByteArray(msg []byte) uint64 {
+	epoch, _ := ParseUint64(msg, 1)
+	return epoch
+}
+
+func CollectFees(instruction Instruction, token []byte) *Payment {
+	switch v := instruction.(type) {
+	case *AuthoredInstruction:
+		pay := Payment{
+			DebitValue:  []uint64{v.Fee},
+			CreditValue: []uint64{v.Fee},
+			CreditAcc:   []crypto.Hash{crypto.Hasher(token)},
+		}
+		if v.Wallet != nil {
+			pay.DebitAcc = []crypto.Hash{crypto.Hasher(v.Wallet)}
+		} else if v.Attorney != nil {
+			pay.DebitAcc = []crypto.Hash{crypto.Hasher(v.Attorney)}
+		} else {
+			pay.DebitAcc = []crypto.Hash{crypto.Hasher(v.Author)}
+		}
+		return &pay
+	default:
+		return nil
+	}
+	return nil
+}
+
+func GetPayments(instruction Instruction) *Payment {
+	switch v := instruction.(type) {
+	case *AuthoredInstruction:
+		pay := Payment{DebitValue: []uint64{v.Fee}}
+		if v.Wallet != nil {
+			pay.DebitAcc = []crypto.Hash{crypto.Hasher(v.Wallet)}
+		} else if v.Attorney != nil {
+			pay.DebitAcc = []crypto.Hash{crypto.Hasher(v.Attorney)}
+		} else {
+			pay.DebitAcc = []crypto.Hash{crypto.Hasher(v.Author)}
+		}
+		return &pay
+	default:
+		return nil
+	}
+	return nil
+}
+
+func IsAuthoredInstruction(instruction Instruction) bool {
+	return instruction.Kind() >= IJoinNetwork && instruction.Kind() < IUnkown
 }
 
 type AuthoredInstruction struct {
@@ -143,8 +204,8 @@ func parseAuthoredInstruction(data []byte) (*AuthoredInstruction, error) {
 	msgToVerify := data[0:position]
 	msg.Signature, position = ParseByteArray(data, position)
 	token := msg.Author
-	if len(msg.PowerOfAttorney) > 0 {
-		token = msg.PowerOfAttorney
+	if len(msg.Attorney) > 0 {
+		token = msg.Attorney
 	}
 	if publicKey, err := crypto.PublicKeyFromBytes(token); err != nil {
 		return nil, ErrCouldNotParseSignature
@@ -163,7 +224,7 @@ func parseAuthoredInstruction(data []byte) (*AuthoredInstruction, error) {
 	if position != length {
 		return nil, ErrCouldNotParseMessage
 	}
-	if publicKey, err := crypto.PublicKeyFromBytes(msg.FeeWallet); err != nil {
+	if publicKey, err := crypto.PublicKeyFromBytes(msg.Wallet); err != nil {
 		return nil, ErrCouldNotParseSignature
 	} else {
 		if !publicKey.Verify(msgToVerify, msg.WalletSignature) {

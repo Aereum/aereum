@@ -4,16 +4,16 @@ import (
 	"sync"
 
 	"github.com/Aereum/aereum/core/crypto"
-	"github.com/Aereum/aereum/core/instruction"
+	"github.com/Aereum/aereum/core/instructions"
 )
 
 type InstructionPool struct {
-	queue  []*instruction.Instruction
+	queue  []*instructions.Instruction
 	hashes map[crypto.Hash]int
 	mu     *sync.Mutex
 }
 
-func (pool *InstructionPool) Unqueue() *instruction.Instruction {
+func (pool *InstructionPool) Unqueue() *instructions.Instruction {
 	pool.mu.Lock()
 	defer pool.mu.Unlock()
 	if len(pool.queue) > 0 {
@@ -24,7 +24,7 @@ func (pool *InstructionPool) Unqueue() *instruction.Instruction {
 	return nil
 }
 
-func (pool *InstructionPool) Queue(m *instruction.Instruction, hash crypto.Hash) {
+func (pool *InstructionPool) Queue(m *instructions.Instruction, hash crypto.Hash) {
 	pool.mu.Lock()
 	defer pool.mu.Unlock()
 	pool.queue = append(pool.queue, m)

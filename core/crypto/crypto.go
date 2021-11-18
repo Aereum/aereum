@@ -172,3 +172,9 @@ func (c Cipher) Open(msg []byte, nonce []byte) ([]byte, error) {
 func Equal() {
 
 }
+
+func Nonce() []byte {
+	nonce := make([]byte, NonceSize)
+	rand.Read(nonce)
+	return nonce
+}
