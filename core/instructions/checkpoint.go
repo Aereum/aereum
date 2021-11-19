@@ -1,62 +1,79 @@
 package instructions
 
-/*
+import "github.com/Aereum/aereum/core/crypto"
 
-type CheckPoint struct {
+type Validator struct {
 	State     *State
-	Mutations *StateMutation
+	Mutations *Mutation
 }
 
-func (s *CheckPoint) AuthorExists(m *AuthoredInstruction) bool {
-	hash := crypto.Hasher(m.Author)
-	if s.State.Subscribers.Exists(hash) {
-		return true
+func (c *Validator) Balance(hash crypto.Hash) uint64 {
+	_, balance := c.State.Wallets.Balance(hash)
+	delta := c.Mutations.DeltaBalance(hash)
+	if delta < 0 {
+		balance = balance - uint64(-delta)
+	} else {
+		balance = balance + uint64(delta)
 	}
-	if _, ok := s.Mutations.NewSubscriber[hash]; ok {
-		return true
-	}
-	return false
+	return balance
 }
 
-func (s *CheckPoint) CaptionExists(caption string) bool {
-	hash := crypto.Hasher([]byte(caption))
-	if s.State.Captions.Exists(hash) {
-		return true
-	}
-	if _, ok := s.Mutations.NewCaption[hash]; ok {
-		return true
-	}
-	return false
-}
-
-func (s *CheckPoint) Balance(hash crypto.Hash) int {
-	_, balance := s.State.Wallets.Balance(hash)
-	if delta, ok := s.Mutations.DeltaWallets[hash]; ok {
-		return int(balance) + delta
-	}
-	return int(balance)
-}
-
-func (s *CheckPoint) GetAudince(hash crypto.Hash) (bool, []byte) {
-	if audience, ok := s.Mutations.NewAudiences[hash]; ok {
-		return true, audience
-	}
-	return s.State.Audiences.GetKeys(hash)
-}
-
-func (s *CheckPoint) HasPowerOfAttorney(hash crypto.Hash) bool {
-	has := s.State.PowerOfAttorney.Exists(hash)
-	if !has {
-		_, has = s.Mutations.GrantPower[hash]
-	}
-	if !has {
+func (c *Validator) PowerOfAttorney(hash crypto.Hash) bool {
+	if c.Mutations.HasRevokePower(hash) {
 		return false
 	}
-	_, revoked := s.Mutations.RevokePower[hash]
-	return !revoked
+	if c.Mutations.HasGrantPower(hash) {
+		return true
+	}
+	return c.State.PowerOfAttorney.Exists(hash)
 }
 
-func (s *CheckPoint) HasAdvOffer(hash crypto.Hash) *SponsorshipOffer {
-	return nil
+func (c *Validator) SponsorshipOffer(hash crypto.Hash) *sponsorOfferState {
+	if c.Mutations.HasUsedSponsorOffer(hash) {
+		return nil
+	}
+	if offer := c.Mutations.GetSponsorOffer(hash); offer != nil {
+		return offer
+	}
+	ok, contentHash, expire := c.State.SponsorOffers.GetContentHashAndExpiry(hash)
+	if !ok {
+		return nil
+	}
+	return &sponsorOfferState{
+		contentHash: crypto.BytesToHash(contentHash),
+		expire:      expire,
+	}
 }
-*/
+
+func (c *Validator) HasMember(hash crypto.Hash) bool {
+	if c.Mutations.HasMember(hash) {
+		return true
+	}
+	return c.State.Members.Exists(hash)
+}
+
+func (c *Validator) HasCaption(hash crypto.Hash) bool {
+	if c.Mutations.HasCaption(hash) {
+		return true
+	}
+	return c.State.Captions.Exists(hash)
+}
+
+func (c *Validator) GetAudienceKeys(hash crypto.Hash) []byte {
+	if audience := c.Mutations.GetAudience(hash); audience != nil {
+		return audience
+	}
+	ok, keys := c.State.Audiences.GetKeys(hash)
+	if !ok {
+		return nil
+	}
+	return keys
+}
+
+func (c *Validator) GetEphemeralExpire(hash crypto.Hash) (bool, uint64) {
+	if ok, expire := c.Mutations.HasEphemeral(hash); ok {
+		return true, expire
+	}
+	return false, 0
+	// TODO include in state
+}

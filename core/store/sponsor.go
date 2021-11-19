@@ -2,6 +2,7 @@ package store
 
 import (
 	"github.com/Aereum/aereum/core/crypto"
+	"github.com/Aereum/aereum/core/util"
 )
 
 func GetOrSetSponsor(found bool, hash crypto.Hash, b *Bucket, item int64, param []byte) OperationResult {
@@ -47,10 +48,14 @@ type Sponsor struct {
 	hs *HashStore
 }
 
-func (w *Sponsor) GetContentHash(hash crypto.Hash) (bool, []byte) {
+func (w *Sponsor) GetContentHashAndExpiry(hash crypto.Hash) (bool, []byte, uint64) {
 	response := make(chan QueryResult)
 	ok, keys := w.hs.Query(Query{hash: hash, param: []byte{}, response: response})
-	return ok, keys
+	if ok {
+		expiry, _ := util.ParseUint64(keys, crypto.Size)
+		return ok, keys[0 : len(keys)-9], expiry
+	}
+	return false, nil, 0
 }
 
 func (w *Sponsor) Exists(hash crypto.Hash) bool {
@@ -59,8 +64,9 @@ func (w *Sponsor) Exists(hash crypto.Hash) bool {
 	return ok
 }
 
-func (w *Sponsor) SetContentHash(hash crypto.Hash, keys []byte) bool {
+func (w *Sponsor) SetContentHashAndExpiry(hash crypto.Hash, keys []byte, expire uint64) bool {
 	response := make(chan QueryResult)
+	util.PutUint64(expire, &keys)
 	ok, _ := w.hs.Query(Query{hash: hash, param: keys, response: response})
 	return ok
 }

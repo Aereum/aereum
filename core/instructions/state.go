@@ -17,146 +17,221 @@ type State struct {
 	SponsorExpire   map[uint64]crypto.Hash
 }
 
-func GroupMutations(mutations []*StateMutation) *StateMutation {
-	grouped := NewStateMutation(mutations[0].Epoch, mutations[len(mutations)-1].State)
-	for _, mutation := range mutations {
-		for acc, balance := range mutation.DeltaWallets {
-			if oldBalance, ok := grouped.DeltaWallets[acc]; ok {
-				grouped.DeltaWallets[acc] = oldBalance + balance
-			} else {
-				grouped.DeltaWallets[acc] = balance
-			}
-		}
-		for hash := range mutation.GrantPower {
-			grouped.GrantPower[hash] = struct{}{}
-		}
-		for hash := range mutation.RevokePower {
-			grouped.RevokePower[hash] = struct{}{}
-			delete(grouped.GrantPower, hash)
-		}
-		for hash := range mutation.UseSpnOffer {
-			grouped.UseSpnOffer[hash] = struct{}{}
-			delete(grouped.NewSpnOffer, hash)
-		}
-		for hash, offer := range mutation.NewSpnOffer {
-			grouped.NewSpnOffer[hash] = offer
-		}
-		for hash := range mutation.NewMembers {
-			grouped.NewMembers[hash] = struct{}{}
-		}
-		for hash := range mutation.NewCaption {
-			grouped.NewCaption[hash] = struct{}{}
-		}
-		for hash, keys := range mutation.NewAudiences {
-			grouped.NewAudiences[hash] = keys
-		}
-
-	}
-	return grouped
-}
-
-func NewStateMutation(epoch uint64, state *State) *StateMutation {
-	return &StateMutation{
-		Epoch:        epoch,
-		State:        state,
-		DeltaWallets: make(map[crypto.Hash]int),
-		Hashes:       make(map[crypto.Hash]struct{}),
-		GrantPower:   make(map[crypto.Hash]struct{}),
-		RevokePower:  make(map[crypto.Hash]struct{}),
-		UseSpnOffer:  make(map[crypto.Hash]struct{}),
-		NewSpnOffer:  make(map[crypto.Hash]*SponsorshipOffer),
-		NewMembers:   make(map[crypto.Hash]struct{}),
-		NewCaption:   make(map[crypto.Hash]struct{}),
-		NewAudiences: make(map[crypto.Hash][]byte),
-	}
-}
-
-type StateMutation struct {
-	Epoch        uint64
-	State        *State
-	DeltaWallets map[crypto.Hash]int
-	Hashes       map[crypto.Hash]struct{}
-	GrantPower   map[crypto.Hash]struct{}
-	RevokePower  map[crypto.Hash]struct{}
-	UseSpnOffer  map[crypto.Hash]struct{}
-	NewSpnOffer  map[crypto.Hash]*SponsorshipOffer
-	NewMembers   map[crypto.Hash]struct{}
-	NewCaption   map[crypto.Hash]struct{}
-	NewAudiences map[crypto.Hash][]byte
-}
-
-func (s *StateMutation) SetNewHash(hash crypto.Hash) bool {
-	if _, ok := s.Hashes[hash]; ok {
+/*func (s *Block) ValidadeSubscribe(msg *instructions.Instruction) bool {
+	subscribe := msg.AsSubscribe()
+	if subscribe == nil {
 		return false
 	}
-	s.Hashes[hash] = struct{}{}
-	return true
+	// token must be new... caption must be new.
+	if s.state.AuthorExists(msg) {
+		return false
+	}
+	authorHash := crypto.Hasher(msg.Author)
+	if _, ok := s.mutations.NewSubscriber[authorHash]; ok {
+		return false
+	}
+
+	if s.state.CaptionExists(subscribe.Caption) {
+		return false
+	}
+	captionHash := crypto.Hasher([]byte(subscribe.Caption))
+	if _, ok := s.mutations.NewCaption[captionHash]; ok {
+		return false
+	}
+	if !s.mutations.SetNewSubscriber(authorHash, captionHash) {
+		return false
+	}
+	return s.IncorporateMessage(msg)
 }
 
-func (s *StateMutation) SetNewGrantPower(hash crypto.Hash) bool {
-	if _, ok := s.GrantPower[hash]; ok {
+func (s *Block) ValidateAbout(msg *instruction.Message) bool {
+	about := msg.AsAbout()
+	if about == nil {
 		return false
 	}
-	s.GrantPower[hash] = struct{}{}
-	return true
+	// no further tests are necessary
+	hash := crypto.Hasher(msg.Author)
+	if !s.mutations.SetNewHash(hash) {
+		return false
+	}
+	return s.IncorporateMessage(msg)
 }
 
-func (s *StateMutation) SetNewRevokePower(hash crypto.Hash) bool {
-	if _, ok := s.RevokePower[hash]; ok {
+func (s *Block) ValidadeCreateAudience(msg *instruction.Message) bool {
+	createAudience := msg.AsCreateAudiece()
+	if createAudience == nil {
 		return false
 	}
-	s.RevokePower[hash] = struct{}{}
-	return true
+	// must be a new audience token
+	hash := crypto.Hasher(createAudience.Token)
+	if ok, _ := s.state.GetAudince(hash); ok {
+		return false
+	}
+	if !s.mutations.SetNewAudience(hash, append(createAudience.Moderate, createAudience.Submit...)) {
+		return false
+	}
+	return s.IncorporateMessage(msg)
 }
 
-func (s *StateMutation) SetNewUseAdvOffer(hash crypto.Hash, expire uint64) bool {
-	if _, ok := s.UseSpnOffer[hash]; ok {
+func (s *Block) ValidadeAcceptJoinAudience(msg *instruction.Message) bool {
+	acceptJoinAudience := msg.AsAcceptJoinAudience()
+	if acceptJoinAudience == nil {
 		return false
 	}
-	s.UseSpnOffer[hash] = struct{}{}
-	return true
+	// check if moderator signature is valid
+	request := acceptJoinAudience.Request.AsJoinAudience()
+	if request == nil {
+		return false
+	}
+	ok, keys := s.state.GetAudince(crypto.Hasher(request.Audience))
+	if !ok {
+		return false
+	}
+	moderator, err := crypto.PublicKeyFromBytes(keys[0:crypto.PublicKeySize])
+	if err != nil {
+		return false
+	}
+	if !moderator.Verify(request.Serialize(), acceptJoinAudience.ModeratorSignature) {
+		return false
+	}
+	hash := crypto.Hasher(append(request.Audience, acceptJoinAudience.Request.Author...))
+	if !s.mutations.SetNewHash(hash) {
+		return false
+	}
+	return s.IncorporateMessage(msg)
 }
 
-/*func (s *StateMutation) SetNewAdvOffer(hash crypto.Hash, expire uint64) bool {
-	if _, ok := s.UseAdvOffer[hash]; ok {
+func (s *Block) ValidadeAudienceChange(msg *instruction.Message) bool {
+	audienceChange := msg.AsChangeAudience()
+	if audienceChange == nil {
 		return false
 	}
-	s.NewAdvOffer[hash] = expire
-	return true
-}*/
-
-func (s *StateMutation) SetNewSubscriber(tokenHash crypto.Hash, captionHash crypto.Hash) bool {
-	if _, ok := s.NewMembers[tokenHash]; ok {
+	if !s.mutations.SetNewAudience(crypto.Hasher(audienceChange.Audience), append(audienceChange.Moderate, audienceChange.Submit...)) {
 		return false
 	}
-	if _, ok := s.NewMembers[captionHash]; ok {
-		return false
-	}
-	s.NewMembers[tokenHash] = struct{}{}
-	s.NewCaption[captionHash] = struct{}{}
-	return true
+	return s.IncorporateMessage(msg)
 }
 
-func (s *StateMutation) SetNewAudience(hash crypto.Hash, keys []byte) bool {
-	if _, ok := s.NewAudiences[hash]; ok {
+func (s *Block) ValidadeJoinAudience(msg *instruction.Message) bool {
+	joinAudience := msg.AsJoinAudience()
+	if joinAudience == nil {
 		return false
 	}
-	s.NewAudiences[hash] = keys
-	return true
+	hash := crypto.Hasher(joinAudience.Audience)
+	if ok, _ := s.state.GetAudince(hash); !ok {
+		return false
+	}
+	hash = crypto.Hasher(append(hash[:], msg.Author...))
+	if !s.mutations.SetNewHash(hash) {
+		return false
+	}
+	return s.IncorporateMessage(msg)
 }
 
-func (m *StateMutation) CanPay(payments Payment) bool {
-	for n, debitAcc := range payments.DebitAcc {
-		ok, stateBalance := m.State.Wallets.Balance(debitAcc)
-		if !ok {
+func (s *Block) ValidateContent(msg *instruction.Message) bool {
+	m := msg.AsContent()
+	if m == nil {
+		return false
+	}
+	// check signatures
+	ok, keys := s.state.GetAudince(crypto.Hasher(m.Audience))
+	if !ok {
+		return false
+	}
+	submissionPub, err := crypto.PublicKeyFromBytes(keys[0:crypto.PublicKeySize])
+	if err != nil {
+		return false
+	}
+	if !submissionPub.VerifyHash(m.SubmitHash, m.SubmitSignature) {
+		return false
+	}
+	if len(m.PublishSignature) > 0 {
+		pulishPub, err := crypto.PublicKeyFromBytes(keys[crypto.PublicKeySize : 2*crypto.PublicKeySize])
+		if err != nil {
 			return false
 		}
-		if delta, ok := m.DeltaWallets[debitAcc]; ok {
+		if !pulishPub.VerifyHash(m.PublishHash, m.PublishSignature) {
+			return false
+		}
+	}
+	// does not check if the advertisement offer has resources in the walltet to
+	// pay, only if the offer exists and the content matches
+	return s.IncorporateMessage(msg)
+}
+
+func (s *Block) ValidateGrantPowerOfAttorney(msg *instruction.Message) bool {
+	grantPower := msg.AsGrantPowerOfAttorney()
+	if grantPower == nil {
+		return false
+	}
+	hash := crypto.Hasher(append(msg.Author, grantPower.Token...))
+	if !s.mutations.SetNewGrantPower(hash) {
+		return false
+	}
+	return s.IncorporateMessage(msg)
+}
+
+func (s *Block) ValidadeRevokePowerOfAttorney(msg *instruction.Message) bool {
+	revokePower := msg.AsRevokePowerOfAttorney()
+	if revokePower == nil {
+		return false
+	}
+	hash := crypto.Hasher(append(msg.Author, revokePower.Token...))
+	if !s.state.HasPowerOfAttorney(hash) {
+		return false
+	}
+	if !s.mutations.SetNewRevokePower(hash) {
+		return false
+	}
+	return s.IncorporateMessage(msg)
+}
+
+func (b *Block) SerializeWithoutHash() []byte {
+	serialized := b.Parent[:]
+	instructions.PutByteArray(b.Publisher, &serialized)
+	instructions.PutUint64(b.Epoch, &serialized)
+	instructions.PutUint64(uint64(len(b.Instructions)), &serialized)
+	for _, msg := range b.Instructions {
+		instructions.PutByteArray(msg, &serialized)
+	}
+	instructions.PutUint64(uint64(b.PublishedAt.UnixNano()), &serialized)
+	return serialized
+}
+
+func (b *Block) Serialize() ([]byte, crypto.Hash) {
+	serialized := b.SerializeWithoutHash()
+	hash := crypto.Hasher(serialized)
+	return append(serialized[0:crypto.Size], hash[:]...), hash
+}
+
+func ParseBlock(data []byte) *Block {
+	block := &Block{}
+	block.Parent = crypto.BytesToHash(data[0:crypto.Size])
+	position := crypto.Size
+	block.Publisher, position = instructions.ParseByteArray(data, position)
+	block.PublishedAt, position = instructions.ParseTime(data, position)
+	var count uint64
+	count, position = instructions.ParseUint64(data, position)
+	block.Instructions = make([][]byte, int(count))
+	for n := 0; n < int(count); n++ {
+		block.Instructions[n], position = instructions.ParseByteArray(data, position)
+	}
+	if len(data)-position != crypto.Size {
+		return nil
+	}
+	block.Hash = crypto.BytesToHash(data[position:])
+	return block
+}
+
+func (m *Block) CanPay(payments instruction.Payment) bool {
+	for n, debitAcc := range payments.DebitAcc {
+		stateBalance := m.state.Balance(debitAcc)
+		if delta, ok := m.mutations.DeltaWallets[debitAcc]; ok {
 			if int(stateBalance)+delta < int(payments.DebitValue[n]) {
 				return false
 			}
 		} else {
-			if stateBalance < payments.DebitValue[n] {
+			if stateBalance < int(payments.DebitValue[n]) {
 				return false
 			}
 		}
@@ -164,19 +239,29 @@ func (m *StateMutation) CanPay(payments Payment) bool {
 	return true
 }
 
-func (m *StateMutation) TransferPayments(payments Payment) {
+func (m *Block) TransferPayments(payments instruction.Payment) {
 	for n, debitAcc := range payments.DebitAcc {
-		if delta, ok := m.DeltaWallets[debitAcc]; ok {
-			m.DeltaWallets[debitAcc] = delta - int(payments.DebitValue[n])
+		if delta, ok := m.mutations.DeltaWallets[debitAcc]; ok {
+			m.mutations.DeltaWallets[debitAcc] = delta - int(payments.DebitValue[n])
 		} else {
-			m.DeltaWallets[debitAcc] = -int(payments.DebitValue[n])
+			m.mutations.DeltaWallets[debitAcc] = -int(payments.DebitValue[n])
 		}
 	}
 	for n, creditAcc := range payments.CreditAcc {
-		if delta, ok := m.DeltaWallets[creditAcc]; ok {
-			m.DeltaWallets[creditAcc] = delta + int(payments.CreditValue[n])
+		if delta, ok := m.mutations.DeltaWallets[creditAcc]; ok {
+			m.mutations.DeltaWallets[creditAcc] = delta + int(payments.CreditValue[n])
 		} else {
-			m.DeltaWallets[creditAcc] = int(payments.CreditValue[n])
+			m.mutations.DeltaWallets[creditAcc] = int(payments.CreditValue[n])
 		}
 	}
 }
+
+func (m *Block) IncorporateMessage(msg *instruction.Message) bool {
+	payment := msg.Payments()
+	if !m.CanPay(payment) {
+		return false
+	}
+	m.TransferPayments(payment)
+	return true
+}
+*/

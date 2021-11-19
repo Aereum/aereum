@@ -14,10 +14,11 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with the go-ethereum library. If not, see <http://www.gnu.org/licenses/>.
 
-// Package message contains data types related to aereum network.
 package instructions
 
 import (
+	"encoding/json"
+
 	"github.com/Aereum/aereum/core/crypto"
 )
 
@@ -25,6 +26,13 @@ import (
 type JoinNetwork struct {
 	Caption string
 	Details string
+}
+
+func (s *JoinNetwork) Validate(validator Validator) bool {
+	if validator.HasCaption(crypto.Hasher([]byte(s.Caption))) {
+		return false
+	}
+	return json.Valid([]byte(s.Details))
 }
 
 func (s *JoinNetwork) Kind() byte {
@@ -54,6 +62,10 @@ type UpdateInfo struct {
 	Details string
 }
 
+func (s *UpdateInfo) Validate(validator Validator) bool {
+	return json.Valid([]byte(s.Details))
+}
+
 func (s *UpdateInfo) Kind() byte {
 	return IUpdateInfo
 }
@@ -77,6 +89,10 @@ func ParseUpdateInfo(data []byte) *UpdateInfo {
 // Grant power of attorney to a network member
 type GrantPowerOfAttorney struct {
 	Attorney []byte
+}
+
+func (s *GrantPowerOfAttorney) Validate(validator Validator) bool {
+	return validator.HasMember(crypto.Hasher(s.Attorney))
 }
 
 func (s *GrantPowerOfAttorney) Kind() byte {
@@ -105,6 +121,10 @@ func ParseGrantPowerOfAttorney(data []byte) *GrantPowerOfAttorney {
 // Revoke power of attorney previously granted
 type RevokePowerOfAttorney struct {
 	Attorney []byte
+}
+
+func (s *RevokePowerOfAttorney) Validate(validator Validator) bool {
+	return true
 }
 
 func (s *RevokePowerOfAttorney) Kind() byte {
