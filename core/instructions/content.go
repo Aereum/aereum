@@ -12,7 +12,7 @@
 // GNU Lesser General Public License for more details.
 //
 // You should have received a copy of the GNU Lesser General Public License
-// along with the go-ethereum library. If not, see <http://www.gnu.org/licenses/>.
+// along with the aereum library. If not, see <http://www.gnu.org/licenses/>.
 
 package instructions
 
@@ -23,6 +23,7 @@ import (
 // Post content to an existing audience
 type Content struct {
 	Audience     []byte
+	Author       []byte
 	ContentType  string
 	Content      []byte
 	Hash         []byte
@@ -32,11 +33,45 @@ type Content struct {
 	ModSignature []byte
 }
 
+func (c *Content) Validate(validator Validator) bool {
+	if !validator.HasMember(crypto.Hasher(c.Author)) {
+		return false
+	}
+	if (!c.Encrypted) && (len(c.Hash) != 0) && (!crypto.Hasher(c.Content).Equal(crypto.BytesToHash(c.Hash))) {
+		return false
+	}
+	keys := validator.GetAudienceKeys(crypto.Hasher(c.Audience))
+
+	if keys == nil {
+		return false
+	}
+	bytes := c.serializeWithoutSignatures()
+	hash := crypto.Hasher(bytes)
+	submit, err := crypto.PublicKeyFromBytes(keys[0:crypto.PublicKeySize])
+	if err != nil {
+		return false
+	}
+	if !submit.Verify(hash[:], c.SubSignature) {
+		return false
+	}
+	if len(c.ModSignature) == 0 {
+		return true
+	}
+	bytes = append(bytes, c.SubSignature...)
+	hash = crypto.Hasher(bytes)
+	moderate, err := crypto.PublicKeyFromBytes(keys[crypto.PublicKeySize:])
+	if err != nil {
+		return false
+	}
+	return moderate.Verify(hash[:], c.ModSignature)
+
+}
+
 func (s *Content) Kind() byte {
 	return IContent
 }
 
-func (s *Content) Serialize() []byte {
+func (s *Content) serializeWithoutSignatures() []byte {
 	bytes := make([]byte, 0)
 	PutByteArray(s.Audience, &bytes)
 	PutString(s.ContentType, &bytes)
@@ -44,6 +79,11 @@ func (s *Content) Serialize() []byte {
 	PutByteArray(s.Hash, &bytes) // NAO SEI SE ESTA CERTA ESSA SERIALIZACAO DE HASH
 	PutBool(s.Sponsored, &bytes)
 	PutBool(s.Encrypted, &bytes)
+	return bytes
+}
+
+func (s *Content) Serialize() []byte {
+	bytes := s.serializeWithoutSignatures()
 	PutByteArray(s.SubSignature, &bytes)
 	PutByteArray(s.ModSignature, &bytes)
 	return bytes
@@ -74,6 +114,10 @@ func ParseContent(data []byte) *Content {
 type React struct {
 	Hash     []byte
 	Reaction byte
+}
+
+func (s *React) Validate(validator Validator) bool {
+	return true
 }
 
 func (s *React) Kind() byte {

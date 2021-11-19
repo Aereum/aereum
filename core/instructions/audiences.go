@@ -32,6 +32,10 @@ type CreateAudience struct {
 	Description   string
 }
 
+func (s *CreateAudience) Validate(validator Validator) bool {
+	return validator.GetAudienceKeys(crypto.Hasher(s.Audience)) == nil
+}
+
 func (s *CreateAudience) Kind() byte {
 	return ICreateAudience
 }
@@ -85,6 +89,10 @@ type JoinAudience struct {
 	Presentation string
 }
 
+func (s *JoinAudience) Validate(validator Validator) bool {
+	return validator.GetAudienceKeys(crypto.Hasher(s.Audience)) != nil
+}
+
 func (s *JoinAudience) Kind() byte {
 	return IJoinAudience
 }
@@ -117,6 +125,12 @@ type AcceptJoinAudience struct {
 	Read     []byte
 	Submit   []byte
 	Moderate []byte
+}
+
+func (s *AcceptJoinAudience) Validate(validator Validator) bool {
+	check := validator.GetAudienceKeys(crypto.Hasher(s.Audience)) != nil
+	check = check && validator.HasMember(crypto.Hasher(s.Member))
+	return check
 }
 
 func (s *AcceptJoinAudience) Kind() byte {

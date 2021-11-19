@@ -17,62 +17,7 @@ type State struct {
 	SponsorExpire   map[uint64]crypto.Hash
 }
 
-/*func (s *Block) ValidadeSubscribe(msg *instructions.Instruction) bool {
-	subscribe := msg.AsSubscribe()
-	if subscribe == nil {
-		return false
-	}
-	// token must be new... caption must be new.
-	if s.state.AuthorExists(msg) {
-		return false
-	}
-	authorHash := crypto.Hasher(msg.Author)
-	if _, ok := s.mutations.NewSubscriber[authorHash]; ok {
-		return false
-	}
-
-	if s.state.CaptionExists(subscribe.Caption) {
-		return false
-	}
-	captionHash := crypto.Hasher([]byte(subscribe.Caption))
-	if _, ok := s.mutations.NewCaption[captionHash]; ok {
-		return false
-	}
-	if !s.mutations.SetNewSubscriber(authorHash, captionHash) {
-		return false
-	}
-	return s.IncorporateMessage(msg)
-}
-
-func (s *Block) ValidateAbout(msg *instruction.Message) bool {
-	about := msg.AsAbout()
-	if about == nil {
-		return false
-	}
-	// no further tests are necessary
-	hash := crypto.Hasher(msg.Author)
-	if !s.mutations.SetNewHash(hash) {
-		return false
-	}
-	return s.IncorporateMessage(msg)
-}
-
-func (s *Block) ValidadeCreateAudience(msg *instruction.Message) bool {
-	createAudience := msg.AsCreateAudiece()
-	if createAudience == nil {
-		return false
-	}
-	// must be a new audience token
-	hash := crypto.Hasher(createAudience.Token)
-	if ok, _ := s.state.GetAudince(hash); ok {
-		return false
-	}
-	if !s.mutations.SetNewAudience(hash, append(createAudience.Moderate, createAudience.Submit...)) {
-		return false
-	}
-	return s.IncorporateMessage(msg)
-}
-
+/*
 func (s *Block) ValidadeAcceptJoinAudience(msg *instruction.Message) bool {
 	acceptJoinAudience := msg.AsAcceptJoinAudience()
 	if acceptJoinAudience == nil {
@@ -128,63 +73,6 @@ func (s *Block) ValidadeJoinAudience(msg *instruction.Message) bool {
 	return s.IncorporateMessage(msg)
 }
 
-func (s *Block) ValidateContent(msg *instruction.Message) bool {
-	m := msg.AsContent()
-	if m == nil {
-		return false
-	}
-	// check signatures
-	ok, keys := s.state.GetAudince(crypto.Hasher(m.Audience))
-	if !ok {
-		return false
-	}
-	submissionPub, err := crypto.PublicKeyFromBytes(keys[0:crypto.PublicKeySize])
-	if err != nil {
-		return false
-	}
-	if !submissionPub.VerifyHash(m.SubmitHash, m.SubmitSignature) {
-		return false
-	}
-	if len(m.PublishSignature) > 0 {
-		pulishPub, err := crypto.PublicKeyFromBytes(keys[crypto.PublicKeySize : 2*crypto.PublicKeySize])
-		if err != nil {
-			return false
-		}
-		if !pulishPub.VerifyHash(m.PublishHash, m.PublishSignature) {
-			return false
-		}
-	}
-	// does not check if the advertisement offer has resources in the walltet to
-	// pay, only if the offer exists and the content matches
-	return s.IncorporateMessage(msg)
-}
-
-func (s *Block) ValidateGrantPowerOfAttorney(msg *instruction.Message) bool {
-	grantPower := msg.AsGrantPowerOfAttorney()
-	if grantPower == nil {
-		return false
-	}
-	hash := crypto.Hasher(append(msg.Author, grantPower.Token...))
-	if !s.mutations.SetNewGrantPower(hash) {
-		return false
-	}
-	return s.IncorporateMessage(msg)
-}
-
-func (s *Block) ValidadeRevokePowerOfAttorney(msg *instruction.Message) bool {
-	revokePower := msg.AsRevokePowerOfAttorney()
-	if revokePower == nil {
-		return false
-	}
-	hash := crypto.Hasher(append(msg.Author, revokePower.Token...))
-	if !s.state.HasPowerOfAttorney(hash) {
-		return false
-	}
-	if !s.mutations.SetNewRevokePower(hash) {
-		return false
-	}
-	return s.IncorporateMessage(msg)
-}
 
 func (b *Block) SerializeWithoutHash() []byte {
 	serialized := b.Parent[:]
