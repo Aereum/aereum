@@ -162,9 +162,6 @@ func ParseSecureChannel(data []byte) *SecureChannel {
 	p := SecureChannel{}
 	position := 0
 	p.TokenRange, position = ParseByteArray(data, position)
-	if _, err := crypto.PublicKeyFromBytes(p.TokenRange); err != nil {
-		return nil
-	}
 	p.Nonce, position = ParseUint64(data, position)
 	p.EncryptedNonce, position = ParseByteArray(data, position)
 	p.Content, position = ParseByteArray(data, position)
