@@ -194,7 +194,7 @@ func ParseGenericMessage(data []byte, kind byte) KindSerializer {
 	case IJoinAudience:
 		return ParseJoinAudience(data)
 	case IAcceptJoinRequest:
-		return ParseAcceptJoinRequest(data)
+		return ParseAcceptJoinAudience(data)
 	case IContent:
 		return ParseContent(data)
 	case IUpdateAudience:
@@ -207,8 +207,8 @@ func ParseGenericMessage(data []byte, kind byte) KindSerializer {
 		return ParseSponsorshipOffer(data)
 	case ISponsorshipAcceptance:
 		return ParseSponsorshipAcceptance(data)
-	case ICreateEphemeralToken:
-		return ParseCreateEphemeralToken(data)
+	case ICreateEphemeral:
+		return ParseCreateEphemeral(data)
 	case ISecureChannel:
 		return ParseSecureChannel(data)
 	case IReact:

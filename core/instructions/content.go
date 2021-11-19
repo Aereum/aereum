@@ -33,6 +33,10 @@ type Content struct {
 	ModSignature []byte
 }
 
+func (s *Content) Kind() byte {
+	return IContent
+}
+
 func (s *Content) Serialize() []byte {
 	bytes := make([]byte, 0)
 	PutByteArray(s.Audience, &bytes)
@@ -71,6 +75,10 @@ func ParseContent(data []byte) *Content {
 type React struct {
 	Hash     []byte
 	Reaction byte
+}
+
+func (s *React) Kind() byte {
+	return IReact
 }
 
 func (s *React) Serialize() []byte {
