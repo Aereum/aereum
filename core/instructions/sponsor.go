@@ -18,18 +18,16 @@
 package instructions
 
 import (
-	"errors"
-
 	"github.com/Aereum/aereum/core/crypto"
 )
 
 // Post sponsored content offer to an audience
 type SponsorshipOffer struct {
-	Audience		[]byte
-	ContentType		string
-	Content			[]byte // NAO SEI SE PRECISARIA INCLUIR UM CAMPO COM HASH DO CONTENT
-	Expiry			uint64
-	Revenue			uint64 
+	Audience    []byte
+	ContentType string
+	Content     []byte // NAO SEI SE PRECISARIA INCLUIR UM CAMPO COM HASH DO CONTENT
+	Expiry      uint64
+	Revenue     uint64
 }
 
 func (s *SponsorshipOffer) Serialize() []byte {
@@ -54,16 +52,16 @@ func ParseSponsorshipOffer(data []byte) *SponsorshipOffer {
 	p.Expiry, position = ParseUint64(data, position)
 	p.Revenue, position = ParseUint64(data, position)
 	if position == len(data) {
-        return &p
-    }
-    return nil
+		return &p
+	}
+	return nil
 }
 
 // Accept the sponsored content offer
 type SponsorshipAcceptance struct {
-	Audience		[]byte
-	Hash			[]byte
-	ModSignature	[]byte
+	Audience     []byte
+	Hash         []byte
+	ModSignature []byte
 }
 
 func (s *SponsorshipAcceptance) Serialize() []byte {
@@ -87,8 +85,7 @@ func ParseSponsorshipAcceptance(data []byte) *SponsorshipAcceptance {
 		return nil
 	}
 	if position == len(data) {
-        return &p
-    }
-    return nil
+		return &p
+	}
+	return nil
 }
-

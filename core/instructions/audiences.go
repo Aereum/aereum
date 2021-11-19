@@ -18,21 +18,19 @@
 package instructions
 
 import (
-	"errors"
-
 	"github.com/Aereum/aereum/core/crypto"
 )
 
 // Create a new audience
 type CreateAudience struct {
-	Audience		[]byte	
-	Sumission		[]byte
-	Moderation		[]byte
-	AudienceKey		[]byte
-	SumissionKey	[]byte
-	ModerationKey	[]byte
-	Flag			byte
-	Description		string
+	Audience      []byte
+	Submission    []byte
+	Moderation    []byte
+	AudienceKey   []byte
+	SubmissionKey []byte
+	ModerationKey []byte
+	Flag          byte
+	Description   string
 }
 
 func (s *CreateAudience) Serialize() []byte {
@@ -44,47 +42,47 @@ func (s *CreateAudience) Serialize() []byte {
 	PutByteArray(s.SubmissionKey, &bytes)
 	PutByteArray(s.ModerationKey, &bytes)
 	bytes = append(bytes, s.Flag)
-	PutString(s.Description)
+	PutString(s.Description, &bytes)
 	return bytes
 }
 
 func ParseCreateAudience(data []byte) *CreateAudience {
-    p := CreateAudience{}
-    position := 0
-    p.Audience, position = ParseByteArray(data, position)
-    if _, err := crypto.PublicKeyFromBytes(p.Audience); err != nil  {
-        return nil
-    }
-    p.Submission, position = ParseByteArray(data, position)
-    if _, err := crypto.PublicKeyFromBytes(p.Submission); err != nil  {
-        return nil
-    }
-    p.Moderation, position = ParseByteArray(data, position)
-    if _, err := crypto.PublicKeyFromBytes(p.Moderation); err != nil  {
-        return nil
-    }
-    p.AudienceKey, position = ParseByteArray(data, position)
-    p.SubmissionKey, position = ParseByteArray(data, position)
-    p.ModerationKey, position = ParseByteArray(data, position)
-    if position >= len(data) {
-        return nil
-    }
-    p.Flag = data[position]
-    position += 1
-    p.Description, position = ParseString(data, position)
-    if position == len(data) {
-        return &p
-    }
-    return nil
+	p := CreateAudience{}
+	position := 0
+	p.Audience, position = ParseByteArray(data, position)
+	if _, err := crypto.PublicKeyFromBytes(p.Audience); err != nil {
+		return nil
+	}
+	p.Submission, position = ParseByteArray(data, position)
+	if _, err := crypto.PublicKeyFromBytes(p.Submission); err != nil {
+		return nil
+	}
+	p.Moderation, position = ParseByteArray(data, position)
+	if _, err := crypto.PublicKeyFromBytes(p.Moderation); err != nil {
+		return nil
+	}
+	p.AudienceKey, position = ParseByteArray(data, position)
+	p.SubmissionKey, position = ParseByteArray(data, position)
+	p.ModerationKey, position = ParseByteArray(data, position)
+	if position >= len(data) {
+		return nil
+	}
+	p.Flag = data[position]
+	position += 1
+	p.Description, position = ParseString(data, position)
+	if position == len(data) {
+		return &p
+	}
+	return nil
 }
 
 // Join request for an existing audience
-type JoinAudiece struct {
-	Audience		[]byte
-	Presentation	string
+type JoinAudience struct {
+	Audience     []byte
+	Presentation string
 }
 
-func (s *JoinAudiece) Serialize() []byte {
+func (s *JoinAudience) Serialize() []byte {
 	bytes := make([]byte, 0)
 	PutByteArray(s.Audience, &bytes)
 	PutString(s.Presentation, &bytes)
@@ -100,19 +98,18 @@ func ParseJoinAudience(data []byte) *JoinAudience {
 	}
 	p.Presentation, position = ParseString(data, position)
 	if position == len(data) {
-        return &p
-    }
-    return nil
+		return &p
+	}
+	return nil
 }
-
 
 // Accept an audience's join request
 type AcceptJoinAudience struct {
-	Audience	[]byte
-	Member		[]byte
-	Read		[]byte
-	Submit		[]byte
-	Moderate	[]byte
+	Audience []byte
+	Member   []byte
+	Read     []byte
+	Submit   []byte
+	Moderate []byte
 }
 
 func (s *AcceptJoinAudience) Serialize() []byte {
@@ -127,7 +124,7 @@ func (s *AcceptJoinAudience) Serialize() []byte {
 
 // PRECISA AJUSTAR O PARSE PARA OS CAMPOS OPCIONAIS
 func ParseAcceptJoinAudience(data []byte) *AcceptJoinAudience {
-	p := AcceptJoinAudiece{}
+	p := AcceptJoinAudience{}
 	position := 0
 	p.Audience, position = ParseByteArray(data, position)
 	if _, err := crypto.PublicKeyFromBytes(p.Audience); err != nil {
@@ -150,23 +147,22 @@ func ParseAcceptJoinAudience(data []byte) *AcceptJoinAudience {
 		return nil
 	}
 	if position == len(data) {
-        return &p
-    }
-    return nil
+		return &p
+	}
+	return nil
 }
-
 
 // Update audience access keys
 type UpdateAudience struct {
-	Audience		[]byte
-	Sumission		[]byte
-	Moderation		[]byte
-	AudienceKey		[]byte
-	SumissionKey	[]byte
-	ModerationKey	[]byte
-	ReadMembers		[]byte
-	SubMembers		[]byte
-	ModMembers		[]byte	
+	Audience      []byte
+	Submission    []byte
+	Moderation    []byte
+	AudienceKey   []byte
+	SubmissionKey []byte
+	ModerationKey []byte
+	ReadMembers   []byte
+	SubMembers    []byte
+	ModMembers    []byte
 }
 
 func (s *UpdateAudience) Serialize() []byte {
@@ -199,13 +195,13 @@ func ParseUpdateAudience(data []byte) *UpdateAudience {
 		return nil
 	}
 	p.AudienceKey, position = ParseByteArray(data, position)
-	p.SumissionKey, position = ParseByteArray(data, position)
+	p.SubmissionKey, position = ParseByteArray(data, position)
 	p.ModerationKey, position = ParseByteArray(data, position)
 	p.ReadMembers, position = ParseByteArray(data, position)
 	p.SubMembers, position = ParseByteArray(data, position)
 	p.ModMembers, position = ParseByteArray(data, position)
 	if position == len(data) {
-        return &p
-    }
+		return &p
+	}
 	return nil
 }

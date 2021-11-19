@@ -19,17 +19,15 @@
 package instructions
 
 import (
-	"errors"
-
 	"github.com/Aereum/aereum/core/crypto"
 )
 
 // Transfer aero from a wallet to another wallet
 type Transfer struct {
-	To		[]byte
-	From	[]byte
-	Value	uint64
-  }
+	To    []byte
+	From  []byte
+	Value uint64
+}
 
 func (s *Transfer) Serialize() []byte {
 	bytes := make([]byte, 0)
@@ -52,15 +50,15 @@ func ParseTransfer(data []byte) *Transfer {
 	}
 	p.Value, position = ParseUint64(data, position)
 	if position == len(data) {
-        return &p
-    }
-    return nil
+		return &p
+	}
+	return nil
 }
 
 // Deposit aero in a wallet
 type Deposit struct {
-	To		[]byte
-	Value	uint64
+	To    []byte
+	Value uint64
 }
 
 func (s *Deposit) Serialize() []byte {
@@ -79,15 +77,15 @@ func ParseDeposit(data []byte) *Deposit {
 	}
 	p.Value, position = ParseUint64(data, position)
 	if position == len(data) {
-        return &p
-    }
-    return nil
+		return &p
+	}
+	return nil
 }
 
 // Withdraw aero from a wallet
 type Withdraw struct {
-	From	[]byte
-	Value	uint64
+	From  []byte
+	Value uint64
 }
 
 func (s *Withdraw) Serialize() []byte {
@@ -106,7 +104,7 @@ func ParseWithdraw(data []byte) *Withdraw {
 	}
 	p.Value, position = ParseUint64(data, position)
 	if position == len(data) {
-        return &p
-    }
-    return nil
+		return &p
+	}
+	return nil
 }

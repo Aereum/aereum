@@ -57,11 +57,16 @@ func PutTime(value time.Time, data *[]byte) {
 	PutByteArray(bytes, data)
 }
 
-// TESTEI E PARECE QUE FUNCIONA
 func PutBool(b bool, data *[]byte) {
-	var x uint64
-	if b {x = 1} else {x = 0}
-	PutUint64(x uint64, data)
+	if b {
+		*data = append(*data, 1)
+	} else {
+		*data = append(*data, 0)
+	}
+}
+
+func PutByte(b byte, data *[]byte) {
+	*data = append(*data, 0)
 }
 
 func ParseByteArray(data []byte, position int) ([]byte, int) {
@@ -113,14 +118,15 @@ func ParseTime(data []byte, position int) (time.Time, int) {
 }
 
 func ParseBool(data []byte, position int) (bool, int) {
-	var bolean uint64
-	bolean, position = ParseUint64(data, position)
-	if bolean == 1 {
-		return true, position
-		}
-	if bolean == 0 {
-		return false, position
+	if position >= len(data) {
+		return false, position + 1
 	}
-	// PRECISA MELHORAR ESSE TRATAMENTO DE ERRO AQUI
-	return false, position
+	return data[position] != 0, position + 1
+}
+
+func ParseByte(data []byte, position int) (byte, int) {
+	if position >= len(data) {
+		return 0, position + 1
+	}
+	return data[position], position + 1
 }

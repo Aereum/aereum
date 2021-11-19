@@ -18,15 +18,13 @@
 package instructions
 
 import (
-	"errors"
-
 	"github.com/Aereum/aereum/core/crypto"
 )
 
-// Join network 
+// Join network
 type JoinNetwork struct {
-	Caption			string
-	Details			string
+	Caption string
+	Details string
 }
 
 func (s *JoinNetwork) Serialize() []byte {
@@ -49,7 +47,7 @@ func ParseJoinNetwork(data []byte) *JoinNetwork {
 
 // Update member information
 type UpdateInfo struct {
-	Details			string
+	Details string
 }
 
 func (s *UpdateInfo) Serialize() []byte {
@@ -70,7 +68,7 @@ func ParseUpdateInfo(data []byte) *UpdateInfo {
 
 // Grant power of attorney to a network member
 type GrantPowerOfAttorney struct {
-	Attorney	[]byte
+	Attorney []byte
 }
 
 func (s *GrantPowerOfAttorney) Serialize() []byte {
@@ -94,7 +92,7 @@ func ParseGrantPowerOfAttorney(data []byte) *GrantPowerOfAttorney {
 
 // Revoke power of attorney previously granted
 type RevokePowerOfAttorney struct {
-	Attorney	[]byte
+	Attorney []byte
 }
 
 func (s *RevokePowerOfAttorney) Serialize() []byte {
@@ -118,8 +116,8 @@ func ParseRevokePowerOfAttorney(data []byte) *RevokePowerOfAttorney {
 
 // Create ephemeral token for anonymous messages
 type CreateEphemeral struct {
-	EphemeralToken	[]byte
-	Expiry			uint64
+	EphemeralToken []byte
+	Expiry         uint64
 }
 
 func (s *CreateEphemeral) Serialize() []byte {
@@ -145,10 +143,10 @@ func ParseCreateEphemeral(data []byte) *CreateEphemeral {
 
 // Anonymously establish message exchange with another network member
 type SecureChannel struct {
-	TokenRange		[]byte
-	Nonce			uint64
-	EncryptedNonce	[]byte
-	Content			[]byte
+	TokenRange     []byte
+	Nonce          uint64
+	EncryptedNonce []byte
+	Content        []byte
 }
 
 func (s *SecureChannel) Serialize() []byte {
@@ -175,4 +173,3 @@ func ParseSecureChannel(data []byte) *SecureChannel {
 	}
 	return nil
 }
-

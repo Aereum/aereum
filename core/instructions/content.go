@@ -18,21 +18,19 @@
 package instructions
 
 import (
-	"errors"
-
 	"github.com/Aereum/aereum/core/crypto"
 )
 
 // Post content to an existing audience
 type Content struct {
-	Audience		[]byte
-	ContentType		string
-	Content			[]byte
-	Hash			[]byte
-	Sponsored		bool
-	Encrypted		bool
-	SubSignature	[]byte
-	ModSignature	[]byte
+	Audience     []byte
+	ContentType  string
+	Content      []byte
+	Hash         []byte
+	Sponsored    bool
+	Encrypted    bool
+	SubSignature []byte
+	ModSignature []byte
 }
 
 func (s *Content) Serialize() []byte {
@@ -70,21 +68,21 @@ func ParseContent(data []byte) *Content {
 		return nil
 	}
 	if position == len(data) {
-        return &p
-    }
-    return nil
+		return &p
+	}
+	return nil
 }
 
 // Reaction to a content message
 type React struct {
-	Hash 		[]byte
-	Reaction	byte
+	Hash     []byte
+	Reaction byte
 }
 
 func (s *React) Serialize() []byte {
 	bytes := make([]byte, 0)
-	PutByteArray(s.Hash)
-	PutByteArray(s.Reaction)
+	PutByteArray(s.Hash, &bytes)
+	bytes = append(bytes, s.Reaction)
 	return bytes
 }
 
@@ -92,11 +90,9 @@ func ParseReact(data []byte) *React {
 	p := React{}
 	position := 0
 	p.Hash, position = ParseByteArray(data, position)
-    p.React = data[position]
-    position += 1
-    if position == len(data) {
-        return &p
-    }
-    return nil
+	p.Reaction, position = ParseByte(data, position)
+	if position == len(data) {
+		return &p
+	}
+	return nil
 }
-
