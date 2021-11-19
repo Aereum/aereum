@@ -27,6 +27,10 @@ type JoinNetwork struct {
 	Details string
 }
 
+func (s *JoinNetwork) Kind() byte {
+	return IJoinNetwork
+}
+
 func (s *JoinNetwork) Serialize() []byte {
 	bytes := make([]byte, 0)
 	PutString(s.Caption, &bytes)
@@ -50,6 +54,10 @@ type UpdateInfo struct {
 	Details string
 }
 
+func (s *UpdateInfo) Kind() byte {
+	return IUpdateInfo
+}
+
 func (s *UpdateInfo) Serialize() []byte {
 	bytes := make([]byte, 0)
 	PutString(s.Details, &bytes)
@@ -69,6 +77,10 @@ func ParseUpdateInfo(data []byte) *UpdateInfo {
 // Grant power of attorney to a network member
 type GrantPowerOfAttorney struct {
 	Attorney []byte
+}
+
+func (s *GrantPowerOfAttorney) Kind() byte {
+	return IGrantPowerOfAttorney
 }
 
 func (s *GrantPowerOfAttorney) Serialize() []byte {
@@ -95,6 +107,10 @@ type RevokePowerOfAttorney struct {
 	Attorney []byte
 }
 
+func (s *RevokePowerOfAttorney) Kind() byte {
+	return IRevokePowerOfAttorney
+}
+
 func (s *RevokePowerOfAttorney) Serialize() []byte {
 	bytes := make([]byte, 0)
 	PutByteArray(s.Attorney, &bytes)
@@ -118,6 +134,10 @@ func ParseRevokePowerOfAttorney(data []byte) *RevokePowerOfAttorney {
 type CreateEphemeral struct {
 	EphemeralToken []byte
 	Expiry         uint64
+}
+
+func (s *CreateEphemeral) Kind() byte {
+	return ICreateEphemeral
 }
 
 func (s *CreateEphemeral) Serialize() []byte {
@@ -147,6 +167,10 @@ type SecureChannel struct {
 	Nonce          uint64
 	EncryptedNonce []byte
 	Content        []byte
+}
+
+func (s *SecureChannel) Kind() byte {
+	return ISecureChannel
 }
 
 func (s *SecureChannel) Serialize() []byte {

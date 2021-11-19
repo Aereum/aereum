@@ -30,6 +30,10 @@ type SponsorshipOffer struct {
 	Revenue     uint64
 }
 
+func (s *SponsorshipOffer) Kind() byte {
+	return ISponsorshipOffer
+}
+
 func (s *SponsorshipOffer) Serialize() []byte {
 	bytes := make([]byte, 0)
 	PutByteArray(s.Audience, &bytes)
@@ -62,6 +66,10 @@ type SponsorshipAcceptance struct {
 	Audience     []byte
 	Hash         []byte
 	ModSignature []byte
+}
+
+func (s *SponsorshipAcceptance) Kind() byte {
+	return ISponsorshipAcceptance
 }
 
 func (s *SponsorshipAcceptance) Serialize() []byte {

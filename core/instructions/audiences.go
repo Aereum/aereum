@@ -33,6 +33,10 @@ type CreateAudience struct {
 	Description   string
 }
 
+func (s *CreateAudience) Kind() byte {
+	return ICreateAudience
+}
+
 func (s *CreateAudience) Serialize() []byte {
 	bytes := make([]byte, 0)
 	PutByteArray(s.Audience, &bytes)
@@ -82,6 +86,10 @@ type JoinAudience struct {
 	Presentation string
 }
 
+func (s *JoinAudience) Kind() byte {
+	return IJoinAudience
+}
+
 func (s *JoinAudience) Serialize() []byte {
 	bytes := make([]byte, 0)
 	PutByteArray(s.Audience, &bytes)
@@ -110,6 +118,10 @@ type AcceptJoinAudience struct {
 	Read     []byte
 	Submit   []byte
 	Moderate []byte
+}
+
+func (s *AcceptJoinAudience) Kind() byte {
+	return IAcceptJoinRequest
 }
 
 func (s *AcceptJoinAudience) Serialize() []byte {
@@ -154,6 +166,10 @@ type UpdateAudience struct {
 	ReadMembers   []byte
 	SubMembers    []byte
 	ModMembers    []byte
+}
+
+func (s *UpdateAudience) Kind() byte {
+	return IUpdateAudience
 }
 
 func (s *UpdateAudience) Serialize() []byte {

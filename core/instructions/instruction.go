@@ -22,7 +22,7 @@ const (
 	IRevokePowerOfAttorney
 	ISponsorshipOffer
 	ISponsorshipAcceptance
-	ICreateEphemeralToken
+	ICreateEphemeral
 	ISecureChannel
 	IReact
 	IUnkown
