@@ -49,6 +49,21 @@ func PutUint64(v uint64, data *[]byte) {
 	*data = append(*data, b...)
 }
 
+func PutTime(value time.Time, data *[]byte) {
+	bytes, err := value.MarshalBinary()
+	if err != nil {
+		panic("invalid time")
+	}
+	PutByteArray(bytes, data)
+}
+
+// TESTEI E PARECE QUE FUNCIONA
+func PutBool(b bool, data *[]byte) {
+	var x uint64
+	if b {x = 1} else {x = 0}
+	PutUint64(x uint64, data)
+}
+
 func ParseByteArray(data []byte, position int) ([]byte, int) {
 	if position+1 >= len(data) {
 		return []byte{}, position
@@ -87,14 +102,6 @@ func ParseUint64(data []byte, position int) (uint64, int) {
 	return value, position + 8
 }
 
-func PutTime(value time.Time, data *[]byte) {
-	bytes, err := value.MarshalBinary()
-	if err != nil {
-		panic("invalid time")
-	}
-	PutByteArray(bytes, data)
-}
-
 func ParseTime(data []byte, position int) (time.Time, int) {
 	bytes, newposition := ParseByteArray(data, position)
 	var t *time.Time
@@ -103,4 +110,17 @@ func ParseTime(data []byte, position int) (time.Time, int) {
 	}
 	return *t, newposition
 
+}
+
+func ParseBool(data []byte, position int) (bool, int) {
+	var bolean uint64
+	bolean, position = ParseUint64(data, position)
+	if bolean == 1 {
+		return true, position
+		}
+	if bolean == 0 {
+		return false, position
+	}
+	// PRECISA MELHORAR ESSE TRATAMENTO DE ERRO AQUI
+	return false, position
 }

@@ -97,7 +97,7 @@ func IsAuthoredInstruction(instruction Instruction) bool {
 type AuthoredInstruction struct {
 	Version         byte
 	InstructionType byte
-	epoch           uint64
+	Epoch           uint64
 	Author          []byte
 	Message         []byte
 	Wallet          []byte
@@ -113,7 +113,7 @@ func NewAuthoredInstruction(author crypto.PrivateKey, instruction Instruction,
 	newInstruction := AuthoredInstruction{
 		Version:         0,
 		InstructionType: instruction.Kind(),
-		epoch:           epoch,
+		Epoch:           epoch,
 		Author:          author.PublicKey().ToBytes(),
 		Message:         instruction.Serialize(),
 		Fee:             fee,
@@ -140,7 +140,7 @@ func NewAuthoredInstruction(author crypto.PrivateKey, instruction Instruction,
 
 func (a *AuthoredInstruction) serializeWithoutSignatures() []byte {
 	bytes := []byte{0, a.InstructionType}
-	PutUint64(a.epoch, &bytes)
+	PutUint64(a.Epoch, &bytes)
 	PutByteArray(a.Author, &bytes)
 	PutByteArray(a.Message, &bytes)
 	PutByteArray(a.Wallet, &bytes)
@@ -161,7 +161,7 @@ func (a *AuthoredInstruction) Kind() byte {
 }
 
 func (a *AuthoredInstruction) Epoch() uint64 {
-	return a.epoch
+	return a.Epoch
 }
 
 func (a *AuthoredInstruction) sign(author, wallet crypto.PrivateKey) bool {
@@ -180,7 +180,7 @@ func (a *AuthoredInstruction) sign(author, wallet crypto.PrivateKey) bool {
 	return true
 }
 
-func parseAuthoredInstruction(data []byte) (*AuthoredInstruction, error) {
+func ParseAuthoredInstruction(data []byte) (*AuthoredInstruction, error) {
 	if data[0] != 0 {
 		return nil, fmt.Errorf("wrong instruction version")
 	}
@@ -191,7 +191,7 @@ func parseAuthoredInstruction(data []byte) (*AuthoredInstruction, error) {
 	var msg AuthoredInstruction
 	msg.InstructionType = data[1]
 	position := 2
-	msg.epoch, position = ParseUint64(data, position)
+	msg.Epoch, position = ParseUint64(data, position)
 	msg.Author, position = ParseByteArray(data, position)
 	msg.Message, position = ParseByteArray(data, position)
 	msg.Wallet, position = ParseByteArray(data, position)
