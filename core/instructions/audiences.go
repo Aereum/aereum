@@ -135,17 +135,8 @@ func ParseAcceptJoinAudience(data []byte) *AcceptJoinAudience {
 		return nil
 	}
 	p.Read, position = ParseByteArray(data, position)
-	if _, err := crypto.PublicKeyFromBytes(p.Read); err != nil {
-		return nil
-	}
 	p.Submit, position = ParseByteArray(data, position)
-	if _, err := crypto.PublicKeyFromBytes(p.Submit); err != nil {
-		return nil
-	}
 	p.Moderate, position = ParseByteArray(data, position)
-	if _, err := crypto.PublicKeyFromBytes(p.Moderate); err != nil {
-		return nil
-	}
 	if position == len(data) {
 		return &p
 	}
