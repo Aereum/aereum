@@ -100,7 +100,7 @@ func (a *AuthoredInstruction) Kind() byte {
 }
 
 func (a *AuthoredInstruction) Epoch() uint64 {
-	return a.epoch
+	return a.Epoch
 }
 
 func (a *AuthoredInstruction) sign(author, wallet crypto.PrivateKey) bool {
@@ -130,7 +130,7 @@ func ParseAuthoredInstruction(data []byte) (*AuthoredInstruction, error) {
 	var msg AuthoredInstruction
 	msg.InstructionType = data[1]
 	position := 2
-	msg.epoch, position = ParseUint64(data, position)
+	msg.Epoch, position = ParseUint64(data, position)
 	msg.Author, position = ParseByteArray(data, position)
 	msg.Message, position = ParseByteArray(data, position)
 	msg.Wallet, position = ParseByteArray(data, position)

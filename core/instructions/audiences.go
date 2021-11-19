@@ -125,18 +125,87 @@ func (s *AcceptJoinAudience) Serialize() []byte {
 	return bytes
 }
 
+// PRECISA AJUSTAR O PARSE PARA OS CAMPOS OPCIONAIS
 func ParseAcceptJoinAudience(data []byte) *AcceptJoinAudience {
 	p := AcceptJoinAudiece{}
 	position := 0
 	p.Audience, position = ParseByteArray(data, position)
-	p.Audience, position = ParseByteArray(data, position)
-	if _, err := crypto.PublicKeyFromBytes(s.Audience); err != nil {
+	if _, err := crypto.PublicKeyFromBytes(p.Audience); err != nil {
 		return nil
 	}
-	p.Presentation, position = ParseString(data, position)
+	p.Member, position = ParseByteArray(data, position)
+	if _, err := crypto.PublicKeyFromBytes(p.Member); err != nil {
+		return nil
+	}
+	p.Read, position = ParseByteArray(data, position)
+	if _, err := crypto.PublicKeyFromBytes(p.Read); err != nil {
+		return nil
+	}
+	p.Submit, position = ParseByteArray(data, position)
+	if _, err := crypto.PublicKeyFromBytes(p.Submit); err != nil {
+		return nil
+	}
+	p.Moderate, position = ParseByteArray(data, position)
+	if _, err := crypto.PublicKeyFromBytes(p.Moderate); err != nil {
+		return nil
+	}
 	if position == len(data) {
         return &p
     }
     return nil
+}
 
+
+// Update audience access keys
+type UpdateAudience struct {
+	Audience		[]byte
+	Sumission		[]byte
+	Moderation		[]byte
+	AudienceKey		[]byte
+	SumissionKey	[]byte
+	ModerationKey	[]byte
+	ReadMembers		[]byte
+	SubMembers		[]byte
+	ModMembers		[]byte	
+}
+
+func (s *UpdateAudience) Serialize() []byte {
+	bytes := make([]byte, 0)
+	PutByteArray(s.Audience, &bytes)
+	PutByteArray(s.Submission, &bytes)
+	PutByteArray(s.Moderation, &bytes)
+	PutByteArray(s.AudienceKey, &bytes)
+	PutByteArray(s.SubmissionKey, &bytes)
+	PutByteArray(s.ModerationKey, &bytes)
+	PutByteArray(s.ReadMembers, &bytes)
+	PutByteArray(s.SubMembers, &bytes)
+	PutByteArray(s.ModMembers, &bytes)
+	return bytes
+}
+
+func ParseUpdateAudience(data []byte) *UpdateAudience {
+	p := UpdateAudience{}
+	position := 0
+	p.Audience, position = ParseByteArray(data, position)
+	if _, err := crypto.PublicKeyFromBytes(p.Audience); err != nil {
+		return nil
+	}
+	p.Submission, position = ParseByteArray(data, position)
+	if _, err := crypto.PublicKeyFromBytes(p.Submission); err != nil {
+		return nil
+	}
+	p.Moderation, position = ParseByteArray(data, position)
+	if _, err := crypto.PublicKeyFromBytes(p.Moderation); err != nil {
+		return nil
+	}
+	p.AudienceKey, position = ParseByteArray(data, position)
+	p.SumissionKey, position = ParseByteArray(data, position)
+	p.ModerationKey, position = ParseByteArray(data, position)
+	p.ReadMembers, position = ParseByteArray(data, position)
+	p.SubMembers, position = ParseByteArray(data, position)
+	p.ModMembers, position = ParseByteArray(data, position)
+	if position == len(data) {
+        return &p
+    }
+	return nil
 }

@@ -16,3 +16,87 @@
 
 // Package message contains data types related to aereum network.
 package instructions
+
+import (
+	"errors"
+
+	"github.com/Aereum/aereum/core/crypto"
+)
+
+// Post content to an existing audience
+type Content struct {
+	Audience		[]byte
+	ContentType		string
+	Content			[]byte
+	Hash			[]byte
+	Sponsored		bool
+	Encrypted		bool
+	SubSignature	[]byte
+	ModSignature	[]byte
+}
+
+func (s *Content) Serialize() []byte {
+	bytes := make([]byte, 0)
+	PutByteArray(s.Audience, &bytes)
+	PutString(s.ContentType, &bytes)
+	PutByteArray(s.Content, &bytes)
+	PutByteArray(s.Hash, &bytes) // NAO SEI SE ESTA CERTA ESSA SERIALIZACAO DE HASH
+	PutBool(s.Sponsored, &bytes)
+	PutBool(s.Encrypted, &bytes)
+	PutByteArray(s.SubSignature, &bytes)
+	PutByteArray(s.ModSignature, &bytes)
+	return bytes
+}
+
+// PRECISA AJUSTAR O PARSE PARA OS CAMPOS OPCIONAIS
+func ParseContent(data []byte) *Content {
+	p := Content{}
+	position := 0
+	p.Audience, position = ParseByteArray(data, position)
+	if _, err := crypto.PublicKeyFromBytes(p.Audience); err != nil {
+		return nil
+	}
+	p.ContentType, position = ParseString(data, position)
+	p.Content, position = ParseByteArray(data, position)
+	p.Hash, position = ParseByteArray(data, position)
+	p.Sponsored, position = ParseBool(data, position)
+	p.Encrypted, position = ParseBool(data, position)
+	p.SubSignature, position = ParseByteArray(data, position)
+	if _, err := crypto.PublicKeyFromBytes(p.SubSignature); err != nil {
+		return nil
+	}
+	p.ModSignature, position = ParseByteArray(data, position)
+	if _, err := crypto.PublicKeyFromBytes(p.ModSignature); err != nil {
+		return nil
+	}
+	if position == len(data) {
+        return &p
+    }
+    return nil
+}
+
+// Reaction to a content message
+type React struct {
+	Hash 		[]byte
+	Reaction	byte
+}
+
+func (s *React) Serialize() []byte {
+	bytes := make([]byte, 0)
+	PutByteArray(s.Hash)
+	PutByteArray(s.Reaction)
+	return bytes
+}
+
+func ParseReact(data []byte) *React {
+	p := React{}
+	position := 0
+	p.Hash, position = ParseByteArray(data, position)
+    p.React = data[position]
+    position += 1
+    if position == len(data) {
+        return &p
+    }
+    return nil
+}
+

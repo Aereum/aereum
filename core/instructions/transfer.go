@@ -24,30 +24,89 @@ import (
 	"github.com/Aereum/aereum/core/crypto"
 )
 
-type Recipient struct {
-	Token []byte
-	Value uint64
+// Transfer aero from a wallet to another wallet
+type Transfer struct {
+	To		[]byte
+	From	[]byte
+	Value	uint64
   }
 
-type ITransfer struct {
-	Version 	byte
-	Instruction	byte
-	Epoch 		uint64
-	From        []byte
-	To          []Recipient
-	Reason      string
-	Fee         uint64
-	Signature   []byte
+func (s *Transfer) Serialize() []byte {
+	bytes := make([]byte, 0)
+	PutByteArray(s.To, &bytes)
+	PutByteArray(s.From, &bytes)
+	PutUint64(s.Value, &bytes)
+	return bytes
 }
 
-type IDeposit struct {
-	
+func ParseTransfer(data []byte) *Transfer {
+	p := Transfer{}
+	position := 0
+	p.To, position = ParseByteArray(data, position)
+	if _, err := crypto.PublicKeyFromBytes(p.To); err != nil {
+		return nil
+	}
+	p.From, position = ParseByteArray(data, position)
+	if _, err := crypto.PublicKeyFromBytes(p.From); err != nil {
+		return nil
+	}
+	p.Value, position = ParseUint64(data, position)
+	if position == len(data) {
+        return &p
+    }
+    return nil
 }
 
-type IWithdraw struct {
-	
+// Deposit aero in a wallet
+type Deposit struct {
+	To		[]byte
+	Value	uint64
 }
 
+func (s *Deposit) Serialize() []byte {
+	bytes := make([]byte, 0)
+	PutByteArray(s.To, &bytes)
+	PutUint64(s.Value, &bytes)
+	return bytes
+}
 
+func ParseDeposit(data []byte) *Deposit {
+	p := Deposit{}
+	position := 0
+	p.To, position = ParseByteArray(data, position)
+	if _, err := crypto.PublicKeyFromBytes(p.To); err != nil {
+		return nil
+	}
+	p.Value, position = ParseUint64(data, position)
+	if position == len(data) {
+        return &p
+    }
+    return nil
+}
 
+// Withdraw aero from a wallet
+type Withdraw struct {
+	From	[]byte
+	Value	uint64
+}
 
+func (s *Withdraw) Serialize() []byte {
+	bytes := make([]byte, 0)
+	PutByteArray(s.From, &bytes)
+	PutUint64(s.Value, &bytes)
+	return bytes
+}
+
+func ParseWithdraw(data []byte) *Withdraw {
+	p := Withdraw{}
+	position := 0
+	p.From, position = ParseByteArray(data, position)
+	if _, err := crypto.PublicKeyFromBytes(p.From); err != nil {
+		return nil
+	}
+	p.Value, position = ParseUint64(data, position)
+	if position == len(data) {
+        return &p
+    }
+    return nil
+}
