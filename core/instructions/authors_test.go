@@ -3,12 +3,15 @@ package instructions
 import (
 	"reflect"
 	"testing"
+
+	"github.com/Aereum/aereum/core/crypto"
 )
 
 func TestJoinNetwork(t *testing.T) {
 	message := &JoinNetwork{
 		Caption: "larissa",
-		Details: {"Name":"Larissa", "Static Content": {"/img/": "https://www.*******.com/fotos/"}},
+		Details: `
+{"Name": "Larissa", "Static Content": {"/img/": "https://www.*******.com/fotos/"}}`,
 	}
 	bytes := message.Serialize()
 	copy := ParseJoinNetwork(bytes)
@@ -23,7 +26,9 @@ func TestJoinNetwork(t *testing.T) {
 
 func TestUpdateInfo(t *testing.T) {
 	message := &UpdateInfo{
-		Details: {"Name":"Larissa2", "Static Content": {"/img/": "https://www.*******.com/fotos2/"}},
+		Details: `
+{"Name": "Larissa2", "Static Content": {"/img/": "https://www.*******.com/fotos2/"}}
+`,
 	}
 	bytes := message.Serialize()
 	copy := ParseUpdateInfo(bytes)
@@ -36,9 +41,10 @@ func TestUpdateInfo(t *testing.T) {
 	}
 }
 
-func TestGrantPowerOfAttorney(t *testing,T) {
+func TestGrantPowerOfAttorney(t *testing.T) {
+	token, _ := crypto.RandomAsymetricKey()
 	message := &GrantPowerOfAttorney{
-		Attorney: []byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10},
+		Attorney: token.ToBytes(),
 	}
 	bytes := message.Serialize()
 	copy := ParseGrantPowerOfAttorney(bytes)
@@ -52,8 +58,9 @@ func TestGrantPowerOfAttorney(t *testing,T) {
 }
 
 func TestRevokePowerOfAttorney(t *testing.T) {
+	token, _ := crypto.RandomAsymetricKey()
 	message := &RevokePowerOfAttorney{
-		Attorney: []byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10},
+		Attorney: token.ToBytes(),
 	}
 	bytes := message.Serialize()
 	copy := ParseRevokePowerOfAttorney(bytes)
@@ -67,9 +74,10 @@ func TestRevokePowerOfAttorney(t *testing.T) {
 }
 
 func TestCreateEphemeral(t *testing.T) {
+	token, _ := crypto.RandomAsymetricKey()
 	message := &CreateEphemeral{
-		Ephemeral:	[]byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10},
-		Expiry:		25,
+		EphemeralToken: token.ToBytes(),
+		Expiry:         25,
 	}
 	bytes := message.Serialize()
 	copy := ParseCreateEphemeral(bytes)
@@ -81,7 +89,6 @@ func TestCreateEphemeral(t *testing.T) {
 		t.Error("Parse and Serialization not working for CreateEphemeral messages.")
 	}
 }
-
 
 func TestSecureChannel(t *testing.T) {
 	message := &SecureChannel{
