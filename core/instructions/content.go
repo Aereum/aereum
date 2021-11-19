@@ -60,13 +60,7 @@ func ParseContent(data []byte) *Content {
 	p.Sponsored, position = ParseBool(data, position)
 	p.Encrypted, position = ParseBool(data, position)
 	p.SubSignature, position = ParseByteArray(data, position)
-	if _, err := crypto.PublicKeyFromBytes(p.SubSignature); err != nil {
-		return nil
-	}
 	p.ModSignature, position = ParseByteArray(data, position)
-	if _, err := crypto.PublicKeyFromBytes(p.ModSignature); err != nil {
-		return nil
-	}
 	if position == len(data) {
 		return &p
 	}
