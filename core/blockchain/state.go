@@ -1,5 +1,6 @@
 package blockchain
 
+/*
 import (
 	"bytes"
 	"time"
@@ -384,3 +385,4 @@ func (s *State) ValidateMessage(msg []byte) bool {
 	}
 	return true
 }
+*/

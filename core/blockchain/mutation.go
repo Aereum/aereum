@@ -1,5 +1,6 @@
 package blockchain
 
+/*
 import (
 	"github.com/Aereum/aereum/core/crypto"
 	"github.com/Aereum/aereum/core/instruction"
@@ -142,3 +143,4 @@ func (m *StateMutations) IncorporateMessage(msg *instruction.Message) bool {
 	m.TransferPayments(payment)
 	return true
 }
+*/

@@ -45,6 +45,11 @@ type Instruction interface {
 	Serialize() []byte
 }
 
+type KindSerializer interface {
+	Kind() byte
+	Serialize() []byte
+}
+
 func GetEpochFromByteArray(msg []byte) uint64 {
 	epoch, _ := ParseUint64(msg, 1)
 	return epoch
@@ -69,7 +74,6 @@ func CollectFees(instruction Instruction, token []byte) *Payment {
 	default:
 		return nil
 	}
-	return nil
 }
 
 func GetPayments(instruction Instruction) *Payment {
@@ -87,7 +91,6 @@ func GetPayments(instruction Instruction) *Payment {
 	default:
 		return nil
 	}
-	return nil
 }
 
 func IsAuthoredInstruction(instruction Instruction) bool {
@@ -99,7 +102,7 @@ type AuthoredInstruction struct {
 	InstructionType byte
 	epoch           uint64
 	Author          []byte
-	Message         []byte
+	Message         KindSerializer
 	Wallet          []byte
 	Fee             uint64
 	Attorney        []byte
@@ -107,7 +110,7 @@ type AuthoredInstruction struct {
 	WalletSignature []byte
 }
 
-func NewAuthoredInstruction(author crypto.PrivateKey, instruction Instruction,
+func NewAuthoredInstruction(author crypto.PrivateKey, instruction KindSerializer,
 	epoch uint64, fee uint64, attorney, wallet *crypto.PrivateKey) Instruction {
 
 	newInstruction := AuthoredInstruction{
@@ -115,7 +118,7 @@ func NewAuthoredInstruction(author crypto.PrivateKey, instruction Instruction,
 		InstructionType: instruction.Kind(),
 		epoch:           epoch,
 		Author:          author.PublicKey().ToBytes(),
-		Message:         instruction.Serialize(),
+		Message:         instruction,
 		Fee:             fee,
 	}
 
@@ -142,7 +145,7 @@ func (a *AuthoredInstruction) serializeWithoutSignatures() []byte {
 	bytes := []byte{0, a.InstructionType}
 	PutUint64(a.epoch, &bytes)
 	PutByteArray(a.Author, &bytes)
-	PutByteArray(a.Message, &bytes)
+	PutByteArray(a.Message.Serialize(), &bytes)
 	PutByteArray(a.Wallet, &bytes)
 	PutUint64(a.Fee, &bytes)
 	PutByteArray(a.Attorney, &bytes)
@@ -180,6 +183,40 @@ func (a *AuthoredInstruction) sign(author, wallet crypto.PrivateKey) bool {
 	return true
 }
 
+func ParseGenericMessage(data []byte, kind byte) KindSerializer {
+	switch kind {
+	case IJoinNetwork:
+		return ParseJoinNetwork(data)
+	case IUpdateInfo:
+		return ParseUpdateInfo(data)
+	case ICreateAudience:
+		return ParseCreateAudience(data)
+	case IJoinAudience:
+		return ParseJoinAudience(data)
+	case IAcceptJoinRequest:
+		return ParseAcceptJoinRequest(data)
+	case IContent:
+		return ParseContent(data)
+	case IUpdateAudience:
+		return ParseUpdateAudience(data)
+	case IGrantPowerOfAttorney:
+		return ParseGrantPowerOfAttorney(data)
+	case IRevokePowerOfAttorney:
+		return ParseRevokePowerOfAttorney(data)
+	case ISponsorshipOffer:
+		return ParseSponsorshipOffer(data)
+	case ISponsorshipAcceptance:
+		return ParseSponsorshipAcceptance(data)
+	case ICreateEphemeralToken:
+		return ParseCreateEphemeralToken(data)
+	case ISecureChannel:
+		return ParseSecureChannel(data)
+	case IReact:
+		return ParseReact(data)
+
+	}
+}
+
 func ParseAuthoredInstruction(data []byte) (*AuthoredInstruction, error) {
 	if data[0] != 0 {
 		return nil, fmt.Errorf("wrong instruction version")
@@ -193,7 +230,14 @@ func ParseAuthoredInstruction(data []byte) (*AuthoredInstruction, error) {
 	position := 2
 	msg.epoch, position = ParseUint64(data, position)
 	msg.Author, position = ParseByteArray(data, position)
-	msg.Message, position = ParseByteArray(data, position)
+
+	var bytes []byte
+	bytes, position = ParseByteArray(data, position)
+	switch msg.InstructionType {
+	case IJoinNetwork:
+
+	}
+
 	msg.Wallet, position = ParseByteArray(data, position)
 	msg.Fee, position = ParseUint64(data, position)
 	msg.Attorney, position = ParseByteArray(data, position)

@@ -17,6 +17,7 @@
 // Package message contains data types related to aereum network.
 package blockchain
 
+/*
 import (
 	"time"
 
@@ -79,7 +80,7 @@ func ParseBlock(data []byte) *Block {
 	block.Hash = crypto.BytesToHash(data[position:])
 	return block
 }
-
+*/
 /*func (s *State) IncorporateMutations(mut StateMutations) {
 	s.Epoch += 1
 	for wallet, delta := range mut.DeltaWallets {

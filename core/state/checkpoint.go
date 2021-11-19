@@ -3,18 +3,7 @@ package state
 import (
 	"github.com/Aereum/aereum/core/crypto"
 	"github.com/Aereum/aereum/core/instruction"
-	"github.com/Aereum/aereum/core/instructions"
 )
-
-type InstructionValidator interface {
-	AuthorExists(crypto.Hash) bool
-	CaptionExists(crypto.Hash) bool
-	PowerOfAttorney(crypto.Hash) bool
-	Balance(crypto.Hash) uint64
-	AudienceKeys(crypto.Hash) []byte
-	SponsorshipOffer(crypto.Hash) *instructions.Instruction
-	SponsorshipGranted(crypto.Hash) bool
-}
 
 type CheckPoint struct {
 	State     *State

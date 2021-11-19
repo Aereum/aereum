@@ -17,6 +17,7 @@
 // Package message contains data types related to aereum network.
 package blockchain
 
+/*
 import (
 	"github.com/Aereum/aereum/core/crypto"
 	"github.com/Aereum/aereum/core/instruction"
@@ -45,3 +46,4 @@ type StateMutation struct {
 func (s *StateMutation) Serialize() []byte {
 	return nil
 }
+*/
