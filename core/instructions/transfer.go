@@ -20,89 +20,199 @@ import (
 	"github.com/Aereum/aereum/core/crypto"
 )
 
-// Transfer aero from a wallet to another wallet
-type Transfer struct {
-	To    []byte
-	From  []byte
+type Recipient struct {
+	Token []byte
 	Value uint64
+}
+
+// Transfer aero from a wallet to a series of other wallets
+type Transfer struct {
+	Version         byte
+	InstructionType byte
+	epoch           uint64
+	From            []byte
+	To              []Recipient
+	Reason          string
+	Fee             uint64
+	Signature       []byte
+}
+
+func (a *Transfer) Kind() byte {
+	return a.InstructionType
+}
+
+func (a *Transfer) Epoch() uint64 {
+	return a.epoch
 }
 
 func (s *Transfer) Serialize() []byte {
 	bytes := make([]byte, 0)
-	PutByteArray(s.To, &bytes)
+	PutByte(s.Version, &bytes)
+	PutByte(s.InstructionType, &bytes)
+	PutUint64(s.epoch, &bytes)
 	PutByteArray(s.From, &bytes)
-	PutUint64(s.Value, &bytes)
+	bytes = append(bytes, byte(len(s.To)))
+	for _, v := range s.To {
+		PutByteArray(v.Token, &bytes)
+		PutUint64(v.Value, &bytes)
+	}
+	PutString(s.Reason, &bytes)
+	PutUint64(s.Fee, &bytes)
+	PutByteArray(s.Signature, &bytes)
 	return bytes
 }
 
-func ParseTransfer(data []byte) *Transfer {
+func ParseTransfer(data []byte) (*Transfer, error) {
 	p := Transfer{}
 	position := 0
-	p.To, position = ParseByteArray(data, position)
-	if _, err := crypto.PublicKeyFromBytes(p.To); err != nil {
-		return nil
-	}
+	counter := uint64(0)
+	p.Version, position = ParseByte(data, position)
+	p.InstructionType, position = ParseByte(data, position)
+	p.epoch, position = ParseUint64(data, position)
 	p.From, position = ParseByteArray(data, position)
-	if _, err := crypto.PublicKeyFromBytes(p.From); err != nil {
-		return nil
+
+	counter, position = ParseUint64(data, position) // Precisa corrigir essa funcao de parse pq eh um int nao um uint
+	recipients := make([]Recipient, 0)
+	for i := 0; i < int(counter); i++ {
+		t, position := ParseByteArray(data, position)
+		v, position := ParseUint64(data, position)
+		n := Recipient{Token: t, Value: v}
+		recipients = append(recipients, n)
 	}
-	p.Value, position = ParseUint64(data, position)
-	if position == len(data) {
-		return &p
+	p.To = recipients
+	p.Reason, position = ParseString(data, position)
+	p.Fee, position = ParseUint64(data, position)
+
+	msgToVerify := data[0:position]
+	p.Signature, position = ParseByteArray(data, position)
+	token := p.From
+	if publicKey, err := crypto.PublicKeyFromBytes(token); err != nil {
+		return nil, ErrCouldNotParseSignature
+	} else {
+		if !publicKey.Verify(msgToVerify, p.Signature) {
+			return nil, ErrInvalidSignature
+		}
 	}
-	return nil
+	return &p, nil
 }
 
 // Deposit aero in a wallet
 type Deposit struct {
-	To    []byte
-	Value uint64
+	Version         byte
+	InstructionType byte
+	epoch           uint64
+	Token           []byte
+	Value           uint64
+	Reason          string
+	Fee             uint64
+	Signature       []byte
+}
+
+func (a *Deposit) Kind() byte {
+	return a.InstructionType
+}
+
+func (a *Deposit) Epoch() uint64 {
+	return a.epoch
 }
 
 func (s *Deposit) Serialize() []byte {
 	bytes := make([]byte, 0)
-	PutByteArray(s.To, &bytes)
+	PutByte(s.Version, &bytes)
+	PutByte(s.InstructionType, &bytes)
+	PutUint64(s.epoch, &bytes)
+	PutByteArray(s.Token, &bytes)
 	PutUint64(s.Value, &bytes)
+	PutString(s.Reason, &bytes)
+	PutUint64(s.Fee, &bytes)
+	PutByteArray(s.Signature, &bytes)
 	return bytes
 }
 
-func ParseDeposit(data []byte) *Deposit {
+func ParseDeposit(data []byte) (*Deposit, error) {
 	p := Deposit{}
 	position := 0
-	p.To, position = ParseByteArray(data, position)
-	if _, err := crypto.PublicKeyFromBytes(p.To); err != nil {
-		return nil
+	counter := uint64(0)
+	p.Version, position = ParseByte(data, position)
+	p.InstructionType, position = ParseByte(data, position)
+	p.epoch, position = ParseUint64(data, position)
+	p.Token, position = ParseByteArray(data, position)
+	if publicKey, err := crypto.PublicKeyFromBytes(p.Token); err != nil {
+		return nil, ErrCouldNotParseSignature
+	} else {
+	p.Value = ParseUint64(data, position)
+	p.Reason, position = ParseString(data, position)
+	p.Fee, position = ParseUint64(data, position)
+	msgToVerify := data[0:position]
+	p.Signature, position = ParseByteArray(data, position)
+	token := p.From
+	if publicKey, err := crypto.PublicKeyFromBytes(token); err != nil {
+		return nil, ErrCouldNotParseSignature
+	} else {
+		if !publicKey.Verify(msgToVerify, p.Signature) {
+			return nil, ErrInvalidSignature
+		}
 	}
-	p.Value, position = ParseUint64(data, position)
-	if position == len(data) {
-		return &p
-	}
-	return nil
+	return &p, nil
 }
+
 
 // Withdraw aero from a wallet
 type Withdraw struct {
-	From  []byte
-	Value uint64
+	Version         byte
+	InstructionType byte
+	epoch           uint64
+	Token           []byte
+	Value           uint64
+	Reason          string
+	Fee             uint64
+	Signature       []byte
+}
+
+func (a *Withdraw) Kind() byte {
+	return a.InstructionType
+}
+
+func (a *Withdraw) Epoch() uint64 {
+	return a.epoch
 }
 
 func (s *Withdraw) Serialize() []byte {
 	bytes := make([]byte, 0)
-	PutByteArray(s.From, &bytes)
+	PutByte(s.Version, &bytes)
+	PutByte(s.InstructionType, &bytes)
+	PutUint64(s.epoch, &bytes)
+	PutByteArray(s.Token, &bytes)
 	PutUint64(s.Value, &bytes)
+	PutString(s.Reason, &bytes)
+	PutUint64(s.Fee, &bytes)
+	PutByteArray(s.Signature, &bytes)
 	return bytes
 }
 
-func ParseWithdraw(data []byte) *Withdraw {
+func ParseWithdraw(data []byte) (*Withdraw, error) {
 	p := Withdraw{}
 	position := 0
-	p.From, position = ParseByteArray(data, position)
-	if _, err := crypto.PublicKeyFromBytes(p.From); err != nil {
-		return nil
+	counter := uint64(0)
+	p.Version, position = ParseByte(data, position)
+	p.InstructionType, position = ParseByte(data, position)
+	p.epoch, position = ParseUint64(data, position)
+	p.Token, position = ParseByteArray(data, position)
+	if publicKey, err := crypto.PublicKeyFromBytes(p.Token); err != nil {
+		return nil, ErrCouldNotParseSignature
+	} else {
+	p.Value = ParseUint64(data, position)
+	p.Reason, position = ParseString(data, position)
+	p.Fee, position = ParseUint64(data, position)
+	msgToVerify := data[0:position]
+	p.Signature, position = ParseByteArray(data, position)
+	token := p.From
+	if publicKey, err := crypto.PublicKeyFromBytes(token); err != nil {
+		return nil, ErrCouldNotParseSignature
+	} else {
+		if !publicKey.Verify(msgToVerify, p.Signature) {
+			return nil, ErrInvalidSignature
+		}
 	}
-	p.Value, position = ParseUint64(data, position)
-	if position == len(data) {
-		return &p
-	}
-	return nil
+	return &p, nil
 }
