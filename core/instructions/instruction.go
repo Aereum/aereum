@@ -88,6 +88,21 @@ func GetPayments(instruction Instruction) *Payment {
 		} else {
 			pay.DebitAcc = []crypto.Hash{crypto.Hasher(v.Author)}
 		}
+		if v.Kind() == ISponsorshipAcceptance {
+			acceptance := v.AsSponsorshipAcceptance()
+			sponsor := acceptance.Offer.AsSponsorshipOffer()
+			pay.DebitAcc = append(pay.DebitAcc, crypto.Hasher(v.Wallet))
+			pay.DebitValue = append(pay.DebitValue, sponsor.Revenue)
+			pay.CreditAcc = append(pay.CreditAcc, crypto.Hasher(acceptance.Audience))
+			pay.CreditValue = append(pay.CreditValue, sponsor.Revenue)
+
+		}
+	case *Transfer:
+		// TODO
+	case *Deposit:
+		// TODO
+	case *Withdraw:
+		// TODO
 		return &pay
 	default:
 		return nil

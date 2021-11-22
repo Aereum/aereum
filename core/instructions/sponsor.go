@@ -68,7 +68,7 @@ func ParseSponsorshipOffer(data []byte) *SponsorshipOffer {
 // Accept the sponsored content offer
 type SponsorshipAcceptance struct {
 	Audience     []byte
-	Hash         []byte
+	Offer        *AuthoredInstruction
 	ModSignature []byte
 }
 
@@ -84,7 +84,7 @@ func (s *SponsorshipAcceptance) Kind() byte {
 func (s *SponsorshipAcceptance) Serialize() []byte {
 	bytes := make([]byte, 0)
 	PutByteArray(s.Audience, &bytes)
-	PutByteArray(s.Hash, &bytes)
+	PutByteArray(s.Offer.Serialize(), &bytes)
 	PutByteArray(s.ModSignature, &bytes)
 	return bytes
 }
@@ -96,7 +96,12 @@ func ParseSponsorshipAcceptance(data []byte) *SponsorshipAcceptance {
 	if _, err := crypto.PublicKeyFromBytes(p.Audience); err != nil {
 		return nil
 	}
-	p.Hash, position = ParseByteArray(data, position)
+	offerBytes, position := ParseByteArray(data, position)
+	offer, err := ParseAuthoredInstruction(offerBytes)
+	if err != nil || offer.Kind() != ISponsorshipOffer {
+		return nil
+	}
+	p.Offer = p.Offer
 	p.ModSignature, position = ParseByteArray(data, position)
 	if _, err := crypto.PublicKeyFromBytes(p.ModSignature); err != nil {
 		return nil
