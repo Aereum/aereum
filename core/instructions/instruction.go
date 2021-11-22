@@ -51,6 +51,10 @@ type KindSerializer interface {
 	Serialize() []byte
 }
 
+type Serializer interface {
+	Serialize() []byte
+}
+
 func GetEpochFromByteArray(msg []byte) uint64 {
 	epoch, _ := ParseUint64(msg, 1)
 	return epoch
@@ -95,7 +99,6 @@ func GetPayments(instruction Instruction) *Payment {
 			pay.DebitValue = append(pay.DebitValue, sponsor.Revenue)
 			pay.CreditAcc = append(pay.CreditAcc, crypto.Hasher(acceptance.Audience))
 			pay.CreditValue = append(pay.CreditValue, sponsor.Revenue)
-
 		}
 	case *Transfer:
 		// TODO

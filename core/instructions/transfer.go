@@ -51,11 +51,14 @@ func (s *Transfer) Serialize() []byte {
 	PutByte(s.InstructionType, &bytes)
 	PutUint64(s.epoch, &bytes)
 	PutByteArray(s.From, &bytes)
-	bytes = append(bytes, byte(len(s.To)))
-	for _, v := range s.To {
-		PutByteArray(v.Token, &bytes)
-		PutUint64(v.Value, &bytes)
+	receipients := make([][]byte, 0)
+	for n, receipient := range s.To {
+		recBytes := make([]byte, 0)
+		PutByteArray(receipient.Token, &recBytes)
+		PutUint64(receipient.Value, &recBytes)
+		receipients[n] = recBytes
 	}
+	PutSearializerArray(receipients, &bytes)
 	PutString(s.Reason, &bytes)
 	PutUint64(s.Fee, &bytes)
 	PutByteArray(s.Signature, &bytes)
@@ -65,24 +68,20 @@ func (s *Transfer) Serialize() []byte {
 func ParseTransfer(data []byte) (*Transfer, error) {
 	p := Transfer{}
 	position := 0
-	counter := uint64(0)
 	p.Version, position = ParseByte(data, position)
 	p.InstructionType, position = ParseByte(data, position)
 	p.epoch, position = ParseUint64(data, position)
 	p.From, position = ParseByteArray(data, position)
-
-	counter, position = ParseUint64(data, position) // Precisa corrigir essa funcao de parse pq eh um int nao um uint
-	recipients := make([]Recipient, 0)
-	for i := 0; i < int(counter); i++ {
-		t, position := ParseByteArray(data, position)
-		v, position := ParseUint64(data, position)
-		n := Recipient{Token: t, Value: v}
-		recipients = append(recipients, n)
+	recipients, position := ParseSerializerArray(data, position)
+	p.To = make([]Recipient, len(recipients))
+	for i := 0; i < len(recipients); i++ {
+		position := 0
+		t, position := ParseByteArray(recipients[i], position)
+		v, position := ParseUint64(recipients[i], position)
+		p.To[i] = Recipient{Token: t, Value: v}
 	}
-	p.To = recipients
 	p.Reason, position = ParseString(data, position)
 	p.Fee, position = ParseUint64(data, position)
-
 	msgToVerify := data[0:position]
 	p.Signature, position = ParseByteArray(data, position)
 	token := p.From
@@ -190,7 +189,6 @@ func (s *Withdraw) Serialize() []byte {
 func ParseWithdraw(data []byte) (*Withdraw, error) {
 	p := Withdraw{}
 	position := 0
-	//counter := uint64(0)
 	p.Version, position = ParseByte(data, position)
 	p.InstructionType, position = ParseByte(data, position)
 	p.epoch, position = ParseUint64(data, position)
