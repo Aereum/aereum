@@ -138,10 +138,14 @@ func NewCipherKey() []byte {
 
 type Cipher struct {
 	cipher cipher.AEAD
+}
+
+type CipherNonce struct {
+	cipher cipher.AEAD
 	nonce  []byte
 }
 
-func CipherFromKey(key []byte) Cipher {
+func CipherNonceFromKey(key []byte) Cipher {
 	if len(key) != 32 {
 		panic("wrong cipher key size")
 	}
@@ -157,16 +161,53 @@ func CipherFromKey(key []byte) Cipher {
 	if n, err := rand.Read(nonce); n != gcm.NonceSize() {
 		panic(err)
 	}
-	return Cipher{cipher: gcm, nonce: nonce}
+	return Cipher{cipher: gcm}
 }
 
-func (c Cipher) Seal(msg []byte) ([]byte, []byte) {
-	rand.Read(c.nonce)
-	return c.cipher.Seal(nil, c.nonce, msg, nil), c.nonce
+func CipherFromKey(key []byte) Cipher {
+	if len(key) != 32 {
+		panic("wrong cipher key size")
+	}
+	block, err := aes.NewCipher(key)
+	if err != nil {
+		panic(err)
+	}
+	gcm, err := cipher.NewGCM(block)
+	if err != nil {
+		panic(err)
+	}
+	return Cipher{cipher: gcm}
 }
 
-func (c Cipher) Open(msg []byte, nonce []byte) ([]byte, error) {
+func (c Cipher) Seal(msg []byte) []byte {
+	var nonce []byte
+	return c.cipher.Seal(nil, nonce, msg, nil)
+}
+
+func (c CipherNonce) Seal(msg []byte) []byte {
+	return c.cipher.Seal(nil, c.nonce, msg, nil)
+}
+
+func (c CipherNonce) SealNewNonce(msg []byte) []byte {
+	sealed := c.cipher.Seal(nil, c.nonce, msg, nil)
+	if n, err := rand.Read(c.nonce); n != c.cipher.NonceSize() {
+		panic(err)
+	}
+	return sealed
+}
+
+func (c Cipher) Open(msg []byte) ([]byte, error) {
+	var nonce []byte
 	return c.cipher.Open(nil, nonce, msg, nil)
+}
+
+func (c CipherNonce) Open(msg []byte) ([]byte, error) {
+	return c.cipher.Open(nil, c.nonce, msg, nil)
+}
+
+func (c CipherNonce) OpenNewNonce(msg []byte, nonce []byte) ([]byte, error) {
+	c.nonce = nonce
+	return c.cipher.Open(nil, c.nonce, msg, nil)
 }
 
 func Equal() {
