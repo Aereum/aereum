@@ -100,16 +100,38 @@ func GetPayments(instruction Instruction) *Payment {
 			pay.CreditAcc = append(pay.CreditAcc, crypto.Hasher(acceptance.Audience))
 			pay.CreditValue = append(pay.CreditValue, sponsor.Revenue)
 		}
-	case *Transfer:
-		// TODO
-	case *Deposit:
-		// TODO
-	case *Withdraw:
-		// TODO
 		return &pay
-	default:
-		return nil
+	case *Transfer:
+		total := uint64(0)
+		pay := Payment{
+			CreditAcc:   make([]crypto.Hash, len(v.To)),
+			CreditValue: make([]uint64, len(v.To)),
+		}
+		for n, receipient := range v.To {
+			pay.CreditAcc[n] = crypto.Hasher(v.To[n].Token)
+			pay.CreditValue[n] = v.To[n].Value
+			total += receipient.Value
+		}
+		pay.DebitAcc = []crypto.Hash{crypto.Hasher(v.From)}
+		pay.DebitValue = []uint64{total}
+	case *Deposit:
+		pay := Payment{
+			DebitAcc:    []crypto.Hash{crypto.Hasher(v.Token)},
+			DebitValue:  []uint64{v.Value},
+			CreditAcc:   []crypto.Hash{},
+			CreditValue: []uint64{},
+		}
+		return &pay
+	case *Withdraw:
+		pay := Payment{
+			CreditAcc:   []crypto.Hash{crypto.Hasher(v.Token)},
+			CreditValue: []uint64{v.Value},
+			DebitAcc:    []crypto.Hash{},
+			DebitValue:  []uint64{},
+		}
+		return &pay
 	}
+	return nil
 }
 
 func IsAuthoredInstruction(instruction Instruction) bool {
