@@ -181,6 +181,11 @@ type UpdateAudience struct {
 	ModMembers    []byte
 }
 
+func (s *UpdateAudience) Validate(validator Validator) bool {
+	// TODO: Incorporate logic
+	return true
+}
+
 func (s *UpdateAudience) Kind() byte {
 	return IUpdateAudience
 }

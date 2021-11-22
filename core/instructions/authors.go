@@ -156,6 +156,11 @@ type CreateEphemeral struct {
 	Expiry         uint64
 }
 
+func (s *CreateEphemeral) Validate(validator Validator) bool {
+	// TODO
+	return true
+}
+
 func (s *CreateEphemeral) Kind() byte {
 	return ICreateEphemeral
 }
@@ -187,6 +192,11 @@ type SecureChannel struct {
 	Nonce          uint64
 	EncryptedNonce []byte
 	Content        []byte
+}
+
+func (s *SecureChannel) Validate(validator Validator) bool {
+	// TODO
+	return true
 }
 
 func (s *SecureChannel) Kind() byte {

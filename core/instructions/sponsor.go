@@ -29,6 +29,11 @@ type SponsorshipOffer struct {
 	Revenue     uint64
 }
 
+func (s *SponsorshipOffer) Validate(validator Validator) bool {
+	// TODO
+	return true
+}
+
 func (s *SponsorshipOffer) Kind() byte {
 	return ISponsorshipOffer
 }
@@ -65,6 +70,11 @@ type SponsorshipAcceptance struct {
 	Audience     []byte
 	Hash         []byte
 	ModSignature []byte
+}
+
+func (s *SponsorshipAcceptance) Validate(validator Validator) bool {
+	// TODO
+	return true
 }
 
 func (s *SponsorshipAcceptance) Kind() byte {
