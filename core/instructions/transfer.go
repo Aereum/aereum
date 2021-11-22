@@ -51,14 +51,15 @@ func (s *Transfer) Serialize() []byte {
 	PutByte(s.InstructionType, &bytes)
 	PutUint64(s.epoch, &bytes)
 	PutByteArray(s.From, &bytes)
-	receipients := make([][]byte, 0)
-	for n, receipient := range s.To {
-		recBytes := make([]byte, 0)
-		PutByteArray(receipient.Token, &recBytes)
-		PutUint64(receipient.Value, &recBytes)
-		receipients[n] = recBytes
+	PutUint16(uint16(len(s.To)), &bytes)
+	count := len(s.To)
+	if len(s.To) > 1<<16-1 {
+		count = 1 << 16
 	}
-	PutSearializerArray(receipients, &bytes)
+	for n := 0; n < count; n++ {
+		PutByteArray(s.To[n].Token, &bytes)
+		PutUint64(s.To[n].Value, &bytes)
+	}
 	PutString(s.Reason, &bytes)
 	PutUint64(s.Fee, &bytes)
 	PutByteArray(s.Signature, &bytes)
@@ -72,12 +73,12 @@ func ParseTransfer(data []byte) (*Transfer, error) {
 	p.InstructionType, position = ParseByte(data, position)
 	p.epoch, position = ParseUint64(data, position)
 	p.From, position = ParseByteArray(data, position)
-	recipients, position := ParseSerializerArray(data, position)
-	p.To = make([]Recipient, len(recipients))
-	for i := 0; i < len(recipients); i++ {
-		position := 0
-		t, position := ParseByteArray(recipients[i], position)
-		v, position := ParseUint64(recipients[i], position)
+	var count uint16
+	count, position = ParseUint16(data, position)
+	p.To = make([]Recipient, int(count))
+	for i := 0; i < int(count); i++ {
+		t, position := ParseByteArray(data, position)
+		v, position := ParseUint64(data, position)
 		p.To[i] = Recipient{Token: t, Value: v}
 	}
 	p.Reason, position = ParseString(data, position)

@@ -18,21 +18,6 @@ package instructions
 
 import "time"
 
-func PutSearializerArray(b [][]byte, data *[]byte) {
-	if len(b) == 0 {
-		*data = append(*data, 0, 0)
-		return
-	}
-	v := len(b)
-	if len(b) > 1<<16-1 {
-		v = 1 << 16
-	}
-	*data = append(*data, byte(v), byte(v>>8))
-	for n := 0; n < v; n++ {
-		PutByteArray(b[n], data)
-	}
-}
-
 func PutByteArray(b []byte, data *[]byte) {
 	if len(b) == 0 {
 		*data = append(*data, 0, 0)
@@ -48,6 +33,10 @@ func PutByteArray(b []byte, data *[]byte) {
 
 func PutString(value string, data *[]byte) {
 	PutByteArray([]byte(value), data)
+}
+
+func PutUint16(v uint16, data *[]byte) {
+	*data = append(*data, byte(v), byte(v>>8))
 }
 
 func PutUint64(v uint64, data *[]byte) {
@@ -83,25 +72,6 @@ func PutByte(b byte, data *[]byte) {
 	*data = append(*data, 0)
 }
 
-func ParseSerializerArray(data []byte, position int) ([][]byte, int) {
-	if position+1 >= len(data) {
-		return [][]byte{}, position
-	}
-	length := int(data[position+0]) | int(data[position+1])<<8
-	if length == 0 {
-		return [][]byte{}, position + 2
-	}
-	if position+length+2 > len(data) {
-		return [][]byte{}, position + length + 2
-	}
-	position += 2
-	output := make([][]byte, length)
-	for n := 0; n < length; n++ {
-		output[n], position = ParseByteArray(data, position)
-	}
-	return output, position
-}
-
 func ParseByteArray(data []byte, position int) ([]byte, int) {
 	if position+1 >= len(data) {
 		return []byte{}, position
@@ -123,6 +93,15 @@ func ParseString(data []byte, position int) (string, int) {
 	} else {
 		return "", newPosition
 	}
+}
+
+func ParseUint16(data []byte, position int) (uint16, int) {
+	if position+1 >= len(data) {
+		return 0, position + 2
+	}
+	value := uint16(data[position+0]) |
+		uint16(data[position+1])<<8
+	return value, position + 2
 }
 
 func ParseUint64(data []byte, position int) (uint64, int) {
