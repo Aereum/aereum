@@ -44,11 +44,13 @@ type Instruction interface {
 	Kind() byte
 	Epoch() uint64
 	Serialize() []byte
+	Validate(Validator) bool
 }
 
 type KindSerializer interface {
 	Kind() byte
 	Serialize() []byte
+	Validate(Validator) bool
 }
 
 type Serializer interface {
@@ -93,8 +95,14 @@ func GetPayments(instruction Instruction) *Payment {
 			pay.DebitAcc = []crypto.Hash{crypto.Hasher(v.Author)}
 		}
 		if v.Kind() == ISponsorshipAcceptance {
-			acceptance := v.AsSponsorshipAcceptance()
-			sponsor := acceptance.Offer.AsSponsorshipOffer()
+			acceptance, ok := v.Message.(*SponsorshipAcceptance)
+			if !ok {
+				return nil
+			}
+			sponsor, ok := acceptance.Offer.Message.(*SponsorshipOffer)
+			if !ok {
+				return nil
+			}
 			pay.DebitAcc = append(pay.DebitAcc, crypto.Hasher(v.Wallet))
 			pay.DebitValue = append(pay.DebitValue, sponsor.Revenue)
 			pay.CreditAcc = append(pay.CreditAcc, crypto.Hasher(acceptance.Audience))

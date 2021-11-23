@@ -11,12 +11,16 @@ type AuthoredInstruction struct {
 	InstructionType byte
 	epoch           uint64
 	Author          []byte
-	Message         []byte
+	Message         KindSerializer
 	Wallet          []byte
 	Fee             uint64
 	Attorney        []byte
 	Signature       []byte
 	WalletSignature []byte
+}
+
+func (a *AuthoredInstruction) Validate(validator Validator) bool {
+	return a.Message.Validate(validator)
 }
 
 func NewAuthoredInstruction(author crypto.PrivateKey, instruction KindSerializer,
@@ -27,7 +31,7 @@ func NewAuthoredInstruction(author crypto.PrivateKey, instruction KindSerializer
 		InstructionType: instruction.Kind(),
 		epoch:           epoch,
 		Author:          author.PublicKey().ToBytes(),
-		Message:         instruction.Serialize(),
+		Message:         instruction,
 		Fee:             fee,
 	}
 
@@ -54,7 +58,7 @@ func (a *AuthoredInstruction) serializeWithoutSignatures() []byte {
 	bytes := []byte{0, a.InstructionType}
 	PutUint64(a.epoch, &bytes)
 	PutByteArray(a.Author, &bytes)
-	PutByteArray(a.Message, &bytes)
+	PutByteArray(a.Message.Serialize(), &bytes)
 	PutByteArray(a.Wallet, &bytes)
 	PutUint64(a.Fee, &bytes)
 	PutByteArray(a.Attorney, &bytes)
@@ -92,63 +96,6 @@ func (a *AuthoredInstruction) sign(author, wallet crypto.PrivateKey) bool {
 	return true
 }
 
-func (a *AuthoredInstruction) AsJoinNetWork() *JoinNetwork {
-	return ParseJoinNetwork(a.Message)
-}
-
-func (a *AuthoredInstruction) AsUpdateInfo() *UpdateInfo {
-	return ParseUpdateInfo(a.Message)
-}
-
-func (a *AuthoredInstruction) AsCreateAudience() *CreateAudience {
-	return ParseCreateAudience(a.Message)
-
-}
-
-func (a *AuthoredInstruction) AsJoinAudience() *JoinAudience {
-	return ParseJoinAudience(a.Message)
-}
-
-func (a *AuthoredInstruction) AsAcceptJoinAudience() *AcceptJoinAudience {
-	return ParseAcceptJoinAudience(a.Message)
-}
-
-func (a *AuthoredInstruction) AsContent() *Content {
-	return ParseContent(a.Message)
-}
-
-func (a *AuthoredInstruction) AsUpdateAudience() *UpdateAudience {
-	return ParseUpdateAudience(a.Message)
-}
-
-func (a *AuthoredInstruction) AsGrantPowerOfAttorney() *GrantPowerOfAttorney {
-	return ParseGrantPowerOfAttorney(a.Message)
-}
-
-func (a *AuthoredInstruction) AsRevokePowerOfAttorney() *RevokePowerOfAttorney {
-	return ParseRevokePowerOfAttorney(a.Message)
-}
-
-func (a *AuthoredInstruction) AsSponsorshipOffer() *SponsorshipOffer {
-	return ParseSponsorshipOffer(a.Message)
-}
-
-func (a *AuthoredInstruction) AsSponsorshipAcceptance() *SponsorshipAcceptance {
-	return ParseSponsorshipAcceptance(a.Message)
-}
-
-func (a *AuthoredInstruction) AsCreateEphemeral() *CreateEphemeral {
-	return ParseCreateEphemeral(a.Message)
-}
-
-func (a *AuthoredInstruction) AsSecureChannel() *SecureChannel {
-	return ParseSecureChannel(a.Message)
-}
-
-func (a *AuthoredInstruction) AsReact() *React {
-	return ParseReact(a.Message)
-}
-
 func ParseAuthoredInstruction(data []byte) (*AuthoredInstruction, error) {
 	if data[0] != 0 {
 		return nil, fmt.Errorf("wrong instruction version")
@@ -162,7 +109,41 @@ func ParseAuthoredInstruction(data []byte) (*AuthoredInstruction, error) {
 	position := 2
 	msg.epoch, position = ParseUint64(data, position)
 	msg.Author, position = ParseByteArray(data, position)
-	msg.Message, position = ParseByteArray(data, position)
+	var bytes []byte
+	bytes, position = ParseByteArray(data, position)
+	switch msg.InstructionType {
+	case IJoinNetwork:
+		msg.Message = ParseJoinNetwork(bytes)
+	case IUpdateInfo:
+		msg.Message = ParseJoinNetwork(bytes)
+	case ICreateAudience:
+		msg.Message = ParseCreateAudience(bytes)
+	case IJoinAudience:
+		msg.Message = ParseJoinAudience(bytes)
+	case IAcceptJoinRequest:
+		msg.Message = ParseAcceptJoinAudience(bytes)
+	case IContent:
+		msg.Message = ParseContent(bytes)
+	case IUpdateAudience:
+		msg.Message = ParseUpdateAudience(bytes)
+	case IGrantPowerOfAttorney:
+		msg.Message = ParseGrantPowerOfAttorney(bytes)
+	case IRevokePowerOfAttorney:
+		msg.Message = ParseRevokePowerOfAttorney(bytes)
+	case ISponsorshipOffer:
+		msg.Message = ParseSponsorshipOffer(bytes)
+	case ISponsorshipAcceptance:
+		msg.Message = ParseSponsorshipAcceptance(bytes)
+	case ICreateEphemeral:
+		msg.Message = ParseCreateEphemeral(bytes)
+	case ISecureChannel:
+		msg.Message = ParseSecureChannel(bytes)
+	case IReact:
+		msg.Message = ParseReact(bytes)
+	}
+	if msg.Message == nil {
+		return nil, fmt.Errorf("Could not parse instruction.")
+	}
 	msg.Wallet, position = ParseByteArray(data, position)
 	msg.Fee, position = ParseUint64(data, position)
 	msg.Attorney, position = ParseByteArray(data, position)

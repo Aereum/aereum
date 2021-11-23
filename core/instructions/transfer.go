@@ -37,6 +37,10 @@ type Transfer struct {
 	Signature       []byte
 }
 
+func (t *Transfer) Validate(validator Validator) bool {
+	return true
+}
+
 func (a *Transfer) Kind() byte {
 	return a.InstructionType
 }
@@ -111,6 +115,10 @@ type Deposit struct {
 	Signature       []byte
 }
 
+func (t *Deposit) Validate(validator Validator) bool {
+	return true
+}
+
 func (a *Deposit) Kind() byte {
 	return a.InstructionType
 }
@@ -167,6 +175,10 @@ type Withdraw struct {
 	Reason          string
 	Fee             uint64
 	Signature       []byte
+}
+
+func (t *Withdraw) Validate(validator Validator) bool {
+	return true
 }
 
 func (a *Withdraw) Kind() byte {
