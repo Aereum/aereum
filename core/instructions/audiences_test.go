@@ -1,6 +1,6 @@
 package instructions
 
-/*
+
 func TestCreateAudience(t *testing.T) {
 
 	// Creating 3 public-private keys for audience identification, submission and moderation
@@ -79,4 +79,4 @@ func TestAcceptJoinAudience(t *testing.T) {
 	}
 
 }
-*/
+
