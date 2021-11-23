@@ -1,6 +1,8 @@
 package instructionsnew
 
-import "github.com/Aereum/aereum/core/crypto"
+import (
+	"github.com/Aereum/aereum/core/crypto"
+)
 
 type BulkSerializer interface {
 	serializeBulk() []byte
@@ -69,7 +71,7 @@ func (a *authoredInstruction) parseTail(data []byte, position int) bool {
 	if len(a.attorney) > 0 {
 		author, err = crypto.PublicKeyFromBytes(a.attorney)
 	} else {
-		author, err = crypto.PublicKeyFromBytes(a.attorney)
+		author, err = crypto.PublicKeyFromBytes(a.author)
 	}
 	if err != nil {
 		return false
@@ -78,12 +80,12 @@ func (a *authoredInstruction) parseTail(data []byte, position int) bool {
 	if !author.Verify(hash[:], a.signature) {
 		return false
 	}
-	hash = crypto.Hasher(data[0:position])
 	if len(a.wallet) > 0 {
 		wallet, err = crypto.PublicKeyFromBytes(a.wallet)
 		if err != nil {
 			return false
 		}
+		hash = crypto.Hasher(data[0:position])
 		a.walletSignature, position = ParseByteArray(data, position)
 		if position != len(data) {
 			return false
@@ -127,10 +129,10 @@ func (a *Author) NewAuthored(epoch, fee uint64) *authoredInstruction {
 		walletSignature: []byte{},
 	}
 	if a.wallet != nil {
-		authored.wallet = a.wallet.ToBytes()
+		authored.wallet = a.wallet.PublicKey().ToBytes()
 	}
 	if a.attorney != nil {
-		authored.attorney = a.attorney.ToBytes()
+		authored.attorney = a.attorney.PublicKey().ToBytes()
 	}
 	return &authored
 }
@@ -158,7 +160,7 @@ func (a *Author) sign(authored *authoredInstruction, bulk []byte, insType byte) 
 		authored.signature, err = a.token.Sign(hash[:])
 	}
 	if a.wallet != nil {
-		bytes = append(bytes, authored.signature...)
+		PutByteArray(authored.signature, &bytes)
 		hash = crypto.Hasher(bytes)
 		authored.walletSignature, err = a.wallet.Sign(hash[:])
 	}
