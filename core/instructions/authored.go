@@ -38,7 +38,11 @@ func (a *AuthoredInstruction) Incorporate(block *Block) bool {
 	case IAcceptJoinRequest:
 		//
 	case IContent:
-		//
+		content, _ := a.Message.(*Content)
+		if content.Sponsored {
+			//
+		}
+		return true
 	case IUpdateAudience:
 		//
 	case IGrantPowerOfAttorney:
@@ -63,6 +67,7 @@ func (a *AuthoredInstruction) Incorporate(block *Block) bool {
 	case IReact:
 		//
 	}
+	return true
 }
 
 func NewAuthoredInstruction(author crypto.PrivateKey, instruction KindSerializer,
