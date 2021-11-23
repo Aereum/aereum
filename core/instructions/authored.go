@@ -23,6 +23,48 @@ func (a *AuthoredInstruction) Validate(validator Validator) bool {
 	return a.Message.Validate(validator)
 }
 
+func (a *AuthoredInstruction) Incorporate(block *Block) bool {
+	switch a.InstructionType {
+	case IJoinNetwork:
+		join, _ := a.Message.(*JoinNetwork)
+		return block.SetNewMember(crypto.Hasher(a.Author), crypto.Hasher([]byte(join.Caption)))
+	case IUpdateInfo:
+		return true
+	case ICreateAudience:
+		create, _ := a.Message.(*CreateAudience)
+		return block.SetNewAudience(crypto.Hasher(create.Audience), create.Keys())
+	case IJoinAudience:
+		return true
+	case IAcceptJoinRequest:
+		//
+	case IContent:
+		//
+	case IUpdateAudience:
+		//
+	case IGrantPowerOfAttorney:
+		grant, _ := a.Message.(*GrantPowerOfAttorney)
+		hash := crypto.Hasher(append(a.Author, grant.Attorney...))
+		return block.SetNewGrantPower(hash)
+	case IRevokePowerOfAttorney:
+		revoke, _ := a.Message.(*RevokePowerOfAttorney)
+		hash := crypto.Hasher(append(a.Author, revoke.Attorney...))
+		return block.SetNewRevokePower(hash)
+	case ISponsorshipOffer:
+
+	case ISponsorshipAcceptance:
+		accept, _ := a.Message.(*SponsorshipAcceptance)
+		offer, _ := accept.Offer.Message.(*SponsorshipOffer)
+		hash := crypto.Hasher(accept.Offer.Serialize())
+		return block.SetNewUseSonOffer(hash, offer.Expiry)
+	case ICreateEphemeral:
+		//
+	case ISecureChannel:
+		//
+	case IReact:
+		//
+	}
+}
+
 func NewAuthoredInstruction(author crypto.PrivateKey, instruction KindSerializer,
 	epoch uint64, fee uint64, attorney, wallet *crypto.PrivateKey) Instruction {
 

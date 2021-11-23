@@ -32,6 +32,13 @@ type CreateAudience struct {
 	Description   string
 }
 
+func (s *CreateAudience) Keys() []byte {
+	output := s.Submission
+	output = append(output, s.Moderation...)
+	output = append(output, s.Flag)
+	return output
+}
+
 func (s *CreateAudience) Validate(validator Validator) bool {
 	return validator.GetAudienceKeys(crypto.Hasher(s.Audience)) == nil
 }

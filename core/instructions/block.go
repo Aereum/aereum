@@ -19,10 +19,17 @@ type Block struct {
 }
 
 func (b *Block) Incorporate(instruction Instruction) bool {
+	if !instruction.Validate(*b.validator) {
+		return false
+	}
+	payments := GetPayments(instruction)
+	if !b.CanPay(payments) {
+		return false
+	}
 	return true
 }
 
-func (b *Block) CanPay(payments Payment) bool {
+func (b *Block) CanPay(payments *Payment) bool {
 	for n, debitAcc := range payments.DebitAcc {
 		existingBalance := b.validator.Balance(debitAcc)
 		delta := b.mutations.DeltaBalance(debitAcc)
@@ -33,7 +40,7 @@ func (b *Block) CanPay(payments Payment) bool {
 	return true
 }
 
-func (b *Block) TransferPayments(payments Payment) {
+func (b *Block) TransferPayments(payments *Payment) {
 	for n, debitAcc := range payments.DebitAcc {
 		if delta, ok := b.mutations.DeltaWallets[debitAcc]; ok {
 			b.mutations.DeltaWallets[debitAcc] = delta - int(payments.DebitValue[n])

@@ -32,7 +32,7 @@ func (s *JoinNetwork) Validate(validator Validator) bool {
 	if validator.HasCaption(crypto.Hasher([]byte(s.Caption))) {
 		return false
 	}
-	return json.Valid([]byte(s.Details))
+	return true
 }
 
 func (s *JoinNetwork) Kind() byte {
@@ -51,6 +51,9 @@ func ParseJoinNetwork(data []byte) *JoinNetwork {
 	position := 0
 	p.Caption, position = ParseString(data, position)
 	p.Details, position = ParseString(data, position)
+	if !json.Valid([]byte(p.Details)) {
+		return nil
+	}
 	if position == len(data) {
 		return &p
 	}
@@ -63,7 +66,7 @@ type UpdateInfo struct {
 }
 
 func (s *UpdateInfo) Validate(validator Validator) bool {
-	return json.Valid([]byte(s.Details))
+	return true
 }
 
 func (s *UpdateInfo) Kind() byte {
@@ -82,6 +85,9 @@ func ParseUpdateInfo(data []byte) *UpdateInfo {
 	p.Details, position = ParseString(data, position)
 	if position == len(data) {
 		return &p
+	}
+	if !json.Valid([]byte(p.Details)) {
+		return nil
 	}
 	return nil
 }
