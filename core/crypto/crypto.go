@@ -184,7 +184,7 @@ func CipherFromKey(key []byte) Cipher {
 }
 
 func (c Cipher) Seal(msg []byte) []byte {
-	var nonce []byte
+	nonce := make([]byte, NonceSize)
 	return c.cipher.Seal(nil, nonce, msg, nil)
 }
 

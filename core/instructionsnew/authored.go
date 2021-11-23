@@ -214,6 +214,63 @@ func (a *Author) NewSecureChannel(tokenRange []byte, nonce uint64, encryptedNonc
 	return nil
 }
 
+func (a *Author) NewCreateAudience(audience *Audience, flag byte, description string, epoch, fee uint64) *CreateAudience {
+	newAudience := CreateAudience{
+		authored:      a.NewAuthored(epoch, fee),
+		audience:      audience.token.PublicKey().ToBytes(),
+		submission:    audience.submission.PublicKey().ToBytes(),
+		moderation:    audience.moderation.PublicKey().ToBytes(),
+		audienceKey:   audience.SealedToken(),
+		submissionKey: audience.SealedSubmission(),
+		moderationKey: audience.SealedModeration(),
+		flag:          flag,
+		description:   description,
+	}
+	bulk := newAudience.serializeBulk()
+	if a.sign(newAudience.authored, bulk, iCreateAudience) {
+		return &newAudience
+	}
+	return nil
+}
+
+func (a *Author) NewJoinAudience(audience []byte, presentation string, epoch, fee uint64) *JoinAudience {
+	join := JoinAudience{
+		authored:     a.NewAuthored(epoch, fee),
+		audience:     audience,
+		presentation: presentation,
+	}
+	bulk := join.serializeBulk()
+	if a.sign(join.authored, bulk, iJoinAudience) {
+		return &join
+	}
+	return nil
+}
+
+func (a *Author) NewAcceptJoinAudience(audience *Audience, member crypto.PublicKey, level byte, epoch, fee uint64) *AcceptJoinAudience {
+	accept := AcceptJoinAudience{
+		authored: a.NewAuthored(epoch, fee),
+		member:   member.ToBytes(),
+		submit:   []byte{},
+		moderate: []byte{},
+		audience: []byte{},
+	}
+	accept.read, _ = member.Encrypt(audience.readCipher)
+	if level > 0 {
+		accept.submit, _ = member.Encrypt(audience.submission.ToBytes())
+	}
+	if level > 1 {
+		accept.moderate, _ = member.Encrypt(audience.moderation.ToBytes())
+	}
+	if level > 2 {
+		accept.audience, _ = member.Encrypt(audience.token.ToBytes())
+	}
+	bulk := accept.serializeBulk()
+	if a.sign(accept.authored, bulk, iAcceptJoinRequest) {
+		return &accept
+	}
+	return nil
+}
+
 func (a *Author) sign(authored *authoredInstruction, bulk []byte, insType byte) bool {
 	bytes := authored.serializeWithoutSignature(insType, bulk)
 	hash := crypto.Hasher(bytes)
