@@ -130,6 +130,10 @@ func PublicKeyFromBytes(bytes []byte) (PublicKey, error) {
 	return PublicKey{key: key}, nil
 }
 
+func (p PrivateKey) ToBytes() []byte {
+	return x509.MarshalPKCS1PrivateKey(p.key)
+}
+
 func NewCipherKey() []byte {
 	key := make([]byte, 32)
 	rand.Read(key)
