@@ -45,7 +45,7 @@ func (a *Transfer) Epoch() uint64 {
 	return a.epoch
 }
 
-func (s *Transfer) Serialize() []byte {
+func (s *Transfer) serializeWithoutSignature() []byte {
 	bytes := make([]byte, 0)
 	PutByte(s.Version, &bytes)
 	PutByte(s.InstructionType, &bytes)
@@ -62,6 +62,11 @@ func (s *Transfer) Serialize() []byte {
 	}
 	PutString(s.Reason, &bytes)
 	PutUint64(s.Fee, &bytes)
+	return bytes
+}
+
+func (s *Transfer) Serialize() []byte {
+	bytes := s.serializeWithoutSignature()
 	PutByteArray(s.Signature, &bytes)
 	return bytes
 }
@@ -77,19 +82,17 @@ func ParseTransfer(data []byte) (*Transfer, error) {
 	count, position = ParseUint16(data, position)
 	p.To = make([]Recipient, int(count))
 	for i := 0; i < int(count); i++ {
-		t, position := ParseByteArray(data, position)
-		v, position := ParseUint64(data, position)
-		p.To[i] = Recipient{Token: t, Value: v}
+		p.To[i].Token, position = ParseByteArray(data, position)
+		p.To[i].Value, position = ParseUint64(data, position)
 	}
 	p.Reason, position = ParseString(data, position)
 	p.Fee, position = ParseUint64(data, position)
-	msgToVerify := data[0:position]
-	p.Signature, position = ParseByteArray(data, position)
-	token := p.From
-	if publicKey, err := crypto.PublicKeyFromBytes(token); err != nil {
+	hash := crypto.Hasher(data[0:position])
+	p.Signature, _ = ParseByteArray(data, position)
+	if publicKey, err := crypto.PublicKeyFromBytes(p.From); err != nil {
 		return nil, ErrCouldNotParseSignature
 	} else {
-		if !publicKey.Verify(msgToVerify, p.Signature) {
+		if !publicKey.Verify(hash[:], p.Signature) {
 			return nil, ErrInvalidSignature
 		}
 	}

@@ -1,12 +1,6 @@
 package instructions
 
-import (
-	"reflect"
-	"testing"
-
-	"github.com/Aereum/aereum/core/crypto"
-)
-
+/*
 func TestCreateAudience(t *testing.T) {
 
 	// Creating 3 public-private keys for audience identification, submission and moderation
@@ -47,6 +41,7 @@ func TestCreateAudience(t *testing.T) {
 	}
 }
 
+
 func TestJoinAudience(t *testing.T) {
 	public_audience, _ := crypto.RandomAsymetricKey()
 	message := &JoinAudience{
@@ -84,3 +79,4 @@ func TestAcceptJoinAudience(t *testing.T) {
 	}
 
 }
+*/
