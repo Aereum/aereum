@@ -150,6 +150,70 @@ func (a *Author) NewJoinNetwork(caption string, details string, epoch, fee uint6
 	return nil
 }
 
+func (a *Author) NewUpdateInfo(details string, epoch, fee uint64) *UpdateInfo {
+	update := UpdateInfo{
+		authored: a.NewAuthored(epoch, fee),
+		details:  details,
+	}
+	bulk := update.serializeBulk()
+	if a.sign(update.authored, bulk, iUpdateInfo) {
+		return &update
+	}
+	return nil
+}
+
+func (a *Author) NewGrantPowerOfAttorney(attorney []byte, epoch, fee uint64) *GrantPowerOfAttorney {
+	grant := GrantPowerOfAttorney{
+		authored: a.NewAuthored(epoch, fee),
+		attorney: attorney,
+	}
+	bulk := grant.serializeBulk()
+	if a.sign(grant.authored, bulk, iGrantPowerOfAttorney) {
+		return &grant
+	}
+	return nil
+}
+
+func (a *Author) NewRevokePowerOfAttorney(attorney []byte, epoch, fee uint64) *RevokePowerOfAttorney {
+	revoke := RevokePowerOfAttorney{
+		authored: a.NewAuthored(epoch, fee),
+		attorney: attorney,
+	}
+	bulk := revoke.serializeBulk()
+	if a.sign(revoke.authored, bulk, iRevokePowerOfAttorney) {
+		return &revoke
+	}
+	return nil
+}
+
+func (a *Author) NewCreateEphemeral(token []byte, expiry, epoch, fee uint64) *CreateEphemeral {
+	ephemeral := CreateEphemeral{
+		authored:       a.NewAuthored(epoch, fee),
+		ephemeralToken: token,
+		expiry:         expiry,
+	}
+	bulk := ephemeral.serializeBulk()
+	if a.sign(ephemeral.authored, bulk, iCreateEphemeral) {
+		return &ephemeral
+	}
+	return nil
+}
+
+func (a *Author) NewSecureChannel(tokenRange []byte, nonce uint64, encryptedNonce, content []byte, epoch, fee uint64) *SecureChannel {
+	secure := SecureChannel{
+		authored:       a.NewAuthored(epoch, fee),
+		tokenRange:     tokenRange,
+		nonce:          nonce,
+		encryptedNonce: encryptedNonce,
+		content:        content,
+	}
+	bulk := secure.serializeBulk()
+	if a.sign(secure.authored, bulk, iSecureChannel) {
+		return &secure
+	}
+	return nil
+}
+
 func (a *Author) sign(authored *authoredInstruction, bulk []byte, insType byte) bool {
 	bytes := authored.serializeWithoutSignature(insType, bulk)
 	hash := crypto.Hasher(bytes)
