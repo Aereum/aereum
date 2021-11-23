@@ -146,7 +146,7 @@ func ParseDeposit(data []byte) (*Deposit, error) {
 	p.Reason, position = ParseString(data, position)
 	p.Fee, position = ParseUint64(data, position)
 	msgToVerify := data[0:position]
-	p.Signature, position = ParseByteArray(data, position)
+	p.Signature, _ = ParseByteArray(data, position)
 	if publicKey, err := crypto.PublicKeyFromBytes(p.Token); err != nil {
 		return nil, ErrCouldNotParseSignature
 	} else {
