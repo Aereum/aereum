@@ -12,42 +12,71 @@ func TestCreateAudience(t *testing.T) {
 	cipher_key_submission := crypto.NewCipherKey()
 	cipher_key_moderation := crypto.NewCipherKey()
 
+	cipher_audience := crypto.CipherNonceFromKey(cipher_key_audience)
 	cipher_submission := crypto.CipherNonceFromKey(cipher_key_submission)
 	cipher_moderation := crypto.CipherNonceFromKey(cipher_key_moderation)
 
-	audience_cipher_submission.Seal(private_submission)
+	ciphered_aud := cipher_audience.Seal(private_audience.ToBytes())
+	ciphered_sub := cipher_submission.Seal(private_submission.ToBytes())
+	ciphered_mod := cipher_moderation.Seal(private_moderation.ToBytes())
 
 	message := &CreateAudience{
-		Audience:    public_audience.ToBytes(),
-		Submission:  public_submission.ToBytes(),
-		Moderation:  public_moderation.ToBytes(),
-		AudienceKey:
-
+		Audience:      public_audience.ToBytes(),
+		Submission:    public_submission.ToBytes(),
+		Moderation:    public_moderation.ToBytes(),
+		AudienceKey:   ciphered_aud,
+		SubmissionKey: ciphered_sub,
+		ModerationKey: ciphered_mod,
+		Flag:          0,
+		Description:   "Very first audience",
 	}
 	bytes := message.Serialize()
-	copy := ParseJoinNetwork(bytes)
+	copy := ParseCreateAudience(bytes)
 	if copy == nil {
-		t.Error("Could not ParseJoinNetwork")
+		t.Error("Could not ParseCreateAudience")
 		return
 	}
 	if ok := reflect.DeepEqual(*message, *copy); !ok {
-		t.Error("Parse and Serialization not working for JoinNetwork messages")
+		t.Error("Parse and Serialization not working for CreateAudience messages")
 	}
 }
 
-func Test(t *testing.T) {
-	token, _ := crypto.RandomAsymetricKey()
-	message := &GrantPowerOfAttorney{
-		Attorney: token.ToBytes(),
+
+func TestJoinAudience(t *testing.T) {
+	public_audience, _ := crypto.RandomAsymetricKey()
+	message := &JoinAudience{
+		Audience:     public_audience.ToBytes(),
+		Presentation: "New member for existing audience",
 	}
 	bytes := message.Serialize()
-	copy := ParseGrantPowerOfAttorney(bytes)
+	copy := ParseJoinAudience(bytes)
 	if copy == nil {
-		t.Error("Could not ParseGrantPowerOfAttorney.")
+		t.Error("Could not ParseJoinAudience.")
 		return
 	}
 	if ok := reflect.DeepEqual(*message, *copy); !ok {
-		t.Error("Parse and Serialization not working for GrantPowerOfAttorney messages.")
+		t.Error("Parse and Serialization not working for JoinAudience messages.")
 	}
+}
+
+func TestAcceptJoinAudience(t *testing.T) {
+	public_audience, _ := crypto.RandomAsymetricKey()
+	public_member, _ := crypto.RandomAsymetricKey()
+	public_read, _ := crypto.RandomAsymetricKey()
+	message := &AcceptJoinAudience{
+		Audience: public_audience.ToBytes(),
+		Member:   public_member.ToBytes(),
+		Read:	
+	}
+	bytes := message.Serialize()
+	copy := ParseJoinAudience(bytes)
+	if copy == nil {
+		t.Error("Could not ParseJoinAudience.")
+		return
+	}
+	if ok := reflect.DeepEqual(*message, *copy); !ok {
+		t.Error("Parse and Serialization not working for JoinAudience messages.")
+	}
+
 }
 */
