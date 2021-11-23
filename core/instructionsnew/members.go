@@ -11,15 +11,19 @@ type JoinNetwork struct {
 	details  string
 }
 
-func (s *JoinNetwork) Kind() byte {
+func (join *JoinNetwork) Kind() byte {
 	return iJoinNetwork
 }
 
-func (s *JoinNetwork) Serialize() []byte {
+func (join *JoinNetwork) serializeBulk() []byte {
 	bytes := make([]byte, 0)
-	PutString(s.caption, &bytes)
-	PutString(s.details, &bytes)
-	return s.authored.serialize(iJoinNetwork, bytes)
+	PutString(join.caption, &bytes)
+	PutString(join.details, &bytes)
+	return bytes
+}
+
+func (join *JoinNetwork) Serialize() []byte {
+	return join.authored.serialize(iJoinNetwork, join.serializeBulk())
 }
 
 func ParseJoinNetwork(data []byte) *JoinNetwork {
