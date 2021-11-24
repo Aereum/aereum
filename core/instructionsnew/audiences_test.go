@@ -1,8 +1,11 @@
 package instructionsnew
 
 import (
+	"fmt"
 	"reflect"
 	"testing"
+
+	"github.com/Aereum/aereum/core/crypto"
 )
 
 var (
@@ -41,6 +44,26 @@ func TestAcceptJoinAudience(t *testing.T) {
 		return
 	}
 	if !reflect.DeepEqual(accept, accept2) {
+		fmt.Println(*accept)
+		fmt.Println(*accept2)
+		t.Error("Parse and Serialize not working for AcceptJoinAudience")
+	}
+}
+
+func TestUpdateAudience(t *testing.T) {
+	readers := make([]crypto.PublicKey, 3)
+	for n := 0; n < 3; n++ {
+		readers[n], _ = crypto.RandomAsymetricKey()
+	}
+	update := author.NewUpdateAudience(audienceTest, readers, readers, readers, 2, "teste", 10, 2000)
+	update2 := ParseUpdateAudience(update.Serialize())
+	if update2 == nil {
+		t.Error("could not parse AcceptJoinAudience")
+		return
+	}
+	if !reflect.DeepEqual(update, update2) {
+		fmt.Println(*update)
+		fmt.Println(*update2)
 		t.Error("Parse and Serialize not working for AcceptJoinAudience")
 	}
 }

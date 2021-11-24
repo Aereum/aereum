@@ -256,17 +256,40 @@ func (a *Author) NewAcceptJoinAudience(audience *Audience, member crypto.PublicK
 	}
 	accept.read, _ = member.Encrypt(audience.readCipher)
 	if level > 0 {
-		accept.submit, _ = member.Encrypt(audience.submission.ToBytes())
+		accept.submit, _ = member.Encrypt(audience.submitKeyCipher)
 	}
 	if level > 1 {
-		accept.moderate, _ = member.Encrypt(audience.moderation.ToBytes())
+		accept.moderate, _ = member.Encrypt(audience.moderateKeyCipher)
+
 	}
 	if level > 2 {
-		accept.audience, _ = member.Encrypt(audience.token.ToBytes())
+		accept.audience, _ = member.Encrypt(audience.audienceKeyCipher)
 	}
 	bulk := accept.serializeBulk()
 	if a.sign(accept.authored, bulk, iAcceptJoinRequest) {
 		return &accept
+	}
+	return nil
+}
+
+func (a *Author) NewUpdateAudience(audience *Audience, readers, submiters, moderators []crypto.PublicKey, flag byte, description string, epoch, fee uint64) *UpdateAudience {
+	update := UpdateAudience{
+		authored:      a.NewAuthored(epoch, fee),
+		audience:      audience.token.PublicKey().ToBytes(),
+		submission:    audience.submission.PublicKey().ToBytes(),
+		moderation:    audience.moderation.PublicKey().ToBytes(),
+		audienceKey:   audience.SealedToken(),
+		submissionKey: audience.SealedSubmission(),
+		moderationKey: audience.SealedModeration(),
+		flag:          flag,
+		description:   description,
+		readMembers:   audience.ReadTokenCiphers(readers),
+		subMembers:    audience.SubmitTokenCiphers(submiters),
+		modMembers:    audience.ModerateTokenCiphers(moderators),
+	}
+	bulk := update.serializeBulk()
+	if a.sign(update.authored, bulk, iUpdateAudience) {
+		return &update
 	}
 	return nil
 }

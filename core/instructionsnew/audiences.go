@@ -27,6 +27,51 @@ func (a *Audience) SealedModeration() []byte {
 	return cipher.Seal(a.moderation.ToBytes())
 }
 
+func (a *Audience) ReadTokenCiphers(members []crypto.PublicKey) TokenCiphers {
+	readTokens := make(TokenCiphers, 0)
+	var err error
+	for _, member := range members {
+		tc := TokenCipher{
+			token: member.ToBytes(),
+		}
+		tc.cipher, err = member.Encrypt(a.readCipher)
+		if err == nil {
+			readTokens = append(readTokens, tc)
+		}
+	}
+	return readTokens
+}
+
+func (a *Audience) SubmitTokenCiphers(members []crypto.PublicKey) TokenCiphers {
+	readTokens := make(TokenCiphers, 0)
+	var err error
+	for _, member := range members {
+		tc := TokenCipher{
+			token: member.ToBytes(),
+		}
+		tc.cipher, err = member.Encrypt(a.submitKeyCipher)
+		if err == nil {
+			readTokens = append(readTokens, tc)
+		}
+	}
+	return readTokens
+}
+
+func (a *Audience) ModerateTokenCiphers(members []crypto.PublicKey) TokenCiphers {
+	readTokens := make(TokenCiphers, 0)
+	var err error
+	for _, member := range members {
+		tc := TokenCipher{
+			token: member.ToBytes(),
+		}
+		tc.cipher, err = member.Encrypt(a.moderateKeyCipher)
+		if err == nil {
+			readTokens = append(readTokens, tc)
+		}
+	}
+	return readTokens
+}
+
 func NewAudience() *Audience {
 	audience := Audience{}
 	_, audience.token = crypto.RandomAsymetricKey()
