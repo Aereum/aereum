@@ -1,8 +1,6 @@
 package instructionsnew
 
 import (
-	"bytes"
-
 	"github.com/Aereum/aereum/core/crypto"
 )
 
@@ -83,11 +81,10 @@ func ParseSponsorshipOffer(data []byte) *SponsorshipOffer {
 
 // Reaction instruction
 type SponsorshipAcceptance struct {
-	authored  *authoredInstruction
-	audience  []byte
-	offer     *SponsorshipOffer
-	moderator []byte
-	signature []byte
+	authored     *authoredInstruction
+	audience     []byte
+	offer        *SponsorshipOffer
+	modSignature []byte
 }
 
 func (accept *SponsorshipAcceptance) Validate(block *Block) bool {
@@ -106,16 +103,12 @@ func (accept *SponsorshipAcceptance) Validate(block *Block) bool {
 	if block.validator.SponsorshipOffer(offerHash) != 0 {
 		return false
 	}
-	modHash := crypto.Hasher(accept.moderator)
-	if !bytes.Equal(modHash[:], keys[0:crypto.Size]) {
-		return false
-	}
 	hash := crypto.Hasher(accept.serializeModBulk())
-	modKey, err := crypto.PublicKeyFromBytes(accept.moderator)
+	modKey, err := crypto.PublicKeyFromBytes(keys[0:crypto.PublicKeySize])
 	if err != nil {
 		return false
 	}
-	if !modKey.Verify(hash[:], accept.signature) {
+	if !modKey.Verify(hash[:], accept.modSignature) {
 		return false
 	}
 	return block.SetNewUseSonOffer(offerHash)
@@ -151,13 +144,12 @@ func (accept *SponsorshipAcceptance) serializeModBulk() []byte {
 	bytes := make([]byte, 0)
 	PutByteArray(accept.audience, &bytes)
 	PutByteArray(accept.offer.Serialize(), &bytes)
-	PutByteArray(accept.moderator, &bytes)
 	return bytes
 }
 
 func (accept *SponsorshipAcceptance) serializeBulk() []byte {
 	bytes := accept.serializeModBulk()
-	PutByteArray(accept.signature, &bytes)
+	PutByteArray(accept.modSignature, &bytes)
 	return bytes
 }
 
@@ -180,7 +172,7 @@ func ParseSponsorshipAcceptance(data []byte) *SponsorshipAcceptance {
 	if accept.offer == nil {
 		return nil
 	}
-	accept.signature, position = ParseByteArray(data, position)
+	accept.modSignature, position = ParseByteArray(data, position)
 	if accept.authored.parseTail(data, position) {
 		return &accept
 	}
