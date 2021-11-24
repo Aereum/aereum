@@ -14,7 +14,9 @@ type State struct {
 	SponsorOffers   store.Sponsor
 	SponsorGranted  store.Sponsor
 	PowerOfAttorney store.HashVault
+	EphemeralTokens store.HashExpireVault
 	SponsorExpire   map[uint64]crypto.Hash
+	EphemeralExpire map[uint64]crypto.Hash
 }
 
 /*

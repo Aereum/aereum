@@ -74,6 +74,6 @@ func (c *Validator) GetEphemeralExpire(hash crypto.Hash) (bool, uint64) {
 	if ok, expire := c.Mutations.HasEphemeral(hash); ok {
 		return true, expire
 	}
-	return false, 0
-	// TODO include in state
+	expire := c.State.EphemeralTokens.Exists(hash)
+	return expire > 0, expire
 }

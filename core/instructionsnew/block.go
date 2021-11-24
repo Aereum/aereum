@@ -83,6 +83,14 @@ func (b *Block) SetNewUseSonOffer(hash crypto.Hash, expire uint64) bool {
 	return setNewHash(hash, b.mutations.UseSpnOffer)
 }
 
+func (b *Block) SetNewEphemeralToken(hash crypto.Hash, expire uint64) bool {
+	if _, ok := b.mutations.NewEphemeral[hash]; ok {
+		return false
+	}
+	b.mutations.NewEphemeral[hash] = expire
+	return true
+}
+
 /*
 func (b *Block) SetNewAdvOffer(hash crypto.Hash, offer SponsorshipOffer) bool {
 	if _, ok := b.mutations.NewSpnOffer[hash]; ok {

@@ -223,6 +223,20 @@ type CreateEphemeral struct {
 	expiry         uint64
 }
 
+func (ephemeral *CreateEphemeral) Validate(block *Block) bool {
+	if !block.validator.HasMember(ephemeral.authored.authorHash()) {
+		return false
+	}
+	if ephemeral.expiry <= block.Epoch {
+		return false
+	}
+	hash := crypto.Hasher(ephemeral.ephemeralToken)
+	if ok, expire := block.validator.GetEphemeralExpire(hash); ok && expire > block.Epoch {
+		return false
+	}
+	return block.SetNewEphemeralToken(hash, ephemeral.expiry)
+}
+
 func (ephemeral *CreateEphemeral) Payments() *Payment {
 	return ephemeral.authored.payments()
 }
@@ -264,6 +278,17 @@ type SecureChannel struct {
 	nonce          uint64
 	encryptedNonce []byte
 	content        []byte
+}
+
+func (secure *SecureChannel) Validate(block *Block) bool {
+	authorHash := crypto.Hasher(secure.authored.author)
+	if _, expire := block.validator.GetEphemeralExpire(authorHash); expire <= block.Epoch {
+		return false
+	}
+	if len(secure.tokenRange) >= crypto.Size {
+		return false
+	}
+	return true
 }
 
 func (secure *SecureChannel) Payments() *Payment {
