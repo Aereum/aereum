@@ -32,6 +32,7 @@ func PutTokenCiphers(tcs TokenCiphers, data *[]byte) {
 	if len(tcs) > 1<<16-1 {
 		maxLen = 1 << 16
 	}
+	*data = append(*data, byte(maxLen), byte(maxLen>>8))
 	for n := 0; n < maxLen; n++ {
 		PutTokenCipher(tcs[n], data)
 	}
@@ -88,7 +89,7 @@ func PutBool(b bool, data *[]byte) {
 }
 
 func PutByte(b byte, data *[]byte) {
-	*data = append(*data, 0)
+	*data = append(*data, b)
 }
 
 func ParseTokenCipher(data []byte, position int) (TokenCipher, int) {
@@ -106,6 +107,7 @@ func ParseTokenCiphers(data []byte, position int) (TokenCiphers, int) {
 		return TokenCiphers{}, position
 	}
 	length := int(data[position+0]) | int(data[position+1])<<8
+	position += 2
 	if length == 0 {
 		return TokenCiphers{}, position + 2
 	}

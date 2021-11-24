@@ -58,12 +58,20 @@ func TestUpdateAudience(t *testing.T) {
 	update := author.NewUpdateAudience(audienceTest, readers, readers, readers, 2, "teste", 10, 2000)
 	update2 := ParseUpdateAudience(update.Serialize())
 	if update2 == nil {
-		t.Error("could not parse AcceptJoinAudience")
+		t.Error("could not parse UpdateAudience")
 		return
 	}
 	if !reflect.DeepEqual(update, update2) {
-		fmt.Println(*update)
-		fmt.Println(*update2)
-		t.Error("Parse and Serialize not working for AcceptJoinAudience")
+		fmt.Println(reflect.DeepEqual(*update.authored, *update2.authored))
+		fmt.Println(reflect.DeepEqual(update.submission, update2.submission))
+		fmt.Println(reflect.DeepEqual(update.moderation, update2.moderation))
+		fmt.Println(reflect.DeepEqual(update.audienceKey, update2.audienceKey))
+		fmt.Println(reflect.DeepEqual(update.submissionKey, update2.submissionKey))
+		fmt.Println(reflect.DeepEqual(update.moderationKey, update2.moderationKey))
+		fmt.Println(reflect.DeepEqual(update.flag, update2.flag))
+		fmt.Println(reflect.DeepEqual(update.description, update2.description))
+
+		//fmt.Println(*update2)
+		t.Error("Parse and Serialize not working for UpdateAudience")
 	}
 }
