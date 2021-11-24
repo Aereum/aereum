@@ -12,7 +12,7 @@ type State struct {
 	Wallets         store.Wallet
 	Audiences       store.Audience
 	SponsorOffers   store.HashExpireVault
-	SponsorGranted  store.HashVault
+	SponsorGranted  store.Sponsor
 	PowerOfAttorney store.HashVault
 	EphemeralTokens store.HashExpireVault
 	SponsorExpire   map[uint64]crypto.Hash

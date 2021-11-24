@@ -46,6 +46,14 @@ func (c *Validator) HasMember(hash crypto.Hash) bool {
 	return c.State.Members.Exists(hash)
 }
 
+func (c *Validator) HasGrantedSponser(hash crypto.Hash) (bool, crypto.Hash) {
+	if ok, contentHash := c.Mutations.HasGrantedSponsorship(hash); ok {
+		return true, contentHash
+	}
+	ok, contentHash, _ := c.State.SponsorGranted.GetContentHashAndExpiry(hash)
+	return ok, crypto.Hasher(contentHash)
+}
+
 func (c *Validator) HasCaption(hash crypto.Hash) bool {
 	if c.Mutations.HasCaption(hash) {
 		return true

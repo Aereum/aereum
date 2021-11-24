@@ -91,6 +91,10 @@ func (b *Block) SetNewSpnOffer(hash crypto.Hash, expire uint64) bool {
 	return true
 }
 
+func (b *Block) SetPublishSponsor(hash crypto.Hash) bool {
+	return setNewHash(hash, b.mutations.PublishSpn)
+}
+
 func (b *Block) SetNewEphemeralToken(hash crypto.Hash, expire uint64) bool {
 	if _, ok := b.mutations.NewEphemeral[hash]; ok {
 		return false

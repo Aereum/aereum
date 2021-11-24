@@ -12,6 +12,8 @@ type Mutation struct {
 	GrantPower   map[crypto.Hash]struct{}
 	RevokePower  map[crypto.Hash]struct{}
 	UseSpnOffer  map[crypto.Hash]struct{}
+	GrantSponsor map[crypto.Hash]crypto.Hash // hash of sponsor token + audience -> content hash
+	PublishSpn   map[crypto.Hash]struct{}
 	NewSpnOffer  map[crypto.Hash]uint64
 	NewMembers   map[crypto.Hash]struct{}
 	NewCaption   map[crypto.Hash]struct{}
@@ -26,6 +28,8 @@ func NewMutation() *Mutation {
 		GrantPower:   make(map[crypto.Hash]struct{}),
 		RevokePower:  make(map[crypto.Hash]struct{}),
 		UseSpnOffer:  make(map[crypto.Hash]struct{}),
+		GrantSponsor: make(map[crypto.Hash]crypto.Hash),
+		PublishSpn:   make(map[crypto.Hash]struct{}),
 		NewSpnOffer:  make(map[crypto.Hash]uint64),
 		NewMembers:   make(map[crypto.Hash]struct{}),
 		NewCaption:   make(map[crypto.Hash]struct{}),
@@ -37,6 +41,14 @@ func NewMutation() *Mutation {
 func (m *Mutation) DeltaBalance(hash crypto.Hash) int {
 	balance := m.DeltaWallets[hash]
 	return balance
+}
+
+func (m *Mutation) HasGrantedSponsorship(hash crypto.Hash) (bool, crypto.Hash) {
+	if _, ok := m.PublishSpn[hash]; ok {
+		return false, crypto.Hasher([]byte{})
+	}
+	contentHash, ok := m.GrantSponsor[hash]
+	return ok, contentHash
 }
 
 func (m *Mutation) HasGrantPower(hash crypto.Hash) bool {
