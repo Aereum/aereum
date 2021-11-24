@@ -1,5 +1,7 @@
 package instructionsnew
 
+import "github.com/Aereum/aereum/core/crypto"
+
 const (
 	iTransfer byte = iota
 	iDeposit
@@ -20,3 +22,13 @@ const (
 	iReact
 	iUnkown
 )
+
+type Wallet struct {
+	Account        crypto.Hash
+	FungibleTokens uint64
+}
+
+type Payment struct {
+	Debit  []Wallet
+	Credit []Wallet
+}

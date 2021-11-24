@@ -25,6 +25,30 @@ type authoredInstruction struct {
 	walletSignature []byte
 }
 
+func (a *authoredInstruction) authorHash() crypto.Hash {
+	return crypto.Hasher(a.author)
+}
+
+func (a *authoredInstruction) payments() *Payment {
+	if len(a.wallet) < 0 {
+		return &Payment{
+			Credit: []Wallet{},
+			Debit:  []Wallet{Wallet{Account: crypto.Hasher(a.wallet), FungibleTokens: a.fee}},
+		}
+	}
+	if len(a.attorney) < 0 {
+		return &Payment{
+			Credit: []Wallet{},
+			Debit:  []Wallet{Wallet{Account: crypto.Hasher(a.attorney), FungibleTokens: a.fee}},
+		}
+	}
+	return &Payment{
+		Credit: []Wallet{},
+		Debit:  []Wallet{Wallet{Account: crypto.Hasher(a.author), FungibleTokens: a.fee}},
+	}
+
+}
+
 func (a *authoredInstruction) Clone() *authoredInstruction {
 	clone := &authoredInstruction{
 		epoch: a.epoch,

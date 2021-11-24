@@ -96,6 +96,10 @@ type CreateAudience struct {
 	description   string
 }
 
+func (audience *CreateAudience) Payments() *Payment {
+	return audience.authored.payments()
+}
+
 func (audience *CreateAudience) Kind() byte {
 	return iCreateAudience
 }
@@ -145,6 +149,10 @@ type JoinAudience struct {
 	presentation string
 }
 
+func (join *JoinAudience) Payments() *Payment {
+	return join.authored.payments()
+}
+
 func (audience *JoinAudience) Kind() byte {
 	return iJoinAudience
 }
@@ -183,6 +191,10 @@ type AcceptJoinAudience struct {
 	read     []byte
 	submit   []byte
 	moderate []byte
+}
+
+func (accept *AcceptJoinAudience) Payments() *Payment {
+	return accept.authored.payments()
 }
 
 func (accept *AcceptJoinAudience) Kind() byte {
@@ -242,6 +254,10 @@ type UpdateAudience struct {
 	readMembers   TokenCiphers
 	subMembers    TokenCiphers
 	modMembers    TokenCiphers
+}
+
+func (update *UpdateAudience) Payments() *Payment {
+	return update.authored.payments()
 }
 
 func (update *UpdateAudience) Kind() byte {

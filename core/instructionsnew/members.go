@@ -2,12 +2,33 @@ package instructionsnew
 
 import (
 	"encoding/json"
+
+	"github.com/Aereum/aereum/core/crypto"
 )
 
 type JoinNetwork struct {
 	authored *authoredInstruction
 	caption  string
 	details  string
+}
+
+func (join *JoinNetwork) Validate(block *Block) bool {
+	captionHash := crypto.Hasher([]byte(join.caption))
+	if block.validator.HasCaption(captionHash) {
+		return false
+	}
+	authorHash := crypto.Hasher([]byte(join.authored.author))
+	if block.validator.HasMember(authorHash) {
+		return false
+	}
+	if !json.Valid([]byte(join.details)) {
+		return false
+	}
+	return block.SetNewMember(authorHash, captionHash)
+}
+
+func (join *JoinNetwork) Payments() *Payment {
+	return join.authored.payments()
 }
 
 func (join *JoinNetwork) Kind() byte {
@@ -49,6 +70,17 @@ type UpdateInfo struct {
 	details  string
 }
 
+func (update *UpdateInfo) Validate(block *Block) bool {
+	if !block.validator.HasMember(update.authored.authorHash()) {
+		return false
+	}
+	return !json.Valid([]byte(update.details))
+}
+
+func (update *UpdateInfo) Payments() *Payment {
+	return update.authored.payments()
+}
+
 func (update *UpdateInfo) Kind() byte {
 	return iUpdateInfo
 }
@@ -86,6 +118,24 @@ type GrantPowerOfAttorney struct {
 	attorney []byte
 }
 
+func (grant *GrantPowerOfAttorney) Validate(block *Block) bool {
+	if !block.validator.HasMember(grant.authored.authorHash()) {
+		return false
+	}
+	if !block.validator.HasMember(crypto.Hasher(grant.attorney)) {
+		return false
+	}
+	hash := crypto.Hasher(append(grant.authored.author, grant.attorney...))
+	if block.validator.PowerOfAttorney(hash) {
+		return false
+	}
+	return block.SetNewGrantPower(hash)
+}
+
+func (grant *GrantPowerOfAttorney) Payments() *Payment {
+	return grant.authored.payments()
+}
+
 func (grant *GrantPowerOfAttorney) Kind() byte {
 	return iGrantPowerOfAttorney
 }
@@ -118,6 +168,24 @@ func ParseGrantPowerOfAttorney(data []byte) *GrantPowerOfAttorney {
 type RevokePowerOfAttorney struct {
 	authored *authoredInstruction
 	attorney []byte
+}
+
+func (revoke *RevokePowerOfAttorney) Validate(block *Block) bool {
+	if !block.validator.HasMember(revoke.authored.authorHash()) {
+		return false
+	}
+	if !block.validator.HasMember(crypto.Hasher(revoke.attorney)) {
+		return false
+	}
+	hash := crypto.Hasher(append(revoke.authored.author, revoke.attorney...))
+	if !block.validator.PowerOfAttorney(hash) {
+		return false
+	}
+	return block.SetNewRevokePower(hash)
+}
+
+func (revoke *RevokePowerOfAttorney) Payments() *Payment {
+	return revoke.authored.payments()
 }
 
 func (revoke *RevokePowerOfAttorney) Kind() byte {
@@ -153,6 +221,10 @@ type CreateEphemeral struct {
 	authored       *authoredInstruction
 	ephemeralToken []byte
 	expiry         uint64
+}
+
+func (ephemeral *CreateEphemeral) Payments() *Payment {
+	return ephemeral.authored.payments()
 }
 
 func (ephemeral *CreateEphemeral) Kind() byte {
@@ -192,6 +264,10 @@ type SecureChannel struct {
 	nonce          uint64
 	encryptedNonce []byte
 	content        []byte
+}
+
+func (secure *SecureChannel) Payments() *Payment {
+	return secure.authored.payments()
 }
 
 func (secure *SecureChannel) Kind() byte {
