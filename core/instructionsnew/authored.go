@@ -33,18 +33,18 @@ func (a *authoredInstruction) payments() *Payment {
 	if len(a.wallet) < 0 {
 		return &Payment{
 			Credit: []Wallet{},
-			Debit:  []Wallet{Wallet{Account: crypto.Hasher(a.wallet), FungibleTokens: a.fee}},
+			Debit:  []Wallet{{Account: crypto.Hasher(a.wallet), FungibleTokens: a.fee}},
 		}
 	}
 	if len(a.attorney) < 0 {
 		return &Payment{
 			Credit: []Wallet{},
-			Debit:  []Wallet{Wallet{Account: crypto.Hasher(a.attorney), FungibleTokens: a.fee}},
+			Debit:  []Wallet{{Account: crypto.Hasher(a.attorney), FungibleTokens: a.fee}},
 		}
 	}
 	return &Payment{
 		Credit: []Wallet{},
-		Debit:  []Wallet{Wallet{Account: crypto.Hasher(a.author), FungibleTokens: a.fee}},
+		Debit:  []Wallet{{Account: crypto.Hasher(a.author), FungibleTokens: a.fee}},
 	}
 
 }

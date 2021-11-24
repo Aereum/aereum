@@ -18,6 +18,7 @@ type Block struct {
 	mutations    *Mutation
 }
 
+/*
 func (b *Block) Incorporate(instruction Instruction) bool {
 	if !instruction.Validate(*b.validator) {
 		return false
@@ -56,7 +57,7 @@ func (b *Block) TransferPayments(payments *Payment) {
 		}
 	}
 }
-
+*/
 func setNewHash(hash crypto.Hash, store map[crypto.Hash]struct{}) bool {
 	if _, ok := store[hash]; ok {
 		return false
@@ -82,6 +83,7 @@ func (b *Block) SetNewUseSonOffer(hash crypto.Hash, expire uint64) bool {
 	return setNewHash(hash, b.mutations.UseSpnOffer)
 }
 
+/*
 func (b *Block) SetNewAdvOffer(hash crypto.Hash, offer SponsorshipOffer) bool {
 	if _, ok := b.mutations.NewSpnOffer[hash]; ok {
 		return false
@@ -92,7 +94,7 @@ func (b *Block) SetNewAdvOffer(hash crypto.Hash, offer SponsorshipOffer) bool {
 	}
 	return true
 }
-
+*/
 func (b *Block) SetNewMember(tokenHash crypto.Hash, captionHash crypto.Hash) bool {
 	if _, ok := b.mutations.NewMembers[tokenHash]; ok {
 		return false
