@@ -1,6 +1,10 @@
 package instructionsnew
 
-import "github.com/Aereum/aereum/core/crypto"
+import (
+	"bytes"
+
+	"github.com/Aereum/aereum/core/crypto"
+)
 
 type Audience struct {
 	token             crypto.PrivateKey
@@ -96,6 +100,20 @@ type CreateAudience struct {
 	description   string
 }
 
+func (audience *CreateAudience) Validate(block *Block) bool {
+	if !block.validator.HasMember(audience.authored.authorHash()) {
+		return false
+	}
+	audienceHash := crypto.Hasher(audience.audience)
+	if block.validator.GetAudienceKeys(audienceHash) != nil {
+		return false
+	}
+	submitHash := crypto.Hasher(audience.submission)
+	moderateHash := crypto.Hasher(audience.moderation)
+	keys := append(submitHash[:], moderateHash[:]...)
+	return block.SetNewAudience(audienceHash, keys)
+}
+
 func (audience *CreateAudience) Payments() *Payment {
 	return audience.authored.payments()
 }
@@ -149,6 +167,16 @@ type JoinAudience struct {
 	presentation string
 }
 
+func (join *JoinAudience) Validate(block *Block) bool {
+	if !block.validator.HasMember(join.authored.authorHash()) {
+		return false
+	}
+	if block.validator.GetAudienceKeys(crypto.Hasher(join.audience)) != nil {
+		return false
+	}
+	return true
+}
+
 func (join *JoinAudience) Payments() *Payment {
 	return join.authored.payments()
 }
@@ -191,6 +219,19 @@ type AcceptJoinAudience struct {
 	read     []byte
 	submit   []byte
 	moderate []byte
+}
+
+func (accept *AcceptJoinAudience) Validate(block *Block) bool {
+	keys := block.validator.GetAudienceKeys(crypto.Hasher(accept.audience))
+	if keys == nil {
+		return false
+	}
+	modPublic, err := crypto.PublicKeyFromBytes(accept.authored.author)
+	if err != nil {
+		return false
+	}
+	hashed := crypto.Hasher(modPublic.ToBytes())
+	return bytes.Equal(keys[0:crypto.Size], hashed[:])
 }
 
 func (accept *AcceptJoinAudience) Payments() *Payment {
@@ -254,6 +295,25 @@ type UpdateAudience struct {
 	readMembers   TokenCiphers
 	subMembers    TokenCiphers
 	modMembers    TokenCiphers
+}
+
+func (update *UpdateAudience) UpdateAudience(block *Block) bool {
+	keys := block.validator.GetAudienceKeys(crypto.Hasher(update.audience))
+	if keys == nil {
+		return false
+	}
+	audPublic, err := crypto.PublicKeyFromBytes(update.authored.author)
+	if err != nil {
+		return false
+	}
+	hashed := crypto.Hasher(audPublic.ToBytes())
+	if !bytes.Equal(keys[crypto.Size:], hashed[:]) {
+		return false
+	}
+	subHash := crypto.Hasher(update.submission)
+	modHash := crypto.Hasher(update.moderation)
+	newKeys := append(subHash[:], modHash[:]...)
+	return block.UpdateAudience(hashed, newKeys)
 }
 
 func (update *UpdateAudience) Payments() *Payment {

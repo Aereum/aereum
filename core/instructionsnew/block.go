@@ -122,3 +122,11 @@ func (b *Block) SetNewAudience(hash crypto.Hash, keys []byte) bool {
 	b.mutations.NewAudiences[hash] = keys
 	return true
 }
+
+func (b *Block) UpdateAudience(hash crypto.Hash, keys []byte) bool {
+	if _, ok := b.mutations.UpdAudiences[hash]; ok {
+		return false
+	}
+	b.mutations.UpdAudiences[hash] = keys
+	return true
+}

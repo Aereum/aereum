@@ -16,6 +16,7 @@ type Mutation struct {
 	NewMembers   map[crypto.Hash]struct{}
 	NewCaption   map[crypto.Hash]struct{}
 	NewAudiences map[crypto.Hash][]byte
+	UpdAudiences map[crypto.Hash][]byte
 	NewEphemeral map[crypto.Hash]uint64
 }
 
@@ -69,6 +70,9 @@ func (m *Mutation) HasCaption(hash crypto.Hash) bool {
 }
 
 func (m *Mutation) GetAudience(hash crypto.Hash) []byte {
+	if audience, ok := m.UpdAudiences[hash]; ok {
+		return audience
+	}
 	audience := m.NewAudiences[hash]
 	return audience
 }
