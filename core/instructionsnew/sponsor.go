@@ -1,5 +1,11 @@
 package instructionsnew
 
+import (
+	"bytes"
+
+	"github.com/Aereum/aereum/core/crypto"
+)
+
 // 	Content creation instruction
 type SponsorshipOffer struct {
 	authored    *authoredInstruction
@@ -7,6 +13,33 @@ type SponsorshipOffer struct {
 	contentType string
 	expiry      uint64
 	revenue     uint64
+}
+
+func (sponsored *SponsorshipOffer) Validate(block *Block) bool {
+	if !block.validator.HasMember(sponsored.authored.authorHash()) {
+		return false
+	}
+	audienceHash := crypto.Hasher(sponsored.audience)
+	keys := block.validator.GetAudienceKeys(audienceHash)
+	if keys == nil {
+		return false
+	}
+	if sponsored.expiry <= block.Epoch {
+		return false
+	}
+	var balance uint64
+	if sponsored.authored.wallet != nil {
+		balance = block.validator.Balance(crypto.Hasher(sponsored.authored.wallet))
+	} else if sponsored.authored.attorney != nil {
+		balance = block.validator.Balance(crypto.Hasher(sponsored.authored.attorney))
+	} else {
+		balance = block.validator.Balance(crypto.Hasher(sponsored.authored.author))
+	}
+	if sponsored.revenue+sponsored.authored.fee > balance {
+		return false
+	}
+	hash := crypto.Hasher(sponsored.Serialize())
+	return block.SetNewSpnOffer(hash, sponsored.expiry)
 }
 
 func (sponsored *SponsorshipOffer) Payments() *Payment {
@@ -50,45 +83,106 @@ func ParseSponsorshipOffer(data []byte) *SponsorshipOffer {
 
 // Reaction instruction
 type SponsorshipAcceptance struct {
-	authored     *authoredInstruction
-	audience     []byte
-	offer        *authoredInstruction
-	modSignature []byte
+	authored  *authoredInstruction
+	audience  []byte
+	offer     *SponsorshipOffer
+	moderator []byte
+	signature []byte
 }
 
-func (sponsoracceptance *SponsorshipAcceptance) Payments() *Payment {
-	return sponsoracceptance.authored.payments()
+func (accept *SponsorshipAcceptance) Validate(block *Block) bool {
+	if !block.validator.HasMember(accept.authored.authorHash()) {
+		return false
+	}
+	audienceHash := crypto.Hasher(accept.audience)
+	keys := block.validator.GetAudienceKeys(audienceHash)
+	if keys == nil {
+		return false
+	}
+	if accept.offer.expiry >= block.Epoch {
+		return false
+	}
+	offerHash := crypto.Hasher(accept.offer.Serialize())
+	if block.validator.SponsorshipOffer(offerHash) != 0 {
+		return false
+	}
+	modHash := crypto.Hasher(accept.moderator)
+	if !bytes.Equal(modHash[:], keys[0:crypto.Size]) {
+		return false
+	}
+	hash := crypto.Hasher(accept.serializeModBulk())
+	modKey, err := crypto.PublicKeyFromBytes(accept.moderator)
+	if err != nil {
+		return false
+	}
+	if !modKey.Verify(hash[:], accept.signature) {
+		return false
+	}
+	return block.SetNewUseSonOffer(offerHash)
+
 }
 
-func (sponsoracceptance *SponsorshipAcceptance) Kind() byte {
+func (accept *SponsorshipAcceptance) Payments() *Payment {
+	payments := accept.authored.payments()
+	credit := Wallet{
+		Account:        crypto.Hasher(accept.audience),
+		FungibleTokens: accept.offer.revenue,
+	}
+	debit := Wallet{
+		FungibleTokens: accept.offer.revenue,
+	}
+	if accept.offer.authored.wallet != nil {
+		debit.Account = crypto.Hasher(accept.offer.authored.wallet)
+	} else if accept.offer.authored.attorney != nil {
+		debit.Account = crypto.Hasher(accept.offer.authored.attorney)
+	} else {
+		debit.Account = crypto.Hasher(accept.offer.authored.author)
+	}
+	payments.Credit = append(payments.Credit, credit)
+	payments.Debit = append(payments.Credit, debit)
+	return payments
+}
+
+func (accept *SponsorshipAcceptance) Kind() byte {
 	return iSponsorshipAcceptance
 }
 
-func (sponsoracceptance *SponsorshipAcceptance) serializeBulk() []byte {
+func (accept *SponsorshipAcceptance) serializeModBulk() []byte {
 	bytes := make([]byte, 0)
-	PutByteArray(sponsoracceptance.audience, &bytes)
-	// aqui nao sei como resolver
-	PutByteArray(sponsoracceptance.modSignature[], &bytes)
+	PutByteArray(accept.audience, &bytes)
+	PutByteArray(accept.offer.Serialize(), &bytes)
+	PutByteArray(accept.moderator, &bytes)
 	return bytes
 }
 
-func (sponsoracceptance *SponsorshipAcceptance) Serialize() []byte {
-	return sponsoracceptance.authored.serialize(iSponsorshipAcceptance, react.serializeBulk())
+func (accept *SponsorshipAcceptance) serializeBulk() []byte {
+	bytes := accept.serializeModBulk()
+	PutByteArray(accept.signature, &bytes)
+	return bytes
+}
+
+func (accept *SponsorshipAcceptance) Serialize() []byte {
+	return accept.authored.serialize(iSponsorshipAcceptance, accept.serializeBulk())
 }
 
 func ParseSponsorshipAcceptance(data []byte) *SponsorshipAcceptance {
 	if data[0] != 0 || data[1] != iSponsorshipAcceptance {
 		return nil
 	}
-	sponsoracceptance := SponsorshipAcceptance{
+	accept := SponsorshipAcceptance{
 		authored: &authoredInstruction{},
 	}
-	position := sponsoracceptance.authored.parseHead(data)
-	sponsoracceptance.audience, position = ParseByteArray(data, position)
-	// precisa ler segundo authored
-	sponsoracceptance.modSignature, position = ParseByteArray(data, position)
-	if sponsoracceptance.authored.parseTail(data, position) {
-		return &sponsoracceptance
+	position := accept.authored.parseHead(data)
+	accept.audience, position = ParseByteArray(data, position)
+	var offerBytes []byte
+	offerBytes, position = ParseByteArray(data, position)
+	accept.offer = ParseSponsorshipOffer(offerBytes)
+	if accept.offer == nil {
+		return nil
+	}
+	accept.signature, position = ParseByteArray(data, position)
+	if accept.authored.parseTail(data, position) {
+		return &accept
 	}
 	return nil
 }

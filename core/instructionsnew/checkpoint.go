@@ -28,21 +28,15 @@ func (c *Validator) PowerOfAttorney(hash crypto.Hash) bool {
 	return c.State.PowerOfAttorney.Exists(hash)
 }
 
-func (c *Validator) SponsorshipOffer(hash crypto.Hash) *sponsorOfferState {
+func (c *Validator) SponsorshipOffer(hash crypto.Hash) uint64 {
 	if c.Mutations.HasUsedSponsorOffer(hash) {
-		return nil
+		return 0
 	}
-	if offer := c.Mutations.GetSponsorOffer(hash); offer != nil {
-		return offer
+	if offer := c.Mutations.GetSponsorOffer(hash); !offer {
+		return 0
 	}
-	ok, contentHash, expire := c.State.SponsorOffers.GetContentHashAndExpiry(hash)
-	if !ok {
-		return nil
-	}
-	return &sponsorOfferState{
-		contentHash: crypto.BytesToHash(contentHash),
-		expire:      expire,
-	}
+	expire := c.State.SponsorOffers.Exists(hash)
+	return expire
 }
 
 func (c *Validator) HasMember(hash crypto.Hash) bool {

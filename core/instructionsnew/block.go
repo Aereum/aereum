@@ -79,8 +79,16 @@ func (b *Block) SetNewRevokePower(hash crypto.Hash) bool {
 	return setNewHash(hash, b.mutations.RevokePower)
 }
 
-func (b *Block) SetNewUseSonOffer(hash crypto.Hash, expire uint64) bool {
+func (b *Block) SetNewUseSonOffer(hash crypto.Hash) bool {
 	return setNewHash(hash, b.mutations.UseSpnOffer)
+}
+
+func (b *Block) SetNewSpnOffer(hash crypto.Hash, expire uint64) bool {
+	if _, ok := b.mutations.NewSpnOffer[hash]; ok {
+		return false
+	}
+	b.mutations.NewSpnOffer[hash] = expire
+	return true
 }
 
 func (b *Block) SetNewEphemeralToken(hash crypto.Hash, expire uint64) bool {

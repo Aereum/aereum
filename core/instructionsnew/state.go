@@ -11,8 +11,8 @@ type State struct {
 	Captions        store.HashVault
 	Wallets         store.Wallet
 	Audiences       store.Audience
-	SponsorOffers   store.Sponsor
-	SponsorGranted  store.Sponsor
+	SponsorOffers   store.HashExpireVault
+	SponsorGranted  store.HashVault
 	PowerOfAttorney store.HashVault
 	EphemeralTokens store.HashExpireVault
 	SponsorExpire   map[uint64]crypto.Hash

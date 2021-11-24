@@ -12,7 +12,7 @@ type Mutation struct {
 	GrantPower   map[crypto.Hash]struct{}
 	RevokePower  map[crypto.Hash]struct{}
 	UseSpnOffer  map[crypto.Hash]struct{}
-	NewSpnOffer  map[crypto.Hash]*sponsorOfferState
+	NewSpnOffer  map[crypto.Hash]uint64
 	NewMembers   map[crypto.Hash]struct{}
 	NewCaption   map[crypto.Hash]struct{}
 	NewAudiences map[crypto.Hash][]byte
@@ -26,7 +26,7 @@ func NewMutation() *Mutation {
 		GrantPower:   make(map[crypto.Hash]struct{}),
 		RevokePower:  make(map[crypto.Hash]struct{}),
 		UseSpnOffer:  make(map[crypto.Hash]struct{}),
-		NewSpnOffer:  make(map[crypto.Hash]*sponsorOfferState),
+		NewSpnOffer:  make(map[crypto.Hash]uint64),
 		NewMembers:   make(map[crypto.Hash]struct{}),
 		NewCaption:   make(map[crypto.Hash]struct{}),
 		NewAudiences: make(map[crypto.Hash][]byte),
@@ -54,9 +54,9 @@ func (m *Mutation) HasUsedSponsorOffer(hash crypto.Hash) bool {
 	return ok
 }
 
-func (m *Mutation) GetSponsorOffer(hash crypto.Hash) *sponsorOfferState {
-	offer := m.NewSpnOffer[hash]
-	return offer
+func (m *Mutation) GetSponsorOffer(hash crypto.Hash) bool {
+	_, ok := m.NewSpnOffer[hash]
+	return ok
 }
 
 func (m *Mutation) HasMember(hash crypto.Hash) bool {
