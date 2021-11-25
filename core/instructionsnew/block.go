@@ -14,6 +14,7 @@ type Block struct {
 	PublishedAt  time.Time
 	Instructions [][]byte
 	Hash         crypto.Hash
+	Signature    []byte
 	validator    *Validator
 	mutations    *Mutation
 }
@@ -67,11 +68,6 @@ func setNewHash(hash crypto.Hash, store map[crypto.Hash]struct{}) bool {
 	return true
 }
 
-/*func (b *Block) SetNewHash(hash crypto.Hash) bool {
-	return setNewHash(hash, b.mutations.Hashes)
-}
-*/
-
 func (b *Block) SetNewGrantPower(hash crypto.Hash) bool {
 	return setNewHash(hash, b.mutations.GrantPower)
 }
@@ -103,19 +99,6 @@ func (b *Block) SetNewEphemeralToken(hash crypto.Hash, expire uint64) bool {
 	b.mutations.NewEphemeral[hash] = expire
 	return true
 }
-
-/*
-func (b *Block) SetNewAdvOffer(hash crypto.Hash, offer SponsorshipOffer) bool {
-	if _, ok := b.mutations.NewSpnOffer[hash]; ok {
-		return false
-	}
-	b.mutations.NewSpnOffer[hash] = &sponsorOfferState{
-		contentHash: crypto.Hasher(offer.Content),
-		expire:      offer.Expiry,
-	}
-	return true
-}
-*/
 
 func (b *Block) SetNewMember(tokenHash crypto.Hash, captionHash crypto.Hash) bool {
 	if _, ok := b.mutations.NewMembers[tokenHash]; ok {
