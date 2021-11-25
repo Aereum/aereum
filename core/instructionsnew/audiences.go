@@ -108,9 +108,7 @@ func (audience *CreateAudience) Validate(block *Block) bool {
 	if block.validator.GetAudienceKeys(audienceHash) != nil {
 		return false
 	}
-	submitHash := crypto.Hasher(audience.submission)
-	moderateHash := crypto.Hasher(audience.moderation)
-	keys := append(submitHash[:], moderateHash[:]...)
+	keys := append(audience.submission, audience.moderation...)
 	return block.SetNewAudience(audienceHash, keys)
 }
 
@@ -213,24 +211,31 @@ func ParseJoinAudience(data []byte) *JoinAudience {
 }
 
 type AcceptJoinAudience struct {
-	authored *authoredInstruction
-	audience []byte
-	member   []byte
-	read     []byte
-	submit   []byte
-	moderate []byte
+	authored     *authoredInstruction
+	audience     []byte
+	member       []byte
+	read         []byte
+	submit       []byte
+	moderate     []byte
+	modSignature []byte
 }
 
 func (accept *AcceptJoinAudience) Validate(block *Block) bool {
+	if !block.validator.HasMember(accept.authored.authorHash()) {
+		return false
+	}
 	keys := block.validator.GetAudienceKeys(crypto.Hasher(accept.audience))
 	if keys == nil {
 		return false
 	}
-	modPublic, err := crypto.PublicKeyFromBytes(accept.authored.author)
+	modPublic, err := crypto.PublicKeyFromBytes(keys[0:crypto.PublicKeySize])
 	if err != nil {
 		return false
 	}
-	hashed := crypto.Hasher(modPublic.ToBytes())
+	hashed := crypto.Hasher(accept.serializeModBulk())
+	if !modPublic.Verify(hashed[:], accept.modSignature) {
+		return false
+	}
 	return bytes.Equal(keys[0:crypto.Size], hashed[:])
 }
 
@@ -242,13 +247,19 @@ func (accept *AcceptJoinAudience) Kind() byte {
 	return iJoinAudience
 }
 
-func (accept *AcceptJoinAudience) serializeBulk() []byte {
+func (accept *AcceptJoinAudience) serializeModBulk() []byte {
 	bytes := make([]byte, 0)
 	PutByteArray(accept.audience, &bytes)
 	PutByteArray(accept.member, &bytes)
 	PutByteArray(accept.read, &bytes)
 	PutByteArray(accept.submit, &bytes)
 	PutByteArray(accept.moderate, &bytes)
+	return bytes
+}
+
+func (accept *AcceptJoinAudience) serializeBulk() []byte {
+	bytes := accept.serializeModBulk()
+	PutByteArray(accept.modSignature, &bytes)
 	return bytes
 }
 
@@ -269,6 +280,7 @@ func ParseAcceptJoinAudience(data []byte) *AcceptJoinAudience {
 	accept.read, position = ParseByteArray(data, position)
 	accept.submit, position = ParseByteArray(data, position)
 	accept.moderate, position = ParseByteArray(data, position)
+	accept.modSignature, position = ParseByteArray(data, position)
 	if accept.authored.parseTail(data, position) {
 		return &accept
 	}
@@ -295,24 +307,15 @@ type UpdateAudience struct {
 	readMembers   TokenCiphers
 	subMembers    TokenCiphers
 	modMembers    TokenCiphers
+	audSignature  []byte
 }
 
-func (update *UpdateAudience) UpdateAudience(block *Block) bool {
-	keys := block.validator.GetAudienceKeys(crypto.Hasher(update.audience))
-	if keys == nil {
+func (update *UpdateAudience) Validate(block *Block) bool {
+	if !block.validator.HasMember(update.authored.authorHash()) {
 		return false
 	}
-	audPublic, err := crypto.PublicKeyFromBytes(update.authored.author)
-	if err != nil {
-		return false
-	}
-	hashed := crypto.Hasher(audPublic.ToBytes())
-	if !bytes.Equal(keys[crypto.Size:], hashed[:]) {
-		return false
-	}
-	subHash := crypto.Hasher(update.submission)
-	modHash := crypto.Hasher(update.moderation)
-	newKeys := append(subHash[:], modHash[:]...)
+	hashed := crypto.Hasher(update.audience)
+	newKeys := append(update.submission, update.moderation...)
 	return block.UpdateAudience(hashed, newKeys)
 }
 
@@ -337,6 +340,7 @@ func (update *UpdateAudience) serializeBulk() []byte {
 	PutTokenCiphers(update.readMembers, &bytes)
 	PutTokenCiphers(update.subMembers, &bytes)
 	PutTokenCiphers(update.modMembers, &bytes)
+	PutByteArray(update.audSignature, &bytes)
 	return bytes
 }
 
@@ -363,6 +367,15 @@ func ParseUpdateAudience(data []byte) *UpdateAudience {
 	update.readMembers, position = ParseTokenCiphers(data, position)
 	update.subMembers, position = ParseTokenCiphers(data, position)
 	update.modMembers, position = ParseTokenCiphers(data, position)
+	hashed := crypto.Hasher(data[0:position])
+	update.audSignature, position = ParseByteArray(data, position)
+	audPublic, err := crypto.PublicKeyFromBytes(update.authored.author)
+	if err != nil {
+		return nil
+	}
+	if !audPublic.Verify(hashed[:], update.audSignature) {
+		return nil
+	}
 	if update.authored.parseTail(data, position) {
 		return &update
 	}

@@ -32,3 +32,9 @@ type Payment struct {
 	Debit  []Wallet
 	Credit []Wallet
 }
+
+type Instruction interface {
+	Validate(*Block) bool
+	Payments() *Payment
+	Serialize() []byte
+}

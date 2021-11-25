@@ -18,23 +18,24 @@ type Block struct {
 	mutations    *Mutation
 }
 
-/*
 func (b *Block) Incorporate(instruction Instruction) bool {
-	if !instruction.Validate(*b.validator) {
-		return false
-	}
-	payments := GetPayments(instruction)
+	payments := instruction.Payments()
 	if !b.CanPay(payments) {
 		return false
 	}
+	if !instruction.Validate(b) {
+		return false
+	}
+	b.TransferPayments(payments)
+	b.Instructions = append(b.Instructions, instruction.Serialize())
 	return true
 }
 
 func (b *Block) CanPay(payments *Payment) bool {
-	for n, debitAcc := range payments.DebitAcc {
-		existingBalance := b.validator.Balance(debitAcc)
-		delta := b.mutations.DeltaBalance(debitAcc)
-		if int(existingBalance) < int(payments.DebitValue[n])+delta {
+	for _, debit := range payments.Debit {
+		existingBalance := b.validator.Balance(debit.Account)
+		delta := b.mutations.DeltaBalance(debit.Account)
+		if int(existingBalance) < int(debit.FungibleTokens)+delta {
 			return false
 		}
 	}
@@ -42,22 +43,22 @@ func (b *Block) CanPay(payments *Payment) bool {
 }
 
 func (b *Block) TransferPayments(payments *Payment) {
-	for n, debitAcc := range payments.DebitAcc {
-		if delta, ok := b.mutations.DeltaWallets[debitAcc]; ok {
-			b.mutations.DeltaWallets[debitAcc] = delta - int(payments.DebitValue[n])
+	for _, debit := range payments.Debit {
+		if delta, ok := b.mutations.DeltaWallets[debit.Account]; ok {
+			b.mutations.DeltaWallets[debit.Account] = delta - int(debit.FungibleTokens)
 		} else {
-			b.mutations.DeltaWallets[debitAcc] = -int(payments.DebitValue[n])
+			b.mutations.DeltaWallets[debit.Account] = -int(debit.FungibleTokens)
 		}
 	}
-	for n, creditAcc := range payments.CreditAcc {
-		if delta, ok := b.mutations.DeltaWallets[creditAcc]; ok {
-			b.mutations.DeltaWallets[creditAcc] = delta + int(payments.CreditValue[n])
+	for _, credit := range payments.Credit {
+		if delta, ok := b.mutations.DeltaWallets[credit.Account]; ok {
+			b.mutations.DeltaWallets[credit.Account] = delta + int(credit.FungibleTokens)
 		} else {
-			b.mutations.DeltaWallets[creditAcc] = int(payments.CreditValue[n])
+			b.mutations.DeltaWallets[credit.Account] = int(credit.FungibleTokens)
 		}
 	}
 }
-*/
+
 func setNewHash(hash crypto.Hash, store map[crypto.Hash]struct{}) bool {
 	if _, ok := store[hash]; ok {
 		return false
@@ -115,6 +116,7 @@ func (b *Block) SetNewAdvOffer(hash crypto.Hash, offer SponsorshipOffer) bool {
 	return true
 }
 */
+
 func (b *Block) SetNewMember(tokenHash crypto.Hash, captionHash crypto.Hash) bool {
 	if _, ok := b.mutations.NewMembers[tokenHash]; ok {
 		return false
