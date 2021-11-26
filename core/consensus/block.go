@@ -10,7 +10,7 @@ import (
 type Signature struct {
 	Hash      crypto.Hash
 	Token     []byte
-	Weight    uint64
+	Weight    float64
 	Signature []byte
 }
 

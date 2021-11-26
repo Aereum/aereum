@@ -1,6 +1,7 @@
 package consensus
 
 import (
+	"bytes"
 	"time"
 
 	"github.com/Aereum/aereum/core/crypto"
@@ -8,11 +9,21 @@ import (
 	"github.com/Aereum/aereum/core/network"
 )
 
+/*
+	Interface:
+
+		Receives New Instructions
+		Receives New Blocks
+		Receives Block signatures
+		Peer validation request
+*/
+
 type BlockSignature struct {
 	Hash      crypto.Hash
 	Token     []byte
 	Stake     uint64
 	Signature []byte
+	Weight    float64
 }
 
 type HashInstruction struct {
@@ -40,6 +51,7 @@ type Consensual interface {
 	IsValidator(time.Time) bool
 	ValidateBlock(*instructions.Block) bool
 	IsConsensus(*instructions.Block) bool
+	Weight(stake, totalStake uint64) float64
 }
 
 func IntervalToNewEpoch(epoch uint64, genesis time.Time) time.Duration {
@@ -54,6 +66,33 @@ type BlockChain struct {
 	RecentBlocks        Blocks
 	CandidateBlocks     SignedBlocks
 	CandidateSignatures map[uint64][]BlockSignature
+	Engine              Consensual
+	AcceptPeers         bool
+	MinimumStake        uint64
+}
+
+func (b *BlockChain) AppendSignature(signature BlockSignature) {
+	if len(b.CandidateBlocks) != 0 {
+		for _, block := range b.CandidateBlocks {
+			if block.Block.Hash.Equals(signature.Hash[:]) {
+				for _, signBlock := range block.Signatures {
+					if bytes.Equal(signBlock.Token, signature.Token) {
+						return
+					}
+				}
+				newSignature := Signature{
+					Hash:      signature.Hash,
+					Token:     signature.Token,
+					Weight:    b.Engine.Weight(signature.Stake, b.TotalStake),
+					Signature: signature.Signature,
+				}
+				block.Signatures = append(block.Signatures, newSignature)
+				//if b.Engine.IsConsensus()
+				return
+			}
+		}
+	}
+	// TODO append to recent blocks also
 }
 
 func (b *BlockChain) GetLastValidator() *instructions.Validator {
@@ -78,6 +117,7 @@ func (b *BlockChain) GetLastValidator() *instructions.Validator {
 	}
 }
 
+/*
 func NewGenesisConsensus(engine Consensual) {
 	pool := NewInstructionPool()
 	state, token := instructions.NewGenesisState()
@@ -93,3 +133,4 @@ func NewGenesisConsensus(engine Consensual) {
 		}
 	}()
 }
+*/
