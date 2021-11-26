@@ -7,17 +7,29 @@ import (
 )
 
 type Block struct {
-	Parent        crypto.Hash
 	Epoch         uint64
+	Parent        crypto.Hash
 	CheckPoint    uint64
 	Publisher     []byte
 	PublishedAt   time.Time
 	Instructions  [][]byte
 	Hash          crypto.Hash
-	Signature     []byte
 	FeesCollected uint64
+	Signature     []byte
 	validator     *Validator
 	mutations     *Mutation
+}
+
+func NewBlock(parent crypto.Hash, checkpoint, epoch uint64, publisher []byte, validator *Validator) *Block {
+	return &Block{
+		Parent:       parent,
+		Epoch:        epoch,
+		CheckPoint:   checkpoint,
+		Publisher:    publisher,
+		Instructions: make([][]byte, 0),
+		validator:    validator,
+		mutations:    NewMutation(),
+	}
 }
 
 func (b *Block) Incorporate(instruction Instruction) bool {
@@ -127,4 +139,39 @@ func (b *Block) UpdateAudience(hash crypto.Hash, keys []byte) bool {
 	}
 	b.mutations.UpdAudiences[hash] = keys
 	return true
+}
+
+func ParseBlock(data []byte) *Block {
+	position := 0
+	block := Block{}
+	block.Epoch, position = ParseUint64(data, position)
+	block.Parent, position = ParseHash(data, position)
+	block.Publisher, position = ParseByteArray(data, position)
+	block.PublishedAt, position = ParseTime(data, position)
+	block.Instructions, position = ParseByteArrayArray(data, position)
+	block.Hash, position = ParseHash(data, position)
+	block.FeesCollected, position = ParseUint64(data, position)
+	hashed := crypto.Hasher(data[0:position])
+	block.Signature, _ = ParseByteArray(data, position)
+	pubkey, err := crypto.PublicKeyFromBytes(block.Publisher)
+	if err != nil {
+		return nil
+	}
+	if !pubkey.Verify(hashed[:], block.Signature) {
+		return nil
+	}
+	block.mutations = NewMutation()
+	return &block
+}
+
+func (b *Block) SetValidator(validator *Validator) {
+	b.validator = validator
+}
+
+func GetBlockEpoch(data []byte) uint64 {
+	if len(data) < 8 {
+		return 0
+	}
+	epoch, _ := ParseUint64(data, 0)
+	return epoch
 }

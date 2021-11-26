@@ -20,6 +20,8 @@ const (
 	PublicKeySize = 42
 )
 
+var ZeroHash Hash = Hasher([]byte{})
+
 type Hash [Size]byte
 
 func (hash Hash) ToInt64() int64 {

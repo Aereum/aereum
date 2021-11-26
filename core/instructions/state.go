@@ -83,4 +83,5 @@ func (s *State) IncorporateBlock(b *Block) {
 	for hash, keys := range b.mutations.UpdAudiences {
 		s.Audiences.SetKeys(hash, keys)
 	}
+	s.Wallets.Credit(crypto.Hasher(b.Publisher), b.FeesCollected)
 }

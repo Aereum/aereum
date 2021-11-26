@@ -16,7 +16,11 @@
 
 package instructions
 
-import "time"
+import (
+	"time"
+
+	"github.com/Aereum/aereum/core/crypto"
+)
 
 func PutTokenCipher(tc TokenCipher, data *[]byte) {
 	PutByteArray(tc.token, data)
@@ -121,6 +125,18 @@ func ParseTokenCiphers(data []byte, position int) (TokenCiphers, int) {
 	return tcs, position
 }
 
+func ParseByteArrayArray(data []byte, position int) ([][]byte, int) {
+	if position+1 >= len(data) {
+		return [][]byte{}, position
+	}
+	length := int(data[position+0]) | int(data[position+1])<<8
+	output := make([][]byte, length)
+	for n := 0; n < length; n++ {
+		output[n], position = ParseByteArray(data, position)
+	}
+	return output, position
+}
+
 func ParseByteArray(data []byte, position int) ([]byte, int) {
 	if position+1 >= len(data) {
 		return []byte{}, position
@@ -190,4 +206,9 @@ func ParseByte(data []byte, position int) (byte, int) {
 		return 0, position + 1
 	}
 	return data[position], position + 1
+}
+
+func ParseHash(data []byte, position int) (crypto.Hash, int) {
+	bytes, newPosition := ParseByteArray(data, position)
+	return crypto.BytesToHash(bytes), newPosition
 }
