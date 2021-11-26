@@ -2,11 +2,6 @@ package instructionsnew
 
 import "github.com/Aereum/aereum/core/crypto"
 
-type sponsorOfferState struct {
-	contentHash crypto.Hash
-	expire      uint64
-}
-
 type Mutation struct {
 	DeltaWallets map[crypto.Hash]int
 	GrantPower   map[crypto.Hash]struct{}
@@ -131,94 +126,3 @@ func GroupMutations(mutations []*Mutation) *Mutation {
 	}
 	return grouped
 }
-
-/*func (m *StateMutation) CanPay(payments Payment) bool {
-	for n, debitAcc := range payments.DebitAcc {
-		ok, stateBalance := m.State.Wallets.Balance(debitAcc)
-		if !ok {
-			return false
-		}
-		if delta, ok := m.DeltaWallets[debitAcc]; ok {
-			if int(stateBalance)+delta < int(payments.DebitValue[n]) {
-				return false
-			}
-		} else {
-			if stateBalance < payments.DebitValue[n] {
-				return false
-			}
-		}
-	}
-	return true
-}
-
-func (m *StateMutation) TransferPayments(payments Payment) {
-	for n, debitAcc := range payments.DebitAcc {
-		if delta, ok := m.DeltaWallets[debitAcc]; ok {
-			m.DeltaWallets[debitAcc] = delta - int(payments.DebitValue[n])
-		} else {
-			m.DeltaWallets[debitAcc] = -int(payments.DebitValue[n])
-		}
-	}
-	for n, creditAcc := range payments.CreditAcc {
-		if delta, ok := m.DeltaWallets[creditAcc]; ok {
-			m.DeltaWallets[creditAcc] = delta + int(payments.CreditValue[n])
-		} else {
-			m.DeltaWallets[creditAcc] = int(payments.CreditValue[n])
-		}
-	}
-}
-*/
-
-/*
-func setNewHash(hash crypto.Hash, store map[crypto.Hash]struct{}) bool {
-	if _, ok := store[hash]; ok {
-		return false
-	}
-	store[hash] = struct{}{}
-	return true
-}
-
-func (s *Mutation) SetNewHash(hash crypto.Hash) bool {
-	return setNewHash(hash, s.Hashes)
-}
-
-func (s *Mutation) SetNewGrantPower(hash crypto.Hash) bool {
-	return setNewHash(hash, s.GrantPower)
-}
-
-func (s *Mutation) SetNewRevokePower(hash crypto.Hash) bool {
-	return setNewHash(hash, s.RevokePower)
-}
-
-func (s *Mutation) SetNewUseSonOffer(hash crypto.Hash, expire uint64) bool {
-	return setNewHash(hash, s.UseSpnOffer)
-}
-
-func (s *Mutation) SetNewAdvOffer(hash crypto.Hash, offer SponsorshipOffer) bool {
-	if _, ok := s.NewSpnOffer[hash]; ok {
-		return false
-	}
-	s.NewSpnOffer[hash] = &offer
-	return true
-}
-
-func (s *Mutation) SetNewMember(tokenHash crypto.Hash, captionHash crypto.Hash) bool {
-	if _, ok := s.NewMembers[tokenHash]; ok {
-		return false
-	}
-	if _, ok := s.NewMembers[captionHash]; ok {
-		return false
-	}
-	s.NewMembers[tokenHash] = struct{}{}
-	s.NewCaption[captionHash] = struct{}{}
-	return true
-}
-
-func (s *Mutation) SetNewAudience(hash crypto.Hash, keys []byte) bool {
-	if _, ok := s.NewAudiences[hash]; ok {
-		return false
-	}
-	s.NewAudiences[hash] = keys
-	return true
-}
-*/

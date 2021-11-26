@@ -94,11 +94,11 @@ func (w *HashExpireVault) Close() bool {
 	return <-ok
 }
 
-func NewExpireHashVault(name string, epoch uint64, bitsForBucket int64) *Wallet {
+func NewExpireHashVault(name string, epoch uint64, bitsForBucket int64) *HashExpireVault {
 	nbytes := 8 + int64(1<<bitsForBucket)
 	bytestore := NewMemoryStore(nbytes)
 	bucketstore := NewBucketStore(40, 6, bytestore)
-	return &Wallet{
+	return &HashExpireVault{
 		hs: NewHashStore(name, bucketstore, int(bitsForBucket), CreditOrDebit),
 	}
 }

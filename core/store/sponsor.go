@@ -77,12 +77,12 @@ func (w *Sponsor) Close() bool {
 	return <-ok
 }
 
-func NewSponsorShipOfferStore(epoch uint64, bitsForBucket int64) *Wallet {
+func NewSponsorShipOfferStore(epoch uint64, bitsForBucket int64) *Sponsor {
 	itemsize := int64(crypto.Size)
 	nbytes := 56 + int64(1<<bitsForBucket)*(itemsize*6+8)
 	bytestore := NewMemoryStore(nbytes)
 	bucketstore := NewBucketStore(itemsize, 6, bytestore)
-	w := &Wallet{
+	w := &Sponsor{
 		hs: NewHashStore("sponsor", bucketstore, int(bitsForBucket), GetOrSetSponsor),
 	}
 	w.hs.Start()
