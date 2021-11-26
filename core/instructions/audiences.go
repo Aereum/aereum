@@ -78,9 +78,12 @@ func (a *Audience) ModerateTokenCiphers(members []crypto.PublicKey) TokenCiphers
 
 func NewAudience() *Audience {
 	audience := Audience{}
-	_, *audience.token = crypto.RandomAsymetricKey()
-	_, *audience.submission = crypto.RandomAsymetricKey()
-	_, *audience.moderation = crypto.RandomAsymetricKey()
+	_, audtoken := crypto.RandomAsymetricKey()
+	_, subtoken := crypto.RandomAsymetricKey()
+	_, modtoken := crypto.RandomAsymetricKey()
+	audience.token = &audtoken
+	audience.submission = &subtoken
+	audience.moderation = &modtoken
 	audience.readCipher = crypto.NewCipherKey()
 	audience.audienceKeyCipher = crypto.NewCipherKey()
 	audience.submitKeyCipher = crypto.NewCipherKey()
