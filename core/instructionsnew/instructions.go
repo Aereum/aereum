@@ -44,8 +44,8 @@ func (p *Payment) NewCredit(account crypto.Hash, value uint64) {
 	for _, credit := range p.Credit {
 		if credit.Account.Equal(account) {
 			credit.FungibleTokens += value
+			return
 		}
-		return
 	}
 	p.Credit = append(p.Credit, Wallet{Account: account, FungibleTokens: value})
 }
@@ -54,8 +54,8 @@ func (p *Payment) NewDebit(account crypto.Hash, value uint64) {
 	for _, debit := range p.Debit {
 		if debit.Account.Equal(account) {
 			debit.FungibleTokens += value
+			return
 		}
-		return
 	}
 	p.Debit = append(p.Debit, Wallet{Account: account, FungibleTokens: value})
 }

@@ -37,7 +37,11 @@ func (sponsored *SponsorshipOffer) Validate(block *Block) bool {
 		return false
 	}
 	hash := crypto.Hasher(sponsored.Serialize())
-	return block.SetNewSpnOffer(hash, sponsored.expiry)
+	if block.SetNewSpnOffer(hash, sponsored.expiry) {
+		block.FeesCollected += sponsored.authored.fee
+		return true
+	}
+	return false
 }
 
 func (sponsored *SponsorshipOffer) Payments() *Payment {
@@ -111,8 +115,11 @@ func (accept *SponsorshipAcceptance) Validate(block *Block) bool {
 	if !modKey.Verify(hash[:], accept.modSignature) {
 		return false
 	}
-	return block.SetNewUseSonOffer(offerHash)
-
+	if block.SetNewUseSonOffer(offerHash) {
+		block.FeesCollected += accept.authored.fee
+		return true
+	}
+	return false
 }
 
 func (accept *SponsorshipAcceptance) Payments() *Payment {

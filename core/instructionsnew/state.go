@@ -55,7 +55,6 @@ func (s *State) IncorporateBlock(b *Block) {
 	for hash := range b.mutations.NewMembers {
 		s.Members.Insert(hash)
 	}
-
 	for acc, delta := range b.mutations.DeltaWallets {
 		if delta > 0 {
 			s.Wallets.Credit(acc, uint64(delta))

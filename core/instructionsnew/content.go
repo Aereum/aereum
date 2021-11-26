@@ -70,6 +70,7 @@ func (content *Content) Validate(block *Block) bool {
 			return false
 		}
 	}
+	block.FeesCollected += content.fee
 	return true
 }
 
@@ -178,7 +179,11 @@ type React struct {
 }
 
 func (react *React) Validate(block *Block) bool {
-	return block.validator.HasMember(react.authored.authorHash())
+	if block.validator.HasMember(react.authored.authorHash()) {
+		block.FeesCollected += react.authored.fee
+		return true
+	}
+	return false
 }
 
 func (react *React) Payments() *Payment {

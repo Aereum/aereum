@@ -7,16 +7,17 @@ import (
 )
 
 type Block struct {
-	Parent       crypto.Hash
-	Epoch        uint64
-	CheckPoint   uint64
-	Publisher    []byte
-	PublishedAt  time.Time
-	Instructions [][]byte
-	Hash         crypto.Hash
-	Signature    []byte
-	validator    *Validator
-	mutations    *Mutation
+	Parent        crypto.Hash
+	Epoch         uint64
+	CheckPoint    uint64
+	Publisher     []byte
+	PublishedAt   time.Time
+	Instructions  [][]byte
+	Hash          crypto.Hash
+	Signature     []byte
+	FeesCollected uint64
+	validator     *Validator
+	mutations     *Mutation
 }
 
 func (b *Block) Incorporate(instruction Instruction) bool {

@@ -24,7 +24,11 @@ func (join *JoinNetwork) Validate(block *Block) bool {
 	if !json.Valid([]byte(join.details)) {
 		return false
 	}
-	return block.SetNewMember(authorHash, captionHash)
+	if block.SetNewMember(authorHash, captionHash) {
+		block.FeesCollected += join.authored.fee
+		return true
+	}
+	return false
 }
 
 func (join *JoinNetwork) Payments() *Payment {
@@ -74,7 +78,11 @@ func (update *UpdateInfo) Validate(block *Block) bool {
 	if !block.validator.HasMember(update.authored.authorHash()) {
 		return false
 	}
-	return !json.Valid([]byte(update.details))
+	if json.Valid([]byte(update.details)) {
+		block.FeesCollected += update.authored.fee
+		return true
+	}
+	return false
 }
 
 func (update *UpdateInfo) Payments() *Payment {
@@ -129,7 +137,11 @@ func (grant *GrantPowerOfAttorney) Validate(block *Block) bool {
 	if block.validator.PowerOfAttorney(hash) {
 		return false
 	}
-	return block.SetNewGrantPower(hash)
+	if block.SetNewGrantPower(hash) {
+		block.FeesCollected += grant.authored.fee
+		return true
+	}
+	return false
 }
 
 func (grant *GrantPowerOfAttorney) Payments() *Payment {
@@ -181,7 +193,11 @@ func (revoke *RevokePowerOfAttorney) Validate(block *Block) bool {
 	if !block.validator.PowerOfAttorney(hash) {
 		return false
 	}
-	return block.SetNewRevokePower(hash)
+	if block.SetNewRevokePower(hash) {
+		block.FeesCollected += revoke.authored.fee
+		return true
+	}
+	return false
 }
 
 func (revoke *RevokePowerOfAttorney) Payments() *Payment {
@@ -234,7 +250,11 @@ func (ephemeral *CreateEphemeral) Validate(block *Block) bool {
 	if ok, expire := block.validator.GetEphemeralExpire(hash); ok && expire > block.Epoch {
 		return false
 	}
-	return block.SetNewEphemeralToken(hash, ephemeral.expiry)
+	if block.SetNewEphemeralToken(hash, ephemeral.expiry) {
+		block.FeesCollected += ephemeral.authored.fee
+		return true
+	}
+	return false
 }
 
 func (ephemeral *CreateEphemeral) Payments() *Payment {
@@ -288,6 +308,7 @@ func (secure *SecureChannel) Validate(block *Block) bool {
 	if len(secure.tokenRange) >= crypto.Size {
 		return false
 	}
+	block.FeesCollected += secure.authored.fee
 	return true
 }
 

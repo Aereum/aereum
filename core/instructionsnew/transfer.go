@@ -52,6 +52,7 @@ func (t *Transfer) Payments() *Payment {
 }
 
 func (t *Transfer) Validate(block *Block) bool {
+	block.FeesCollected += t.Fee
 	return true
 }
 
@@ -134,6 +135,7 @@ func (d *Deposit) Payments() *Payment {
 }
 
 func (t *Deposit) Validate(block *Block) bool {
+	block.FeesCollected += t.Fee
 	return true
 }
 
@@ -203,6 +205,7 @@ func (w *Withdraw) Payments() *Payment {
 }
 
 func (t *Withdraw) Validate(block *Block) bool {
+	block.FeesCollected += t.Fee
 	return true
 }
 

@@ -109,6 +109,7 @@ func (audience *CreateAudience) Validate(block *Block) bool {
 		return false
 	}
 	keys := append(audience.submission, audience.moderation...)
+	block.FeesCollected += audience.authored.fee
 	return block.SetNewAudience(audienceHash, keys)
 }
 
@@ -172,6 +173,7 @@ func (join *JoinAudience) Validate(block *Block) bool {
 	if block.validator.GetAudienceKeys(crypto.Hasher(join.audience)) != nil {
 		return false
 	}
+	block.FeesCollected += join.authored.fee
 	return true
 }
 
@@ -236,7 +238,11 @@ func (accept *AcceptJoinAudience) Validate(block *Block) bool {
 	if !modPublic.Verify(hashed[:], accept.modSignature) {
 		return false
 	}
-	return bytes.Equal(keys[0:crypto.Size], hashed[:])
+	if bytes.Equal(keys[0:crypto.Size], hashed[:]) {
+		block.FeesCollected += accept.authored.fee
+		return true
+	}
+	return false
 }
 
 func (accept *AcceptJoinAudience) Payments() *Payment {
@@ -316,7 +322,11 @@ func (update *UpdateAudience) Validate(block *Block) bool {
 	}
 	hashed := crypto.Hasher(update.audience)
 	newKeys := append(update.submission, update.moderation...)
-	return block.UpdateAudience(hashed, newKeys)
+	if block.UpdateAudience(hashed, newKeys) {
+		block.FeesCollected += update.authored.fee
+		return true
+	}
+	return false
 }
 
 func (update *UpdateAudience) Payments() *Payment {

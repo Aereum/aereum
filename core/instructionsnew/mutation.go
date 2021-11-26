@@ -3,18 +3,19 @@ package instructionsnew
 import "github.com/Aereum/aereum/core/crypto"
 
 type Mutation struct {
-	DeltaWallets map[crypto.Hash]int
-	GrantPower   map[crypto.Hash]struct{}
-	RevokePower  map[crypto.Hash]struct{}
-	UseSpnOffer  map[crypto.Hash]struct{}
-	GrantSponsor map[crypto.Hash]crypto.Hash // hash of sponsor token + audience -> content hash
-	PublishSpn   map[crypto.Hash]struct{}
-	NewSpnOffer  map[crypto.Hash]uint64
-	NewMembers   map[crypto.Hash]struct{}
-	NewCaption   map[crypto.Hash]struct{}
-	NewAudiences map[crypto.Hash][]byte
-	UpdAudiences map[crypto.Hash][]byte
-	NewEphemeral map[crypto.Hash]uint64
+	DeltaWallets  map[crypto.Hash]int
+	GrantPower    map[crypto.Hash]struct{}
+	RevokePower   map[crypto.Hash]struct{}
+	UseSpnOffer   map[crypto.Hash]struct{}
+	GrantSponsor  map[crypto.Hash]crypto.Hash // hash of sponsor token + audience -> content hash
+	PublishSpn    map[crypto.Hash]struct{}
+	NewSpnOffer   map[crypto.Hash]uint64
+	NewMembers    map[crypto.Hash]struct{}
+	NewCaption    map[crypto.Hash]struct{}
+	NewAudiences  map[crypto.Hash][]byte
+	UpdAudiences  map[crypto.Hash][]byte
+	NewEphemeral  map[crypto.Hash]uint64
+	FeesCollected uint64
 }
 
 func NewMutation() *Mutation {
@@ -89,9 +90,10 @@ func (m *Mutation) HasEphemeral(hash crypto.Hash) (bool, uint64) {
 	return ok, expire
 }
 
-func GroupMutations(mutations []*Mutation) *Mutation {
+func GroupBlockMutations(blocks []*Block) *Mutation {
 	grouped := NewMutation()
-	for _, mutation := range mutations {
+	for _, block := range blocks {
+		mutation := block.mutations
 		for acc, balance := range mutation.DeltaWallets {
 			if oldBalance, ok := grouped.DeltaWallets[acc]; ok {
 				grouped.DeltaWallets[acc] = oldBalance + balance
