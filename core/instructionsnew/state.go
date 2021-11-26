@@ -1,8 +1,15 @@
 package instructionsnew
 
 import (
+	"errors"
+
 	"github.com/Aereum/aereum/core/crypto"
 	"github.com/Aereum/aereum/core/store"
+)
+
+var (
+	ErrNotSubsequentBlock = errors.New("cannot incorporate a non-subsequent block")
+	ErrIncorporationError = errors.New("could not incorporate block")
 )
 
 type State struct {
@@ -39,4 +46,42 @@ func NewGenesisState() (*State, crypto.PrivateKey) {
 	state.Captions.Insert(crypto.Hasher([]byte("Aereum Network Genesis")))
 	state.Wallets.Credit(hash, 1e6)
 	return &state, prvKey
+}
+
+func (s *State) IncorporateBlock(b *Block) {
+	for hash := range b.mutations.NewCaption {
+		s.Captions.Insert(hash)
+	}
+	for hash := range b.mutations.NewMembers {
+		s.Members.Insert(hash)
+	}
+
+	for acc, delta := range b.mutations.DeltaWallets {
+		if delta > 0 {
+			s.Wallets.Credit(acc, uint64(delta))
+		} else if delta < 0 {
+			s.Wallets.Debit(acc, uint64(-delta))
+		}
+	}
+	for hash := range b.mutations.GrantPower {
+		s.PowerOfAttorney.Insert(hash)
+	}
+	for hash := range b.mutations.RevokePower {
+		s.PowerOfAttorney.Remove(hash)
+	}
+	for hash := range b.mutations.PublishSpn {
+		s.SponsorGranted.RemoveContentHash(hash)
+	}
+	for token, contentHash := range b.mutations.GrantSponsor {
+		s.SponsorGranted.SetContentHash(token, contentHash[:])
+	}
+	for hash, expire := range b.mutations.NewSpnOffer {
+		s.SponsorOffers.Insert(hash, expire)
+	}
+	for hash, keys := range b.mutations.NewAudiences {
+		s.Audiences.SetKeys(hash, keys)
+	}
+	for hash, keys := range b.mutations.UpdAudiences {
+		s.Audiences.SetKeys(hash, keys)
+	}
 }

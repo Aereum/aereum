@@ -117,22 +117,14 @@ func (accept *SponsorshipAcceptance) Validate(block *Block) bool {
 
 func (accept *SponsorshipAcceptance) Payments() *Payment {
 	payments := accept.authored.payments()
-	credit := Wallet{
-		Account:        crypto.Hasher(accept.audience),
-		FungibleTokens: accept.offer.revenue,
-	}
-	debit := Wallet{
-		FungibleTokens: accept.offer.revenue,
-	}
+	payments.NewCredit(crypto.Hasher(accept.audience), accept.offer.revenue)
 	if accept.offer.authored.wallet != nil {
-		debit.Account = crypto.Hasher(accept.offer.authored.wallet)
+		payments.NewDebit(crypto.Hasher(accept.offer.authored.wallet), accept.offer.revenue)
 	} else if accept.offer.authored.attorney != nil {
-		debit.Account = crypto.Hasher(accept.offer.authored.attorney)
+		payments.NewDebit(crypto.Hasher(accept.offer.authored.attorney), accept.offer.revenue)
 	} else {
-		debit.Account = crypto.Hasher(accept.offer.authored.author)
+		payments.NewDebit(crypto.Hasher(accept.offer.authored.author), accept.offer.revenue)
 	}
-	payments.Credit = append(payments.Credit, credit)
-	payments.Debit = append(payments.Credit, debit)
 	return payments
 }
 

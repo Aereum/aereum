@@ -37,6 +37,20 @@ type Transfer struct {
 	Signature       []byte
 }
 
+func (t *Transfer) Payments() *Payment {
+	total := uint64(0)
+	payment := &Payment{
+		Credit: make([]Wallet, 0),
+		Debit:  make([]Wallet, 0),
+	}
+	for _, credit := range t.To {
+		payment.NewCredit(crypto.Hasher(credit.Token), credit.Value)
+		total += credit.Value
+	}
+	payment.NewDebit(crypto.Hasher(t.From), total+t.Fee)
+	return payment
+}
+
 func (t *Transfer) Validate(block *Block) bool {
 	return true
 }
@@ -115,6 +129,10 @@ type Deposit struct {
 	Signature       []byte
 }
 
+func (d *Deposit) Payments() *Payment {
+	return NewPayment(crypto.Hasher(d.Token), d.Value)
+}
+
 func (t *Deposit) Validate(block *Block) bool {
 	return true
 }
@@ -175,6 +193,13 @@ type Withdraw struct {
 	Reason          string
 	Fee             uint64
 	Signature       []byte
+}
+
+func (w *Withdraw) Payments() *Payment {
+	return &Payment{
+		Credit: []Wallet{{crypto.Hasher(w.Token), w.Value}},
+		Debit:  []Wallet{},
+	}
 }
 
 func (t *Withdraw) Validate(block *Block) bool {

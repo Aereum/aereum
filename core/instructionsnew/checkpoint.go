@@ -50,7 +50,7 @@ func (c *Validator) HasGrantedSponser(hash crypto.Hash) (bool, crypto.Hash) {
 	if ok, contentHash := c.Mutations.HasGrantedSponsorship(hash); ok {
 		return true, contentHash
 	}
-	ok, contentHash, _ := c.State.SponsorGranted.GetContentHashAndExpiry(hash)
+	ok, contentHash := c.State.SponsorGranted.GetContentHash(hash)
 	return ok, crypto.Hasher(contentHash)
 }
 
