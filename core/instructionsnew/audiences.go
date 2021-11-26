@@ -7,9 +7,9 @@ import (
 )
 
 type Audience struct {
-	token             crypto.PrivateKey
-	submission        crypto.PrivateKey
-	moderation        crypto.PrivateKey
+	token             *crypto.PrivateKey
+	submission        *crypto.PrivateKey
+	moderation        *crypto.PrivateKey
 	readCipher        []byte
 	audienceKeyCipher []byte
 	submitKeyCipher   []byte
@@ -78,9 +78,9 @@ func (a *Audience) ModerateTokenCiphers(members []crypto.PublicKey) TokenCiphers
 
 func NewAudience() *Audience {
 	audience := Audience{}
-	_, audience.token = crypto.RandomAsymetricKey()
-	_, audience.submission = crypto.RandomAsymetricKey()
-	_, audience.moderation = crypto.RandomAsymetricKey()
+	_, *audience.token = crypto.RandomAsymetricKey()
+	_, *audience.submission = crypto.RandomAsymetricKey()
+	_, *audience.moderation = crypto.RandomAsymetricKey()
 	audience.readCipher = crypto.NewCipherKey()
 	audience.audienceKeyCipher = crypto.NewCipherKey()
 	audience.submitKeyCipher = crypto.NewCipherKey()

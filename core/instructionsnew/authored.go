@@ -318,6 +318,79 @@ func (a *Author) NewUpdateAudience(audience *Audience, readers, submiters, moder
 	return nil
 }
 
+func (a *Author) NewContent(audience *Audience, contentType string, message []byte, hash, encrypted bool, epoch, fee uint64) *Content {
+	if audience == nil {
+		return nil
+	}
+	content := &Content{
+		epoch:        epoch,
+		published:    epoch,
+		author:       a.token.PublicKey().ToBytes(),
+		audience:     audience.token.PublicKey().ToBytes(),
+		contentType:  contentType,
+		hash:         []byte{},
+		sponsored:    false,
+		encrypted:    encrypted,
+		attorney:     []byte{},
+		moderator:    []byte{},
+		modSignature: []byte{},
+		wallet:       []byte{},
+		fee:          fee,
+	}
+	if a.attorney != nil {
+		content.attorney = a.attorney.PublicKey().ToBytes()
+	}
+	if a.wallet != nil {
+		content.wallet = a.wallet.PublicKey().ToBytes()
+	}
+	if encrypted {
+		cipher := crypto.CipherFromKey(audience.readCipher)
+		content.content = cipher.Seal(message)
+	} else {
+		content.content = message
+	}
+	if hash {
+		hashed := crypto.Hasher(message)
+		content.hash = hashed[:]
+	}
+	subBulk := content.serializeSubBulk()
+	hashed := crypto.Hasher(subBulk)
+	var sign []byte
+	var err error
+	sign, err = audience.submission.Sign(hashed[:])
+	if err != nil {
+		return nil
+	}
+	content.subSignature = sign
+	PutByteArray(content.subSignature, &subBulk)
+	PutByteArray(content.attorney, &subBulk)
+	hashed = crypto.Hasher(subBulk)
+	if a.attorney != nil {
+		content.signature, err = a.attorney.Sign(hashed[:])
+	} else {
+		content.author, err = a.attorney.Sign(hashed[:])
+	}
+	if err != nil {
+		return nil
+	}
+	if audience.moderation != nil {
+		content.moderator = audience.moderation.PublicKey().ToBytes()
+		hashed = crypto.Hasher(content.serializeModBulk())
+		audience.moderation.Sign(hashed[:])
+	}
+	hashed = crypto.Hasher(content.serializeWalletBulk())
+	if a.wallet == nil {
+		sign, err = a.wallet.Sign(hashed[:])
+	} else {
+		sign, err = a.token.Sign(hashed[:])
+	}
+	if err != nil {
+		return nil
+	}
+	content.walletSignature = sign
+	return content
+}
+
 func (a *Author) sign(authored *authoredInstruction, bulk []byte, insType byte) bool {
 	bytes := authored.serializeWithoutSignature(insType, bulk)
 	hash := crypto.Hasher(bytes)
