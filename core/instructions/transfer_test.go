@@ -28,7 +28,7 @@ func TestTransfer(t *testing.T) {
 	}
 	hash := crypto.Hasher(message.serializeWithoutSignature())
 	message.Signature, _ = tokenPrivate.Sign(hash[:])
-	copy, _ := ParseTransfer(message.Serialize())
+	copy := ParseTransfer(message.Serialize())
 	if copy == nil {
 		t.Error("Could not Transfer.")
 		return

@@ -1,239 +1,393 @@
-// Copyright 2021 The Aereum Authors
-// This file is part of the aereum library.
-//
-// The aereum library is free software: you can redistribute it and/or modify
-// it under the terms of the GNU Lesser General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// The aereum library is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU Lesser General Public License for more details.
-//
-// You should have received a copy of the GNU Lesser General Public License
-// along with the go-ethereum library. If not, see <http://www.gnu.org/licenses/>.
-
 package instructions
 
 import (
+	"bytes"
+
 	"github.com/Aereum/aereum/core/crypto"
 )
 
-// Create a new audience
+type Audience struct {
+	token             *crypto.PrivateKey
+	submission        *crypto.PrivateKey
+	moderation        *crypto.PrivateKey
+	readCipher        []byte
+	audienceKeyCipher []byte
+	submitKeyCipher   []byte
+	moderateKeyCipher []byte
+}
+
+func (a *Audience) SealedToken() []byte {
+	cipher := crypto.CipherFromKey(a.audienceKeyCipher)
+	return cipher.Seal(a.token.ToBytes())
+}
+
+func (a *Audience) SealedSubmission() []byte {
+	cipher := crypto.CipherFromKey(a.submitKeyCipher)
+	return cipher.Seal(a.submission.ToBytes())
+}
+
+func (a *Audience) SealedModeration() []byte {
+	cipher := crypto.CipherFromKey(a.moderateKeyCipher)
+	return cipher.Seal(a.moderation.ToBytes())
+}
+
+func (a *Audience) ReadTokenCiphers(members []crypto.PublicKey) TokenCiphers {
+	readTokens := make(TokenCiphers, 0)
+	var err error
+	for _, member := range members {
+		tc := TokenCipher{
+			token: member.ToBytes(),
+		}
+		tc.cipher, err = member.Encrypt(a.readCipher)
+		if err == nil {
+			readTokens = append(readTokens, tc)
+		}
+	}
+	return readTokens
+}
+
+func (a *Audience) SubmitTokenCiphers(members []crypto.PublicKey) TokenCiphers {
+	readTokens := make(TokenCiphers, 0)
+	var err error
+	for _, member := range members {
+		tc := TokenCipher{
+			token: member.ToBytes(),
+		}
+		tc.cipher, err = member.Encrypt(a.submitKeyCipher)
+		if err == nil {
+			readTokens = append(readTokens, tc)
+		}
+	}
+	return readTokens
+}
+
+func (a *Audience) ModerateTokenCiphers(members []crypto.PublicKey) TokenCiphers {
+	readTokens := make(TokenCiphers, 0)
+	var err error
+	for _, member := range members {
+		tc := TokenCipher{
+			token: member.ToBytes(),
+		}
+		tc.cipher, err = member.Encrypt(a.moderateKeyCipher)
+		if err == nil {
+			readTokens = append(readTokens, tc)
+		}
+	}
+	return readTokens
+}
+
+func NewAudience() *Audience {
+	audience := Audience{}
+	_, *audience.token = crypto.RandomAsymetricKey()
+	_, *audience.submission = crypto.RandomAsymetricKey()
+	_, *audience.moderation = crypto.RandomAsymetricKey()
+	audience.readCipher = crypto.NewCipherKey()
+	audience.audienceKeyCipher = crypto.NewCipherKey()
+	audience.submitKeyCipher = crypto.NewCipherKey()
+	audience.moderateKeyCipher = crypto.NewCipherKey()
+	return &audience
+}
+
 type CreateAudience struct {
-	Audience      []byte
-	Submission    []byte
-	Moderation    []byte
-	AudienceKey   []byte
-	SubmissionKey []byte
-	ModerationKey []byte
-	Flag          byte
-	Description   string
+	authored      *authoredInstruction
+	audience      []byte
+	submission    []byte
+	moderation    []byte
+	audienceKey   []byte
+	submissionKey []byte
+	moderationKey []byte
+	flag          byte
+	description   string
 }
 
-func (s *CreateAudience) Keys() []byte {
-	output := s.Submission
-	output = append(output, s.Moderation...)
-	output = append(output, s.Flag)
-	return output
+func (audience *CreateAudience) Validate(block *Block) bool {
+	if !block.validator.HasMember(audience.authored.authorHash()) {
+		return false
+	}
+	audienceHash := crypto.Hasher(audience.audience)
+	if block.validator.GetAudienceKeys(audienceHash) != nil {
+		return false
+	}
+	keys := append(audience.submission, audience.moderation...)
+	block.FeesCollected += audience.authored.fee
+	return block.SetNewAudience(audienceHash, keys)
 }
 
-func (s *CreateAudience) Validate(validator Validator) bool {
-	return validator.GetAudienceKeys(crypto.Hasher(s.Audience)) == nil
+func (audience *CreateAudience) Payments() *Payment {
+	return audience.authored.payments()
 }
 
-func (s *CreateAudience) Kind() byte {
-	return ICreateAudience
+func (audience *CreateAudience) Kind() byte {
+	return iCreateAudience
 }
 
-func (s *CreateAudience) Serialize() []byte {
+func (audience *CreateAudience) serializeBulk() []byte {
 	bytes := make([]byte, 0)
-	PutByteArray(s.Audience, &bytes)
-	PutByteArray(s.Submission, &bytes)
-	PutByteArray(s.Moderation, &bytes)
-	PutByteArray(s.AudienceKey, &bytes)
-	PutByteArray(s.SubmissionKey, &bytes)
-	PutByteArray(s.ModerationKey, &bytes)
-	bytes = append(bytes, s.Flag)
-	PutString(s.Description, &bytes)
+	PutByteArray(audience.audience, &bytes)
+	PutByteArray(audience.submission, &bytes)
+	PutByteArray(audience.moderation, &bytes)
+	PutByteArray(audience.audienceKey, &bytes)
+	PutByteArray(audience.submissionKey, &bytes)
+	PutByteArray(audience.moderationKey, &bytes)
+	bytes = append(bytes, audience.flag)
+	PutString(audience.description, &bytes)
 	return bytes
+}
+
+func (audience *CreateAudience) Serialize() []byte {
+	return audience.authored.serialize(iCreateAudience, audience.serializeBulk())
 }
 
 func ParseCreateAudience(data []byte) *CreateAudience {
-	p := CreateAudience{}
-	position := 0
-	p.Audience, position = ParseByteArray(data, position)
-	if _, err := crypto.PublicKeyFromBytes(p.Audience); err != nil {
+	if data[0] != 0 || data[1] != iCreateAudience {
 		return nil
 	}
-	p.Submission, position = ParseByteArray(data, position)
-	if _, err := crypto.PublicKeyFromBytes(p.Submission); err != nil {
-		return nil
+	audience := CreateAudience{
+		authored: &authoredInstruction{},
 	}
-	p.Moderation, position = ParseByteArray(data, position)
-	if _, err := crypto.PublicKeyFromBytes(p.Moderation); err != nil {
-		return nil
-	}
-	p.AudienceKey, position = ParseByteArray(data, position)
-	p.SubmissionKey, position = ParseByteArray(data, position)
-	p.ModerationKey, position = ParseByteArray(data, position)
-	if position >= len(data) {
-		return nil
-	}
-	p.Flag = data[position]
-	position += 1
-	p.Description, position = ParseString(data, position)
-	if position == len(data) {
-		return &p
+	position := audience.authored.parseHead(data)
+	audience.audience, position = ParseByteArray(data, position)
+	audience.submission, position = ParseByteArray(data, position)
+	audience.moderation, position = ParseByteArray(data, position)
+	audience.audienceKey, position = ParseByteArray(data, position)
+	audience.submissionKey, position = ParseByteArray(data, position)
+	audience.moderationKey, position = ParseByteArray(data, position)
+	audience.flag, position = ParseByte(data, position)
+	audience.description, position = ParseString(data, position)
+	if audience.authored.parseTail(data, position) {
+		return &audience
 	}
 	return nil
 }
 
-// Join request for an existing audience
 type JoinAudience struct {
-	Audience     []byte
-	Presentation string
+	authored     *authoredInstruction
+	audience     []byte
+	presentation string
 }
 
-func (s *JoinAudience) Validate(validator Validator) bool {
-	return validator.GetAudienceKeys(crypto.Hasher(s.Audience)) != nil
-}
-
-func (s *JoinAudience) Kind() byte {
-	return IJoinAudience
-}
-
-func (s *JoinAudience) Serialize() []byte {
-	bytes := make([]byte, 0)
-	PutByteArray(s.Audience, &bytes)
-	PutString(s.Presentation, &bytes)
-	return bytes
-}
-
-func ParseJoinAudience(data []byte) *JoinAudience {
-	p := JoinAudience{}
-	position := 0
-	p.Audience, position = ParseByteArray(data, position)
-	if _, err := crypto.PublicKeyFromBytes(p.Audience); err != nil {
-		return nil
+func (join *JoinAudience) Validate(block *Block) bool {
+	if !block.validator.HasMember(join.authored.authorHash()) {
+		return false
 	}
-	p.Presentation, position = ParseString(data, position)
-	if position == len(data) {
-		return &p
+	if block.validator.GetAudienceKeys(crypto.Hasher(join.audience)) != nil {
+		return false
 	}
-	return nil
-}
-
-// Accept an audience's join request
-type AcceptJoinAudience struct {
-	Audience []byte
-	Member   []byte
-	Read     []byte
-	Submit   []byte
-	Moderate []byte
-}
-
-func (s *AcceptJoinAudience) Validate(validator Validator) bool {
-	check := validator.GetAudienceKeys(crypto.Hasher(s.Audience)) != nil
-	check = check && validator.HasMember(crypto.Hasher(s.Member))
-	return check
-}
-
-func (s *AcceptJoinAudience) Kind() byte {
-	return IAcceptJoinRequest
-}
-
-func (s *AcceptJoinAudience) Serialize() []byte {
-	bytes := make([]byte, 0)
-	PutByteArray(s.Audience, &bytes)
-	PutByteArray(s.Member, &bytes)
-	PutByteArray(s.Read, &bytes)
-	PutByteArray(s.Submit, &bytes)
-	PutByteArray(s.Moderate, &bytes)
-	return bytes
-}
-
-// PRECISA AJUSTAR O PARSE PARA OS CAMPOS OPCIONAIS
-func ParseAcceptJoinAudience(data []byte) *AcceptJoinAudience {
-	p := AcceptJoinAudience{}
-	position := 0
-	p.Audience, position = ParseByteArray(data, position)
-	if _, err := crypto.PublicKeyFromBytes(p.Audience); err != nil {
-		return nil
-	}
-	p.Member, position = ParseByteArray(data, position)
-	if _, err := crypto.PublicKeyFromBytes(p.Member); err != nil {
-		return nil
-	}
-	p.Read, position = ParseByteArray(data, position)
-	p.Submit, position = ParseByteArray(data, position)
-	p.Moderate, position = ParseByteArray(data, position)
-	if position == len(data) {
-		return &p
-	}
-	return nil
-}
-
-// Update audience access keys
-type UpdateAudience struct {
-	Audience      []byte
-	Submission    []byte
-	Moderation    []byte
-	AudienceKey   []byte
-	SubmissionKey []byte
-	ModerationKey []byte
-	ReadMembers   []byte
-	SubMembers    []byte
-	ModMembers    []byte
-}
-
-func (s *UpdateAudience) Validate(validator Validator) bool {
-	// TODO: Incorporate logic
+	block.FeesCollected += join.authored.fee
 	return true
 }
 
-func (s *UpdateAudience) Kind() byte {
-	return IUpdateAudience
+func (join *JoinAudience) Payments() *Payment {
+	return join.authored.payments()
 }
 
-func (s *UpdateAudience) Serialize() []byte {
+func (audience *JoinAudience) Kind() byte {
+	return iJoinAudience
+}
+
+func (audience *JoinAudience) serializeBulk() []byte {
 	bytes := make([]byte, 0)
-	PutByteArray(s.Audience, &bytes)
-	PutByteArray(s.Submission, &bytes)
-	PutByteArray(s.Moderation, &bytes)
-	PutByteArray(s.AudienceKey, &bytes)
-	PutByteArray(s.SubmissionKey, &bytes)
-	PutByteArray(s.ModerationKey, &bytes)
-	PutByteArray(s.ReadMembers, &bytes)
-	PutByteArray(s.SubMembers, &bytes)
-	PutByteArray(s.ModMembers, &bytes)
+	PutByteArray(audience.audience, &bytes)
+	PutString(audience.presentation, &bytes)
 	return bytes
 }
 
+func (audience *JoinAudience) Serialize() []byte {
+	return audience.authored.serialize(iJoinAudience, audience.serializeBulk())
+}
+
+func ParseJoinAudience(data []byte) *JoinAudience {
+	if data[0] != 0 || data[1] != iJoinAudience {
+		return nil
+	}
+	audience := JoinAudience{
+		authored: &authoredInstruction{},
+	}
+	position := audience.authored.parseHead(data)
+	audience.audience, position = ParseByteArray(data, position)
+	audience.presentation, position = ParseString(data, position)
+	if audience.authored.parseTail(data, position) {
+		return &audience
+	}
+	return nil
+}
+
+type AcceptJoinAudience struct {
+	authored     *authoredInstruction
+	audience     []byte
+	member       []byte
+	read         []byte
+	submit       []byte
+	moderate     []byte
+	modSignature []byte
+}
+
+func (accept *AcceptJoinAudience) Validate(block *Block) bool {
+	if !block.validator.HasMember(accept.authored.authorHash()) {
+		return false
+	}
+	keys := block.validator.GetAudienceKeys(crypto.Hasher(accept.audience))
+	if keys == nil {
+		return false
+	}
+	modPublic, err := crypto.PublicKeyFromBytes(keys[0:crypto.PublicKeySize])
+	if err != nil {
+		return false
+	}
+	hashed := crypto.Hasher(accept.serializeModBulk())
+	if !modPublic.Verify(hashed[:], accept.modSignature) {
+		return false
+	}
+	if bytes.Equal(keys[0:crypto.Size], hashed[:]) {
+		block.FeesCollected += accept.authored.fee
+		return true
+	}
+	return false
+}
+
+func (accept *AcceptJoinAudience) Payments() *Payment {
+	return accept.authored.payments()
+}
+
+func (accept *AcceptJoinAudience) Kind() byte {
+	return iJoinAudience
+}
+
+func (accept *AcceptJoinAudience) serializeModBulk() []byte {
+	bytes := make([]byte, 0)
+	PutByteArray(accept.audience, &bytes)
+	PutByteArray(accept.member, &bytes)
+	PutByteArray(accept.read, &bytes)
+	PutByteArray(accept.submit, &bytes)
+	PutByteArray(accept.moderate, &bytes)
+	return bytes
+}
+
+func (accept *AcceptJoinAudience) serializeBulk() []byte {
+	bytes := accept.serializeModBulk()
+	PutByteArray(accept.modSignature, &bytes)
+	return bytes
+}
+
+func (accept *AcceptJoinAudience) Serialize() []byte {
+	return accept.authored.serialize(iAcceptJoinRequest, accept.serializeBulk())
+}
+
+func ParseAcceptJoinAudience(data []byte) *AcceptJoinAudience {
+	if data[0] != 0 || data[1] != iAcceptJoinRequest {
+		return nil
+	}
+	accept := AcceptJoinAudience{
+		authored: &authoredInstruction{},
+	}
+	position := accept.authored.parseHead(data)
+	accept.audience, position = ParseByteArray(data, position)
+	accept.member, position = ParseByteArray(data, position)
+	accept.read, position = ParseByteArray(data, position)
+	accept.submit, position = ParseByteArray(data, position)
+	accept.moderate, position = ParseByteArray(data, position)
+	accept.modSignature, position = ParseByteArray(data, position)
+	if accept.authored.parseTail(data, position) {
+		return &accept
+	}
+	return nil
+}
+
+type TokenCipher struct {
+	token  []byte
+	cipher []byte
+}
+
+type TokenCiphers []TokenCipher
+
+type UpdateAudience struct {
+	authored      *authoredInstruction
+	audience      []byte
+	submission    []byte
+	moderation    []byte
+	audienceKey   []byte
+	submissionKey []byte
+	moderationKey []byte
+	flag          byte
+	description   string
+	readMembers   TokenCiphers
+	subMembers    TokenCiphers
+	modMembers    TokenCiphers
+	audSignature  []byte
+}
+
+func (update *UpdateAudience) Validate(block *Block) bool {
+	if !block.validator.HasMember(update.authored.authorHash()) {
+		return false
+	}
+	hashed := crypto.Hasher(update.audience)
+	newKeys := append(update.submission, update.moderation...)
+	if block.UpdateAudience(hashed, newKeys) {
+		block.FeesCollected += update.authored.fee
+		return true
+	}
+	return false
+}
+
+func (update *UpdateAudience) Payments() *Payment {
+	return update.authored.payments()
+}
+
+func (update *UpdateAudience) Kind() byte {
+	return iUpdateAudience
+}
+
+func (update *UpdateAudience) serializeBulk() []byte {
+	bytes := make([]byte, 0)
+	PutByteArray(update.audience, &bytes)
+	PutByteArray(update.submission, &bytes)
+	PutByteArray(update.moderation, &bytes)
+	PutByteArray(update.audienceKey, &bytes)
+	PutByteArray(update.submissionKey, &bytes)
+	PutByteArray(update.moderationKey, &bytes)
+	PutByte(update.flag, &bytes)
+	PutString(update.description, &bytes)
+	PutTokenCiphers(update.readMembers, &bytes)
+	PutTokenCiphers(update.subMembers, &bytes)
+	PutTokenCiphers(update.modMembers, &bytes)
+	PutByteArray(update.audSignature, &bytes)
+	return bytes
+}
+
+func (update *UpdateAudience) Serialize() []byte {
+	return update.authored.serialize(iUpdateAudience, update.serializeBulk())
+}
+
 func ParseUpdateAudience(data []byte) *UpdateAudience {
-	p := UpdateAudience{}
-	position := 0
-	p.Audience, position = ParseByteArray(data, position)
-	if _, err := crypto.PublicKeyFromBytes(p.Audience); err != nil {
+	if data[0] != 0 || data[1] != iUpdateAudience {
 		return nil
 	}
-	p.Submission, position = ParseByteArray(data, position)
-	if _, err := crypto.PublicKeyFromBytes(p.Submission); err != nil {
+	update := UpdateAudience{
+		authored: &authoredInstruction{},
+	}
+	position := update.authored.parseHead(data)
+	update.audience, position = ParseByteArray(data, position)
+	update.submission, position = ParseByteArray(data, position)
+	update.moderation, position = ParseByteArray(data, position)
+	update.audienceKey, position = ParseByteArray(data, position)
+	update.submissionKey, position = ParseByteArray(data, position)
+	update.moderationKey, position = ParseByteArray(data, position)
+	update.flag, position = ParseByte(data, position)
+	update.description, position = ParseString(data, position)
+	update.readMembers, position = ParseTokenCiphers(data, position)
+	update.subMembers, position = ParseTokenCiphers(data, position)
+	update.modMembers, position = ParseTokenCiphers(data, position)
+	hashed := crypto.Hasher(data[0:position])
+	update.audSignature, position = ParseByteArray(data, position)
+	audPublic, err := crypto.PublicKeyFromBytes(update.authored.author)
+	if err != nil {
 		return nil
 	}
-	p.Moderation, position = ParseByteArray(data, position)
-	if _, err := crypto.PublicKeyFromBytes(p.Moderation); err != nil {
+	if !audPublic.Verify(hashed[:], update.audSignature) {
 		return nil
 	}
-	p.AudienceKey, position = ParseByteArray(data, position)
-	p.SubmissionKey, position = ParseByteArray(data, position)
-	p.ModerationKey, position = ParseByteArray(data, position)
-	p.ReadMembers, position = ParseByteArray(data, position)
-	p.SubMembers, position = ParseByteArray(data, position)
-	p.ModMembers, position = ParseByteArray(data, position)
-	if position == len(data) {
-		return &p
+	if update.authored.parseTail(data, position) {
+		return &update
 	}
 	return nil
 }

@@ -2,20 +2,18 @@ package instructions
 
 import "github.com/Aereum/aereum/core/crypto"
 
-type sponsorOfferState struct {
-	contentHash crypto.Hash
-	expire      uint64
-}
-
 type Mutation struct {
 	DeltaWallets map[crypto.Hash]int
 	GrantPower   map[crypto.Hash]struct{}
 	RevokePower  map[crypto.Hash]struct{}
 	UseSpnOffer  map[crypto.Hash]struct{}
-	NewSpnOffer  map[crypto.Hash]*sponsorOfferState
+	GrantSponsor map[crypto.Hash]crypto.Hash // hash of sponsor token + audience -> content hash
+	PublishSpn   map[crypto.Hash]struct{}
+	NewSpnOffer  map[crypto.Hash]uint64
 	NewMembers   map[crypto.Hash]struct{}
 	NewCaption   map[crypto.Hash]struct{}
 	NewAudiences map[crypto.Hash][]byte
+	UpdAudiences map[crypto.Hash][]byte
 	NewEphemeral map[crypto.Hash]uint64
 }
 
@@ -25,7 +23,9 @@ func NewMutation() *Mutation {
 		GrantPower:   make(map[crypto.Hash]struct{}),
 		RevokePower:  make(map[crypto.Hash]struct{}),
 		UseSpnOffer:  make(map[crypto.Hash]struct{}),
-		NewSpnOffer:  make(map[crypto.Hash]*sponsorOfferState),
+		GrantSponsor: make(map[crypto.Hash]crypto.Hash),
+		PublishSpn:   make(map[crypto.Hash]struct{}),
+		NewSpnOffer:  make(map[crypto.Hash]uint64),
 		NewMembers:   make(map[crypto.Hash]struct{}),
 		NewCaption:   make(map[crypto.Hash]struct{}),
 		NewAudiences: make(map[crypto.Hash][]byte),
@@ -36,6 +36,14 @@ func NewMutation() *Mutation {
 func (m *Mutation) DeltaBalance(hash crypto.Hash) int {
 	balance := m.DeltaWallets[hash]
 	return balance
+}
+
+func (m *Mutation) HasGrantedSponsorship(hash crypto.Hash) (bool, crypto.Hash) {
+	if _, ok := m.PublishSpn[hash]; ok {
+		return false, crypto.Hasher([]byte{})
+	}
+	contentHash, ok := m.GrantSponsor[hash]
+	return ok, contentHash
 }
 
 func (m *Mutation) HasGrantPower(hash crypto.Hash) bool {
@@ -53,9 +61,9 @@ func (m *Mutation) HasUsedSponsorOffer(hash crypto.Hash) bool {
 	return ok
 }
 
-func (m *Mutation) GetSponsorOffer(hash crypto.Hash) *sponsorOfferState {
-	offer := m.NewSpnOffer[hash]
-	return offer
+func (m *Mutation) GetSponsorOffer(hash crypto.Hash) bool {
+	_, ok := m.NewSpnOffer[hash]
+	return ok
 }
 
 func (m *Mutation) HasMember(hash crypto.Hash) bool {
@@ -69,6 +77,9 @@ func (m *Mutation) HasCaption(hash crypto.Hash) bool {
 }
 
 func (m *Mutation) GetAudience(hash crypto.Hash) []byte {
+	if audience, ok := m.UpdAudiences[hash]; ok {
+		return audience
+	}
 	audience := m.NewAudiences[hash]
 	return audience
 }
@@ -78,131 +89,45 @@ func (m *Mutation) HasEphemeral(hash crypto.Hash) (bool, uint64) {
 	return ok, expire
 }
 
-func GroupMutations(mutations []*Mutation) *Mutation {
+func GroupBlockMutations(blocks []*Block) *Mutation {
 	grouped := NewMutation()
-	for _, mutation := range mutations {
-		for acc, balance := range mutation.DeltaWallets {
+	for _, block := range blocks {
+		for acc, balance := range block.mutations.DeltaWallets {
 			if oldBalance, ok := grouped.DeltaWallets[acc]; ok {
 				grouped.DeltaWallets[acc] = oldBalance + balance
 			} else {
 				grouped.DeltaWallets[acc] = balance
 			}
 		}
-		for hash := range mutation.GrantPower {
+		for hash := range block.mutations.GrantPower {
 			grouped.GrantPower[hash] = struct{}{}
 		}
-		for hash := range mutation.RevokePower {
+		for hash := range block.mutations.RevokePower {
 			grouped.RevokePower[hash] = struct{}{}
 			delete(grouped.GrantPower, hash)
 		}
-		for hash := range mutation.UseSpnOffer {
+		for hash := range block.mutations.UseSpnOffer {
 			grouped.UseSpnOffer[hash] = struct{}{}
 			delete(grouped.NewSpnOffer, hash)
 		}
-		for hash, offer := range mutation.NewSpnOffer {
+		for hash, offer := range block.mutations.NewSpnOffer {
 			grouped.NewSpnOffer[hash] = offer
 		}
-		for hash := range mutation.NewMembers {
+		for hash := range block.mutations.NewMembers {
 			grouped.NewMembers[hash] = struct{}{}
 		}
-		for hash := range mutation.NewCaption {
+		for hash := range block.mutations.NewCaption {
 			grouped.NewCaption[hash] = struct{}{}
 		}
-		for hash, keys := range mutation.NewAudiences {
+		for hash, keys := range block.mutations.NewAudiences {
 			grouped.NewAudiences[hash] = keys
 		}
-
+		// incorporate fees to block publisher
+		if balance, ok := grouped.DeltaWallets[crypto.Hasher(block.Publisher)]; ok {
+			grouped.DeltaWallets[crypto.Hasher(block.Publisher)] = balance + int(block.FeesCollected)
+		} else {
+			grouped.DeltaWallets[crypto.Hasher(block.Publisher)] = int(block.FeesCollected)
+		}
 	}
 	return grouped
 }
-
-/*func (m *StateMutation) CanPay(payments Payment) bool {
-	for n, debitAcc := range payments.DebitAcc {
-		ok, stateBalance := m.State.Wallets.Balance(debitAcc)
-		if !ok {
-			return false
-		}
-		if delta, ok := m.DeltaWallets[debitAcc]; ok {
-			if int(stateBalance)+delta < int(payments.DebitValue[n]) {
-				return false
-			}
-		} else {
-			if stateBalance < payments.DebitValue[n] {
-				return false
-			}
-		}
-	}
-	return true
-}
-
-func (m *StateMutation) TransferPayments(payments Payment) {
-	for n, debitAcc := range payments.DebitAcc {
-		if delta, ok := m.DeltaWallets[debitAcc]; ok {
-			m.DeltaWallets[debitAcc] = delta - int(payments.DebitValue[n])
-		} else {
-			m.DeltaWallets[debitAcc] = -int(payments.DebitValue[n])
-		}
-	}
-	for n, creditAcc := range payments.CreditAcc {
-		if delta, ok := m.DeltaWallets[creditAcc]; ok {
-			m.DeltaWallets[creditAcc] = delta + int(payments.CreditValue[n])
-		} else {
-			m.DeltaWallets[creditAcc] = int(payments.CreditValue[n])
-		}
-	}
-}
-*/
-
-/*
-func setNewHash(hash crypto.Hash, store map[crypto.Hash]struct{}) bool {
-	if _, ok := store[hash]; ok {
-		return false
-	}
-	store[hash] = struct{}{}
-	return true
-}
-
-func (s *Mutation) SetNewHash(hash crypto.Hash) bool {
-	return setNewHash(hash, s.Hashes)
-}
-
-func (s *Mutation) SetNewGrantPower(hash crypto.Hash) bool {
-	return setNewHash(hash, s.GrantPower)
-}
-
-func (s *Mutation) SetNewRevokePower(hash crypto.Hash) bool {
-	return setNewHash(hash, s.RevokePower)
-}
-
-func (s *Mutation) SetNewUseSonOffer(hash crypto.Hash, expire uint64) bool {
-	return setNewHash(hash, s.UseSpnOffer)
-}
-
-func (s *Mutation) SetNewAdvOffer(hash crypto.Hash, offer SponsorshipOffer) bool {
-	if _, ok := s.NewSpnOffer[hash]; ok {
-		return false
-	}
-	s.NewSpnOffer[hash] = &offer
-	return true
-}
-
-func (s *Mutation) SetNewMember(tokenHash crypto.Hash, captionHash crypto.Hash) bool {
-	if _, ok := s.NewMembers[tokenHash]; ok {
-		return false
-	}
-	if _, ok := s.NewMembers[captionHash]; ok {
-		return false
-	}
-	s.NewMembers[tokenHash] = struct{}{}
-	s.NewCaption[captionHash] = struct{}{}
-	return true
-}
-
-func (s *Mutation) SetNewAudience(hash crypto.Hash, keys []byte) bool {
-	if _, ok := s.NewAudiences[hash]; ok {
-		return false
-	}
-	s.NewAudiences[hash] = keys
-	return true
-}
-*/

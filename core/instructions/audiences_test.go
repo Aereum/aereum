@@ -1,74 +1,67 @@
 package instructions
 
 import (
+	"fmt"
 	"reflect"
 	"testing"
 
 	"github.com/Aereum/aereum/core/crypto"
 )
 
-func TestCreateAudience(t *testing.T) {
+var (
+	audienceTest *Audience = NewAudience()
+)
 
-	// Creating 3 public-private keys for audience identification, submission and moderation
-
-	public_audience, _ := crypto.RandomAsymetricKey()
-	public_submission, _ := crypto.RandomAsymetricKey()
-	public_moderation, _ := crypto.RandomAsymetricKey()
-	message := &CreateAudience{
-		Audience:      public_audience.ToBytes(),
-		Submission:    public_submission.ToBytes(),
-		Moderation:    public_moderation.ToBytes(),
-		AudienceKey:   []byte("teste"),
-		SubmissionKey: []byte("teste"),
-		ModerationKey: []byte("teste"),
-		Flag:          byte(0),
-		Description:   "Very first audience",
-	}
-	bytes := message.Serialize()
-	copy := ParseCreateAudience(bytes)
-	if copy == nil {
-		t.Error("Could not ParseCreateAudience")
+func TestCreateteAudience(t *testing.T) {
+	audience := author.NewCreateAudience(audienceTest, 1, "teste", 10, 2000)
+	audience2 := ParseCreateAudience(audience.Serialize())
+	if audience2 == nil {
+		t.Error("could not parse CreateAudience")
 		return
 	}
-	if ok := reflect.DeepEqual(*message, *copy); !ok {
-		t.Error("Parse and Serialization not working for CreateAudience messages")
+	if !reflect.DeepEqual(audience, audience2) {
+		t.Error("Parse and Serialize not working for CreateAudience")
 	}
 }
 
 func TestJoinAudience(t *testing.T) {
-	public_audience, _ := crypto.RandomAsymetricKey()
-	message := &JoinAudience{
-		Audience:     public_audience.ToBytes(),
-		Presentation: "New member for existing audience",
-	}
-	bytes := message.Serialize()
-	copy := ParseJoinAudience(bytes)
-	if copy == nil {
-		t.Error("Could not ParseJoinAudience.")
+	join := author.NewJoinAudience(audienceTest.token.PublicKey().ToBytes(), "teste", 10, 2000)
+	join2 := ParseJoinAudience(join.Serialize())
+	if join2 == nil {
+		t.Error("could not parse JoinAudience")
 		return
 	}
-	if ok := reflect.DeepEqual(*message, *copy); !ok {
-		t.Error("Parse and Serialization not working for JoinAudience messages.")
+	if !reflect.DeepEqual(join, join2) {
+		t.Error("Parse and Serialize not working for JoinAudience")
 	}
 }
 
 func TestAcceptJoinAudience(t *testing.T) {
-	public_audience, _ := crypto.RandomAsymetricKey()
-	public_member, _ := crypto.RandomAsymetricKey()
-	message := &AcceptJoinAudience{
-		Audience: public_audience.ToBytes(),
-		Member:   public_member.ToBytes(),
-		Read:     []byte("teste"),
-		Submit:   []byte("teste"),
-		Moderate: []byte("teste"),
-	}
-	bytes := message.Serialize()
-	copy := ParseAcceptJoinAudience(bytes)
-	if copy == nil {
-		t.Error("Could not ParseAcceptJoinAudience.")
+	accept := author.NewAcceptJoinAudience(audienceTest, author.token.PublicKey(), 3, 10, 2000)
+	accept2 := ParseAcceptJoinAudience(accept.Serialize())
+	if accept2 == nil {
+		t.Error("could not parse AcceptJoinAudience")
 		return
 	}
-	if ok := reflect.DeepEqual(*message, *copy); !ok {
-		t.Error("Parse and Serialization not working for AcceptJoinAudience messages.")
+	if !reflect.DeepEqual(accept, accept2) {
+		fmt.Println(*accept)
+		fmt.Println(*accept2)
+		t.Error("Parse and Serialize not working for AcceptJoinAudience")
+	}
+}
+
+func TestUpdateAudience(t *testing.T) {
+	readers := make([]crypto.PublicKey, 3)
+	for n := 0; n < 3; n++ {
+		readers[n], _ = crypto.RandomAsymetricKey()
+	}
+	update := author.NewUpdateAudience(audienceTest, readers, readers, readers, 2, "teste", 10, 2000)
+	update2 := ParseUpdateAudience(update.Serialize())
+	if update2 == nil {
+		t.Error("could not parse UpdateAudience")
+		return
+	}
+	if !reflect.DeepEqual(update, update2) {
+		t.Error("Parse and Serialize not working for UpdateAudience")
 	}
 }

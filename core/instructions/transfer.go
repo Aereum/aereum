@@ -37,7 +37,22 @@ type Transfer struct {
 	Signature       []byte
 }
 
-func (t *Transfer) Validate(validator Validator) bool {
+func (t *Transfer) Payments() *Payment {
+	total := uint64(0)
+	payment := &Payment{
+		Credit: make([]Wallet, 0),
+		Debit:  make([]Wallet, 0),
+	}
+	for _, credit := range t.To {
+		payment.NewCredit(crypto.Hasher(credit.Token), credit.Value)
+		total += credit.Value
+	}
+	payment.NewDebit(crypto.Hasher(t.From), total+t.Fee)
+	return payment
+}
+
+func (t *Transfer) Validate(block *Block) bool {
+	block.FeesCollected += t.Fee
 	return true
 }
 
@@ -75,7 +90,7 @@ func (s *Transfer) Serialize() []byte {
 	return bytes
 }
 
-func ParseTransfer(data []byte) (*Transfer, error) {
+func ParseTransfer(data []byte) *Transfer {
 	p := Transfer{}
 	position := 0
 	p.Version, position = ParseByte(data, position)
@@ -94,13 +109,13 @@ func ParseTransfer(data []byte) (*Transfer, error) {
 	hash := crypto.Hasher(data[0:position])
 	p.Signature, _ = ParseByteArray(data, position)
 	if publicKey, err := crypto.PublicKeyFromBytes(p.From); err != nil {
-		return nil, ErrCouldNotParseSignature
+		return nil
 	} else {
 		if !publicKey.Verify(hash[:], p.Signature) {
-			return nil, ErrInvalidSignature
+			return nil
 		}
 	}
-	return &p, nil
+	return &p
 }
 
 // Deposit aero in a wallet
@@ -115,7 +130,12 @@ type Deposit struct {
 	Signature       []byte
 }
 
-func (t *Deposit) Validate(validator Validator) bool {
+func (d *Deposit) Payments() *Payment {
+	return NewPayment(crypto.Hasher(d.Token), d.Value)
+}
+
+func (t *Deposit) Validate(block *Block) bool {
+	block.FeesCollected += t.Fee
 	return true
 }
 
@@ -140,7 +160,7 @@ func (s *Deposit) Serialize() []byte {
 	return bytes
 }
 
-func ParseDeposit(data []byte) (*Deposit, error) {
+func ParseDeposit(data []byte) *Deposit {
 	p := Deposit{}
 	position := 0
 	p.Version, position = ParseByte(data, position)
@@ -148,7 +168,7 @@ func ParseDeposit(data []byte) (*Deposit, error) {
 	p.epoch, position = ParseUint64(data, position)
 	p.Token, position = ParseByteArray(data, position)
 	if _, err := crypto.PublicKeyFromBytes(p.Token); err != nil {
-		return nil, ErrCouldNotParseSignature
+		return nil
 	}
 	p.Value, position = ParseUint64(data, position)
 	p.Reason, position = ParseString(data, position)
@@ -156,13 +176,13 @@ func ParseDeposit(data []byte) (*Deposit, error) {
 	msgToVerify := data[0:position]
 	p.Signature, _ = ParseByteArray(data, position)
 	if publicKey, err := crypto.PublicKeyFromBytes(p.Token); err != nil {
-		return nil, ErrCouldNotParseSignature
+		return nil
 	} else {
 		if !publicKey.Verify(msgToVerify, p.Signature) {
-			return nil, ErrInvalidSignature
+			return nil
 		}
 	}
-	return &p, nil
+	return &p
 }
 
 // Withdraw aero from a wallet
@@ -177,7 +197,15 @@ type Withdraw struct {
 	Signature       []byte
 }
 
-func (t *Withdraw) Validate(validator Validator) bool {
+func (w *Withdraw) Payments() *Payment {
+	return &Payment{
+		Credit: []Wallet{{crypto.Hasher(w.Token), w.Value}},
+		Debit:  []Wallet{},
+	}
+}
+
+func (t *Withdraw) Validate(block *Block) bool {
+	block.FeesCollected += t.Fee
 	return true
 }
 
@@ -202,7 +230,7 @@ func (s *Withdraw) Serialize() []byte {
 	return bytes
 }
 
-func ParseWithdraw(data []byte) (*Withdraw, error) {
+func ParseWithdraw(data []byte) *Withdraw {
 	p := Withdraw{}
 	position := 0
 	p.Version, position = ParseByte(data, position)
@@ -210,19 +238,19 @@ func ParseWithdraw(data []byte) (*Withdraw, error) {
 	p.epoch, position = ParseUint64(data, position)
 	p.Token, position = ParseByteArray(data, position)
 	if _, err := crypto.PublicKeyFromBytes(p.Token); err != nil {
-		return nil, ErrCouldNotParseSignature
+		return nil
 	}
 	p.Value, position = ParseUint64(data, position)
 	p.Reason, position = ParseString(data, position)
 	p.Fee, position = ParseUint64(data, position)
 	msgToVerify := data[0:position]
-	p.Signature, position = ParseByteArray(data, position)
+	p.Signature, _ = ParseByteArray(data, position)
 	if publicKey, err := crypto.PublicKeyFromBytes(p.Token); err != nil {
-		return nil, ErrCouldNotParseSignature
+		return nil
 	} else {
 		if !publicKey.Verify(msgToVerify, p.Signature) {
-			return nil, ErrInvalidSignature
+			return nil
 		}
 	}
-	return &p, nil
+	return &p
 }

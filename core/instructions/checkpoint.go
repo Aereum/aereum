@@ -28,21 +28,15 @@ func (c *Validator) PowerOfAttorney(hash crypto.Hash) bool {
 	return c.State.PowerOfAttorney.Exists(hash)
 }
 
-func (c *Validator) SponsorshipOffer(hash crypto.Hash) *sponsorOfferState {
+func (c *Validator) SponsorshipOffer(hash crypto.Hash) uint64 {
 	if c.Mutations.HasUsedSponsorOffer(hash) {
-		return nil
+		return 0
 	}
-	if offer := c.Mutations.GetSponsorOffer(hash); offer != nil {
-		return offer
+	if offer := c.Mutations.GetSponsorOffer(hash); !offer {
+		return 0
 	}
-	ok, contentHash, expire := c.State.SponsorOffers.GetContentHashAndExpiry(hash)
-	if !ok {
-		return nil
-	}
-	return &sponsorOfferState{
-		contentHash: crypto.BytesToHash(contentHash),
-		expire:      expire,
-	}
+	expire := c.State.SponsorOffers.Exists(hash)
+	return expire
 }
 
 func (c *Validator) HasMember(hash crypto.Hash) bool {
@@ -50,6 +44,14 @@ func (c *Validator) HasMember(hash crypto.Hash) bool {
 		return true
 	}
 	return c.State.Members.Exists(hash)
+}
+
+func (c *Validator) HasGrantedSponser(hash crypto.Hash) (bool, crypto.Hash) {
+	if ok, contentHash := c.Mutations.HasGrantedSponsorship(hash); ok {
+		return true, contentHash
+	}
+	ok, contentHash := c.State.SponsorGranted.GetContentHash(hash)
+	return ok, crypto.Hasher(contentHash)
 }
 
 func (c *Validator) HasCaption(hash crypto.Hash) bool {
@@ -74,6 +76,6 @@ func (c *Validator) GetEphemeralExpire(hash crypto.Hash) (bool, uint64) {
 	if ok, expire := c.Mutations.HasEphemeral(hash); ok {
 		return true, expire
 	}
-	return false, 0
-	// TODO include in state
+	expire := c.State.EphemeralTokens.Exists(hash)
+	return expire > 0, expire
 }

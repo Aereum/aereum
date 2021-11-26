@@ -1,4 +1,4 @@
-package instructionsnew
+package instructions
 
 import "github.com/Aereum/aereum/core/crypto"
 

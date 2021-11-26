@@ -2,41 +2,39 @@ package store
 
 import (
 	"github.com/Aereum/aereum/core/crypto"
-	"github.com/Aereum/aereum/core/util"
 )
 
 func GetOrSetSponsor(found bool, hash crypto.Hash, b *Bucket, item int64, param []byte) OperationResult {
-	get := false
-	if len(param) == 0 {
-		get = true
-	}
 	if found {
-		if get {
+		if param[0] == 0 { // get
 			keys := b.ReadItem(item)
 			return OperationResult{
-				result: QueryResult{ok: true, data: keys[size:]},
+				result: QueryResult{ok: true, data: keys},
 			}
-		} else {
-			updated := make([]byte, crypto.Size+3*crypto.PublicKeySize)
-			copy(updated[0:size], hash[:])
-			copy(updated[size:], param)
-			b.WriteItem(item, updated)
+		} else if param[0] == 1 { // set
 			return OperationResult{
-				result: QueryResult{ok: true},
-			}
-
-		}
-	} else {
-		if !get {
-			newKeys := make([]byte, crypto.Size+3*crypto.PublicKeySize)
-			copy(newKeys[0:size], hash[:])
-			copy(newKeys[size:], param)
-			b.WriteItem(item, newKeys)
-			return OperationResult{
-				added:  &Item{bucket: b, item: item},
 				result: QueryResult{ok: false},
 			}
-		} else {
+		} else { // remove
+			return OperationResult{
+				deleted: &Item{bucket: b, item: item},
+				result:  QueryResult{ok: true},
+			}
+		}
+	} else {
+		if param[0] == 0 { //get
+			return OperationResult{
+				result: QueryResult{ok: false},
+			}
+		} else if param[0] == 1 { // set
+			contentHash := make([]byte, crypto.Size)
+			copy(contentHash[0:crypto.Size], param[1:])
+			b.WriteItem(item, contentHash)
+			return OperationResult{
+				added:  &Item{bucket: b, item: item},
+				result: QueryResult{ok: true},
+			}
+		} else { // remove
 			return OperationResult{
 				result: QueryResult{ok: false},
 			}
@@ -48,26 +46,30 @@ type Sponsor struct {
 	hs *HashStore
 }
 
-func (w *Sponsor) GetContentHashAndExpiry(hash crypto.Hash) (bool, []byte, uint64) {
+func (w *Sponsor) GetContentHash(hash crypto.Hash) (bool, []byte) {
 	response := make(chan QueryResult)
-	ok, keys := w.hs.Query(Query{hash: hash, param: []byte{}, response: response})
+	ok, keys := w.hs.Query(Query{hash: hash, param: []byte{0}, response: response})
 	if ok {
-		expiry, _ := util.ParseUint64(keys, crypto.Size)
-		return ok, keys[0 : len(keys)-9], expiry
+		return ok, keys
 	}
-	return false, nil, 0
+	return false, nil
 }
 
 func (w *Sponsor) Exists(hash crypto.Hash) bool {
 	response := make(chan QueryResult)
-	ok, _ := w.hs.Query(Query{hash: hash, param: []byte{}, response: response})
+	ok, _ := w.hs.Query(Query{hash: hash, param: []byte{0}, response: response})
 	return ok
 }
 
-func (w *Sponsor) SetContentHashAndExpiry(hash crypto.Hash, keys []byte, expire uint64) bool {
+func (w *Sponsor) SetContentHash(hash crypto.Hash, keys []byte) bool {
 	response := make(chan QueryResult)
-	util.PutUint64(expire, &keys)
-	ok, _ := w.hs.Query(Query{hash: hash, param: keys, response: response})
+	ok, _ := w.hs.Query(Query{hash: hash, param: append([]byte{1}, hash[:]...), response: response})
+	return ok
+}
+
+func (w *Sponsor) RemoveContentHash(hash crypto.Hash) bool {
+	response := make(chan QueryResult)
+	ok, _ := w.hs.Query(Query{hash: hash, param: []byte{2}, response: response})
 	return ok
 }
 

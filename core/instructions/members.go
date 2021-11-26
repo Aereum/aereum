@@ -1,4 +1,4 @@
-package instructionsnew
+package instructions
 
 import (
 	"encoding/json"

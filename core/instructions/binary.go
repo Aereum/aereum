@@ -18,6 +18,26 @@ package instructions
 
 import "time"
 
+func PutTokenCipher(tc TokenCipher, data *[]byte) {
+	PutByteArray(tc.token, data)
+	PutByteArray(tc.cipher, data)
+}
+
+func PutTokenCiphers(tcs TokenCiphers, data *[]byte) {
+	if len(tcs) == 0 {
+		*data = append(*data, 0, 0)
+		return
+	}
+	maxLen := len(tcs)
+	if len(tcs) > 1<<16-1 {
+		maxLen = 1 << 16
+	}
+	*data = append(*data, byte(maxLen), byte(maxLen>>8))
+	for n := 0; n < maxLen; n++ {
+		PutTokenCipher(tcs[n], data)
+	}
+}
+
 func PutByteArray(b []byte, data *[]byte) {
 	if len(b) == 0 {
 		*data = append(*data, 0, 0)
@@ -69,7 +89,36 @@ func PutBool(b bool, data *[]byte) {
 }
 
 func PutByte(b byte, data *[]byte) {
-	*data = append(*data, 0)
+	*data = append(*data, b)
+}
+
+func ParseTokenCipher(data []byte, position int) (TokenCipher, int) {
+	tc := TokenCipher{}
+	if position+1 >= len(data) {
+		return tc, position
+	}
+	tc.token, position = ParseByteArray(data, position)
+	tc.cipher, position = ParseByteArray(data, position)
+	return tc, position
+}
+
+func ParseTokenCiphers(data []byte, position int) (TokenCiphers, int) {
+	if position+1 >= len(data) {
+		return TokenCiphers{}, position
+	}
+	length := int(data[position+0]) | int(data[position+1])<<8
+	position += 2
+	if length == 0 {
+		return TokenCiphers{}, position + 2
+	}
+	if position+length+2 > len(data) {
+		return TokenCiphers{}, position + length + 2
+	}
+	tcs := make(TokenCiphers, length)
+	for n := 0; n < length; n++ {
+		tcs[n], position = ParseTokenCipher(data, position)
+	}
+	return tcs, position
 }
 
 func ParseByteArray(data []byte, position int) ([]byte, int) {
