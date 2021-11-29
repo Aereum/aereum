@@ -289,8 +289,8 @@ func (a *Author) NewAcceptJoinAudience(audience *Audience, member crypto.PublicK
 		return nil
 	}
 	accept.modSignature = sign
-	accept.serializeBulk()
-	if a.sign(accept.authored, modbulk, iAcceptJoinRequest) {
+	bulk := accept.serializeBulk()
+	if a.sign(accept.authored, bulk, iAcceptJoinRequest) {
 		return &accept
 	}
 	return nil
