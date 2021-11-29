@@ -269,7 +269,6 @@ func (a *Author) NewAcceptJoinAudience(audience *Audience, member crypto.PublicK
 		submit:   []byte{},
 		moderate: []byte{},
 	}
-	// accept.read, _ = member.Encrypt(audience.readCipher)
 	accept.read, _ = member.Encrypt(audience.audienceKeyCipher)
 	if level > 0 {
 		accept.submit, _ = member.Encrypt(audience.submitKeyCipher)
@@ -278,9 +277,6 @@ func (a *Author) NewAcceptJoinAudience(audience *Audience, member crypto.PublicK
 		accept.moderate, _ = member.Encrypt(audience.moderateKeyCipher)
 
 	}
-	// if level > 2 {
-	// 	accept.audience, _ = member.Encrypt(audience.audienceKeyCipher)
-	// }
 	modbulk := accept.serializeModBulk()
 	var sign []byte
 	var err error
@@ -302,7 +298,6 @@ func (a *Author) NewUpdateAudience(audience *Audience, readers, submiters, moder
 		audience:      audience.token.PublicKey().ToBytes(),
 		submission:    audience.submission.PublicKey().ToBytes(),
 		moderation:    audience.moderation.PublicKey().ToBytes(),
-		audienceKey:   audience.SealedToken(),
 		submissionKey: audience.SealedSubmission(),
 		moderationKey: audience.SealedModeration(),
 		flag:          flag,
@@ -311,8 +306,16 @@ func (a *Author) NewUpdateAudience(audience *Audience, readers, submiters, moder
 		subMembers:    audience.SubmitTokenCiphers(submiters),
 		modMembers:    audience.ModerateTokenCiphers(moderators),
 	}
+	audBulk := update.serializeAudBulk()
+	var sign []byte
+	var err error
+	sign, err = audience.token.Sign(audBulk)
+	if err != nil {
+		return nil
+	}
+	update.audSignature = sign
 	bulk := update.serializeBulk()
-	if a.sign(update.authored, bulk, iUpdateAudience) {
+	if a.sign(update.authored, bulk, iAcceptJoinRequest) {
 		return &update
 	}
 	return nil
