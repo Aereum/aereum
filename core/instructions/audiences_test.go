@@ -1,7 +1,6 @@
 package instructions
 
 import (
-	"fmt"
 	"reflect"
 	"testing"
 
@@ -37,15 +36,13 @@ func TestJoinAudience(t *testing.T) {
 }
 
 func TestAcceptJoinAudience(t *testing.T) {
-	accept := author.NewAcceptJoinAudience(audienceTest, author.token.PublicKey(), 3, 10, 2000)
+	accept := author.NewAcceptJoinAudience(audienceTest, author.token.PublicKey(), 2, 10, 2000)
 	accept2 := ParseAcceptJoinAudience(accept.Serialize())
 	if accept2 == nil {
 		t.Error("could not parse AcceptJoinAudience")
 		return
 	}
 	if !reflect.DeepEqual(accept, accept2) {
-		fmt.Println(*accept)
-		fmt.Println(*accept2)
 		t.Error("Parse and Serialize not working for AcceptJoinAudience")
 	}
 }

@@ -263,12 +263,14 @@ func (a *Author) NewJoinAudience(audience []byte, presentation string, epoch, fe
 func (a *Author) NewAcceptJoinAudience(audience *Audience, member crypto.PublicKey, level byte, epoch, fee uint64) *AcceptJoinAudience {
 	accept := AcceptJoinAudience{
 		authored: a.NewAuthored(epoch, fee),
+		audience: audience.token.ToBytes(),
 		member:   member.ToBytes(),
+		read:     []byte{},
 		submit:   []byte{},
 		moderate: []byte{},
-		audience: []byte{},
 	}
-	accept.read, _ = member.Encrypt(audience.readCipher)
+	// accept.read, _ = member.Encrypt(audience.readCipher)
+	accept.read, _ = member.Encrypt(audience.audienceKeyCipher)
 	if level > 0 {
 		accept.submit, _ = member.Encrypt(audience.submitKeyCipher)
 	}
@@ -276,11 +278,19 @@ func (a *Author) NewAcceptJoinAudience(audience *Audience, member crypto.PublicK
 		accept.moderate, _ = member.Encrypt(audience.moderateKeyCipher)
 
 	}
-	if level > 2 {
-		accept.audience, _ = member.Encrypt(audience.audienceKeyCipher)
+	// if level > 2 {
+	// 	accept.audience, _ = member.Encrypt(audience.audienceKeyCipher)
+	// }
+	modbulk := accept.serializeModBulk()
+	var sign []byte
+	var err error
+	sign, err = audience.moderation.Sign(modbulk)
+	if err != nil {
+		return nil
 	}
-	bulk := accept.serializeBulk()
-	if a.sign(accept.authored, bulk, iAcceptJoinRequest) {
+	accept.modSignature = sign
+	accept.serializeBulk()
+	if a.sign(accept.authored, modbulk, iAcceptJoinRequest) {
 		return &accept
 	}
 	return nil
@@ -334,7 +344,8 @@ func (a *Author) NewContent(audience *Audience, contentType string, message []by
 		content.wallet = a.wallet.PublicKey().ToBytes()
 	}
 	if encrypted {
-		cipher := crypto.CipherFromKey(audience.readCipher)
+		// cipher := crypto.CipherFromKey(audience.readCipher)
+		cipher := crypto.CipherFromKey(audience.audienceKeyCipher)
 		content.content = cipher.Seal(message)
 	} else {
 		content.content = message

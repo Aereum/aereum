@@ -7,10 +7,10 @@ import (
 )
 
 type Audience struct {
-	token             *crypto.PrivateKey
-	submission        *crypto.PrivateKey
-	moderation        *crypto.PrivateKey
-	readCipher        []byte
+	token      *crypto.PrivateKey
+	submission *crypto.PrivateKey
+	moderation *crypto.PrivateKey
+	// readCipher        []byte
 	audienceKeyCipher []byte
 	submitKeyCipher   []byte
 	moderateKeyCipher []byte
@@ -38,7 +38,8 @@ func (a *Audience) ReadTokenCiphers(members []crypto.PublicKey) TokenCiphers {
 		tc := TokenCipher{
 			token: member.ToBytes(),
 		}
-		tc.cipher, err = member.Encrypt(a.readCipher)
+		// tc.cipher, err = member.Encrypt(a.readCipher)
+		tc.cipher, err = member.Encrypt(a.audienceKeyCipher)
 		if err == nil {
 			readTokens = append(readTokens, tc)
 		}
@@ -84,7 +85,7 @@ func NewAudience() *Audience {
 	audience.token = &audtoken
 	audience.submission = &subtoken
 	audience.moderation = &modtoken
-	audience.readCipher = crypto.NewCipherKey()
+	// audience.readCipher = crypto.NewCipherKey()
 	audience.audienceKeyCipher = crypto.NewCipherKey()
 	audience.submitKeyCipher = crypto.NewCipherKey()
 	audience.moderateKeyCipher = crypto.NewCipherKey()
