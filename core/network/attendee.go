@@ -4,17 +4,17 @@ import (
 	"fmt"
 	"net"
 
-	"github.com/Aereum/aereum/core/blockchain"
+	"github.com/Aereum/aereum/core/consensus"
 	"github.com/Aereum/aereum/core/crypto"
 )
 
 type AttendeeNetwork struct {
 	attendees map[crypto.Hash]*SecureConnection
-	comm      chan *blockchain.Block
+	comm      chan *consensus.SignedBlock
 }
 
 func NewAttendeeNetwork(port int,
-	prvKey crypto.PrivateKey, comm chan *blockchain.Block, validator chan ValidatedConnection) AttendeeNetwork {
+	prvKey crypto.PrivateKey, comm chan *consensus.SignedBlock, validator chan ValidatedConnection) AttendeeNetwork {
 	listener, err := net.Listen("tcp", fmt.Sprintf(":%v", port))
 	network := AttendeeNetwork{
 		attendees: make(map[crypto.Hash]*SecureConnection),
@@ -40,7 +40,7 @@ func NewAttendeeNetwork(port int,
 	return network
 }
 
-func (m AttendeeNetwork) handleAttendeeConnection(conn *SecureConnection, comm chan *blockchain.Block) {
+func (m AttendeeNetwork) handleAttendeeConnection(conn *SecureConnection, comm chan *consensus.SignedBlock) {
 	m.attendees[conn.hash] = conn
 	go func() {
 		_, err := conn.ReadMessage()

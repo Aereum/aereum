@@ -23,6 +23,11 @@ const (
 	iUnkown
 )
 
+type HashInstruction struct {
+	Instruction Instruction
+	Hash        crypto.Hash
+}
+
 type Wallet struct {
 	Account        crypto.Hash
 	FungibleTokens uint64

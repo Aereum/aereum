@@ -10,7 +10,6 @@ import (
 type Signature struct {
 	Hash      crypto.Hash
 	Token     []byte
-	Weight    float64
 	Signature []byte
 }
 
@@ -63,21 +62,20 @@ type instructionCache struct {
 	hash        crypto.Hash
 }
 
-func BlockBuilder(checkpoint *Checkpoint, epoch uint64, token crypto.PrivateKey, finish time.Time, pool *InstructionPool) chan *instructions.Block {
+func BlockBuilder(checkpoint *Checkpoint, epoch uint64, token crypto.PrivateKey, finish time.Time, consensus *Consensus) {
 	block := instructions.NewBlock(checkpoint.CheckpointHash, checkpoint.CheckpointEpoch, epoch, token.PublicKey().ToBytes(), checkpoint.Validator)
 	stop := time.NewTicker(time.Until(finish))
 	communication := make(chan processInstruction)
-	endBlock := make(chan *instructions.Block)
 	running := true
 	cache := make([]instructionCache, 0)
 	go func() {
 		for {
 			select {
 			case <-stop.C:
-				endBlock <- block
+				consensus.PushNewBlock(block)
 				running = false
 				for _, cached := range cache {
-					pool.Queue(cached.instruction, cached.hash)
+					consensus.pool.Queue(cached.instruction, cached.hash)
 				}
 				return
 			case process := <-communication:
@@ -92,7 +90,7 @@ func BlockBuilder(checkpoint *Checkpoint, epoch uint64, token crypto.PrivateKey,
 			if !running {
 				break
 			}
-			newInstruction, newHash := pool.Unqueue()
+			newInstruction, newHash := consensus.pool.Unqueue()
 			cache = append(cache, instructionCache{newInstruction, newHash})
 			if newInstruction != nil {
 				communication <- processInstruction{
@@ -100,10 +98,10 @@ func BlockBuilder(checkpoint *Checkpoint, epoch uint64, token crypto.PrivateKey,
 					valid:       valid,
 				}
 				if <-valid {
-					pool.Delete(newHash)
+					consensus.pool.Delete(newHash)
 				}
 			}
 		}
 	}()
-	return endBlock
+
 }

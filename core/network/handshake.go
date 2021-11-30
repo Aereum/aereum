@@ -132,8 +132,8 @@ func PerformClientHandShake(conn net.Conn, prvKey crypto.PrivateKey, remotePub c
 	return &SecureConnection{
 		hash:         crypto.Hasher(remotePub.ToBytes()),
 		conn:         conn,
-		cipher:       crypto.CipherFromKey(key),
-		cipherRemote: crypto.CipherFromKey(remoteKey),
+		cipher:       crypto.CipherNonceFromKey(key),
+		cipherRemote: crypto.CipherNonceFromKey(remoteKey),
 	}, nil
 }
 
@@ -183,7 +183,7 @@ func PerformServerHandShake(conn net.Conn, prvKey crypto.PrivateKey, validator c
 	return &SecureConnection{
 		hash:         crypto.Hasher(remoteKeyBytes),
 		conn:         conn,
-		cipher:       crypto.CipherFromKey(key),
-		cipherRemote: crypto.CipherFromKey(remoteCipherKey),
+		cipher:       crypto.CipherNonceFromKey(key),
+		cipherRemote: crypto.CipherNonceFromKey(remoteCipherKey),
 	}, nil
 }

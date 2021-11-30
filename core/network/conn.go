@@ -13,18 +13,18 @@ var errMessageTooLarge = errors.New("message size cannot be larger than 65.536 b
 type SecureConnection struct {
 	hash         crypto.Hash
 	conn         net.Conn
-	cipher       crypto.Cipher
-	cipherRemote crypto.Cipher
+	cipher       crypto.CipherNonce
+	cipherRemote crypto.CipherNonce
 }
 
 func (s *SecureConnection) WriteMessage(msg []byte) error {
-	msgSealed, nonce := s.cipher.Seal(msg)
-	if len(msgSealed) > 1<<16-1 {
+	sealed, nonce := s.cipher.SealWithNewNonce(msg)
+	if len(sealed) > 1<<16-1 {
 		return errMessageTooLarge
 	}
-	msgToSend := append(nonce, byte(len(msgSealed)), byte(len(msgSealed)>>8))
-	msgToSend = append(msgToSend, msgSealed...)
-	if n, err := s.conn.Write(msgToSend); n != len(msgToSend) {
+	msgToSend := append(nonce, byte(len(sealed)), byte(len(sealed)>>8))
+	msgToSend = append(msgToSend, sealed...)
+	if n, err := s.conn.Write(msgToSend); n != len(sealed) {
 		return err
 	}
 	return nil
@@ -35,13 +35,14 @@ func (s *SecureConnection) ReadMessage() ([]byte, error) {
 	if n, err := s.conn.Read(nonce); n != crypto.NonceSize {
 		return nil, err
 	}
+	s.cipherRemote.SetNonce(nonce)
 	lengthBytes := make([]byte, 2)
 	lenght := int(lengthBytes[0]) + (int(lengthBytes[1]) << 8)
 	sealedMsg := make([]byte, lenght)
 	if n, err := s.conn.Read(sealedMsg); n != int(lenght) {
 		return nil, err
 	}
-	if msg, err := s.cipherRemote.Open(sealedMsg, nonce); err != nil {
+	if msg, err := s.cipherRemote.Open(sealedMsg); err != nil {
 		return nil, err
 	} else {
 		return msg, nil

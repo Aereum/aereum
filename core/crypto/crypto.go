@@ -151,7 +151,7 @@ type CipherNonce struct {
 	nonce  []byte
 }
 
-func CipherNonceFromKey(key []byte) Cipher {
+func CipherNonceFromKey(key []byte) CipherNonce {
 	if len(key) != 32 {
 		panic("wrong cipher key size")
 	}
@@ -167,7 +167,7 @@ func CipherNonceFromKey(key []byte) Cipher {
 	if n, err := rand.Read(nonce); n != gcm.NonceSize() {
 		panic(err)
 	}
-	return Cipher{cipher: gcm}
+	return CipherNonce{cipher: gcm, nonce: nonce}
 }
 
 func CipherFromKey(key []byte) Cipher {
@@ -194,12 +194,16 @@ func (c CipherNonce) Seal(msg []byte) []byte {
 	return c.cipher.Seal(nil, c.nonce, msg, nil)
 }
 
-func (c CipherNonce) SealNewNonce(msg []byte) []byte {
+func (c CipherNonce) SetNonce(nonce []byte) {
+	c.nonce = nonce
+}
+
+func (c CipherNonce) SealWithNewNonce(msg []byte) ([]byte, []byte) {
 	sealed := c.cipher.Seal(nil, c.nonce, msg, nil)
 	if n, err := rand.Read(c.nonce); n != c.cipher.NonceSize() {
 		panic(err)
 	}
-	return sealed
+	return sealed, c.nonce
 }
 
 func (c Cipher) Open(msg []byte) ([]byte, error) {

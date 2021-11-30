@@ -5,7 +5,6 @@ import (
 	"net"
 
 	"github.com/Aereum/aereum/core/crypto"
-	"github.com/Aereum/aereum/core/instructions"
 )
 
 // pool of connections that are ready to receive primitive instructions
@@ -48,7 +47,7 @@ func (net InstructionNetWork) handleMessengerConnection(conn *SecureConnection, 
 		}
 		hashed := HashedMessage{msg: data}
 		hashed.hash = crypto.Hasher(data)
-		hashed.epoch = int(instructions.GetEpochFromByteArray(data))
+		//hashed.epoch = int(instructions.GetEpochFromByteArray(data))
 		queue <- &hashed
 	}
 }

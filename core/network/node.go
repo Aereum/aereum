@@ -3,9 +3,9 @@ package network
 import (
 	"time"
 
+	"github.com/Aereum/aereum/core/consensus"
 	"github.com/Aereum/aereum/core/crypto"
-
-	"github.com/Aereum/aereum/core/blockchain"
+	"github.com/Aereum/aereum/core/instructions"
 )
 
 const (
@@ -27,13 +27,13 @@ type MsgValidator struct {
 type MsgValidatorChan chan *MsgValidator
 
 type Node struct {
-	State      blockchain.State
+	State      instructions.State
 	Validators ValidatorNetwork
 	Messengers InstructionNetwork
 	Atendees   AttendeeNetwork
 }
 
-func NewNode(state blockchain.State,
+func NewNode(state instructions.State,
 	prvKey crypto.PrivateKey,
 	trusted map[crypto.PublicKey]string) *Node {
 	//
@@ -43,7 +43,7 @@ func NewNode(state blockchain.State,
 
 	hashedMsgChan, validateConnChan := ReceiveQueue(state, make(chan struct{}))
 	node := &Node{}
-	blockChan := make(chan *blockchain.Block)
+	blockChan := make(chan *consensus.SignedBlock)
 	node.Validators = NewValidatorNetwork(
 		validationNodePort,
 		prvKey,
