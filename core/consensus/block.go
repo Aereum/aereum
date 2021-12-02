@@ -62,7 +62,7 @@ type instructionCache struct {
 	hash        crypto.Hash
 }
 
-func BlockBuilder(checkpoint instructions.Validator, epoch uint64, token crypto.PrivateKey, finish time.Time, pool *InstructionPool) chan *instructions.Block {
+func BlockBuilder(checkpoint *Checkpoint, epoch uint64, token crypto.PrivateKey, finish time.Time, pool *InstructionPool) chan *instructions.Block {
 	block := instructions.NewBlock(checkpoint.CheckpointHash, checkpoint.CheckpointEpoch, epoch, token.PublicKey().ToBytes(), checkpoint.Validator)
 	stop := time.NewTicker(time.Until(finish))
 	communication := make(chan processInstruction)
