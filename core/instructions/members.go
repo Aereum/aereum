@@ -12,6 +12,10 @@ type JoinNetwork struct {
 	details  string
 }
 
+func (a *JoinNetwork) Epoch() uint64 {
+	return a.authored.epoch
+}
+
 func (join *JoinNetwork) Validate(block *Block) bool {
 	captionHash := crypto.Hasher([]byte(join.caption))
 	if block.validator.HasCaption(captionHash) {
@@ -74,6 +78,10 @@ type UpdateInfo struct {
 	details  string
 }
 
+func (a *UpdateInfo) Epoch() uint64 {
+	return a.authored.epoch
+}
+
 func (update *UpdateInfo) Validate(block *Block) bool {
 	if !block.validator.HasMember(update.authored.authorHash()) {
 		return false
@@ -124,6 +132,10 @@ func ParseUpdateInfo(data []byte) *UpdateInfo {
 type GrantPowerOfAttorney struct {
 	authored *authoredInstruction
 	attorney []byte
+}
+
+func (a *GrantPowerOfAttorney) Epoch() uint64 {
+	return a.authored.epoch
 }
 
 func (grant *GrantPowerOfAttorney) Validate(block *Block) bool {
@@ -182,6 +194,10 @@ type RevokePowerOfAttorney struct {
 	attorney []byte
 }
 
+func (a *RevokePowerOfAttorney) Epoch() uint64 {
+	return a.authored.epoch
+}
+
 func (revoke *RevokePowerOfAttorney) Validate(block *Block) bool {
 	if !block.validator.HasMember(revoke.authored.authorHash()) {
 		return false
@@ -237,6 +253,10 @@ type CreateEphemeral struct {
 	authored       *authoredInstruction
 	ephemeralToken []byte
 	expiry         uint64
+}
+
+func (a *CreateEphemeral) Epoch() uint64 {
+	return a.authored.epoch
 }
 
 func (ephemeral *CreateEphemeral) Validate(block *Block) bool {
@@ -298,6 +318,10 @@ type SecureChannel struct {
 	nonce          uint64
 	encryptedNonce []byte
 	content        []byte
+}
+
+func (a *SecureChannel) Epoch() uint64 {
+	return a.authored.epoch
 }
 
 func (secure *SecureChannel) Validate(block *Block) bool {

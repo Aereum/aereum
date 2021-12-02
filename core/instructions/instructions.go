@@ -69,6 +69,7 @@ type Instruction interface {
 	Validate(*Block) bool
 	Payments() *Payment
 	Serialize() []byte
+	Epoch() uint64
 }
 
 func ParseInstruction(data []byte) Instruction {

@@ -104,6 +104,10 @@ type CreateAudience struct {
 	description   string
 }
 
+func (a *CreateAudience) Epoch() uint64 {
+	return a.authored.epoch
+}
+
 func (audience *CreateAudience) Validate(block *Block) bool {
 	if !block.validator.HasMember(audience.authored.authorHash()) {
 		return false
@@ -170,6 +174,10 @@ type JoinAudience struct {
 	presentation string
 }
 
+func (a *JoinAudience) Epoch() uint64 {
+	return a.authored.epoch
+}
+
 func (join *JoinAudience) Validate(block *Block) bool {
 	if !block.validator.HasMember(join.authored.authorHash()) {
 		return false
@@ -224,6 +232,10 @@ type AcceptJoinAudience struct {
 	submit       []byte
 	moderate     []byte
 	modSignature []byte
+}
+
+func (a *AcceptJoinAudience) Epoch() uint64 {
+	return a.authored.epoch
 }
 
 func (accept *AcceptJoinAudience) Validate(block *Block) bool {
@@ -318,6 +330,10 @@ type UpdateAudience struct {
 	subMembers    TokenCiphers
 	modMembers    TokenCiphers
 	audSignature  []byte
+}
+
+func (a *UpdateAudience) Epoch() uint64 {
+	return a.authored.epoch
 }
 
 func (update *UpdateAudience) Validate(block *Block) bool {

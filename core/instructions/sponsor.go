@@ -13,6 +13,10 @@ type SponsorshipOffer struct {
 	revenue     uint64
 }
 
+func (a *SponsorshipOffer) Epoch() uint64 {
+	return a.authored.epoch
+}
+
 func (sponsored *SponsorshipOffer) Validate(block *Block) bool {
 	if !block.validator.HasMember(sponsored.authored.authorHash()) {
 		return false
@@ -89,6 +93,10 @@ type SponsorshipAcceptance struct {
 	audience     []byte
 	offer        *SponsorshipOffer
 	modSignature []byte
+}
+
+func (a *SponsorshipAcceptance) Epoch() uint64 {
+	return a.authored.epoch
 }
 
 func (accept *SponsorshipAcceptance) Validate(block *Block) bool {

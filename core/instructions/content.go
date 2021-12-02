@@ -26,6 +26,10 @@ type Content struct {
 	walletSignature []byte
 }
 
+func (a *Content) Epoch() uint64 {
+	return a.epoch
+}
+
 func (content *Content) Validate(block *Block) bool {
 	if content.epoch > block.Epoch {
 		return false
@@ -176,6 +180,10 @@ type React struct {
 	authored *authoredInstruction
 	hash     []byte
 	reaction byte
+}
+
+func (a *React) Epoch() uint64 {
+	return a.authored.epoch
 }
 
 func (react *React) Validate(block *Block) bool {
