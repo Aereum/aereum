@@ -5,6 +5,7 @@ import (
 
 	"github.com/Aereum/aereum/core/consensus"
 	"github.com/Aereum/aereum/core/crypto"
+	"github.com/Aereum/aereum/core/instructions"
 )
 
 // architecture consists of
@@ -32,7 +33,22 @@ type ValidatedMessage struct {
 
 type InstructionQueue chan *HashedMessage
 
-func NewInstructionQueue(token crypto.PrivateKey, peers ValidatorNetwork, comm consensus.Communication) {
+func NewInstructionBroker(
+	token crypto.PrivateKey,
+	peers *ValidatorNetwork,
+	comm *consensus.Communication,
+	newBlockSignal chan uint64,
+	epoch uint64,
+) chan *instructions.HashInstruction {
+	broker := make(chan *instructions.HashInstruction)
+	recentHashes := make([]map[crypto.Hash]struct{}, maxEpochReceiveMessage)
+	for n := 0; n < maxEpochReceiveMessage; n++ {
+		recentHashes[n] = make(map[crypto.Hash]struct{})
+	}
+
+}
+
+func NewInstructionQueue(token crypto.PrivateKey, peers ValidatorNetwork, comm consensus.Communication, newBlockSignal chan uint64) {
 	//queue := make(chan *HashedMessage)
 	recentHashes := make([]map[crypto.Hash]struct{}, maxEpochReceiveMessage)
 	for n := 0; n < maxEpochReceiveMessage; n++ {
