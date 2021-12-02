@@ -1,16 +1,9 @@
 package breeze
 
-import (
-	"time"
-
-	"github.com/Aereum/aereum/core/consensus"
-	"github.com/Aereum/aereum/core/network"
-	"github.com/Aereum/aereum/core/state"
-)
-
 const ChecksumWindows = 50000
 const ValidatorsCount = 10
 
+/*
 type Maestro struct {
 	GenesisTime    time.Time
 	Peers          network.ValidatorNetwork
@@ -70,3 +63,4 @@ func NewMaestro() *Maestro {
 	}()
 	return &maestro
 }
+*/

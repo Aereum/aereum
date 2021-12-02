@@ -1,8 +1,6 @@
 package consensus
 
 import (
-	"bytes"
-	"sort"
 	"time"
 
 	"github.com/Aereum/aereum/core/crypto"
@@ -23,16 +21,47 @@ type PeerRequest struct {
 	Response chan bool
 }
 
-type Consensus struct {
-	PeerRequest    chan *PeerRequest
-	NewBlock       chan *instructions.Block
-	BlockSignature chan *Signature
-	Checkpoint     chan *Checkpoint
-	blockChain     *BlockChain
-	pool           *InstructionPool
+type Checksum struct {
+	Token   crypto.Hash
+	Check   []byte
+	Confirm chan bool
 }
 
-func NewConsensus(blockchain *BlockChain) *Consensus {
+type SyncRequest struct {
+	Starting chan uint64
+	Data     chan []byte
+	Ok       chan bool
+}
+
+type Communication struct {
+	PeerRequest     chan *PeerRequest        // Node receives new peer requests from network
+	NewBlock        chan *instructions.Block // Node publishes to or receives new blocks from the network
+	BlockSignature  chan *Signature          // Node publishes to or receives signatures from the network
+	Checkpoint      chan *Checkpoint         // Node publishes new checkpoint to observers network
+	Checksum        chan *Checksum           // Node publishes to or receives checksums from the network
+	Synchronization chan SyncRequest         // Node receives sync request
+	Instructions    chan *instructions.HashInstruction
+}
+
+func NewCommunication() *Communication {
+	return &Communication{
+		PeerRequest:     make(chan *PeerRequest),
+		NewBlock:        make(chan *instructions.Block),
+		BlockSignature:  make(chan *Signature),
+		Checkpoint:      make(chan *Checkpoint),
+		Checksum:        make(chan *Checksum),
+		Synchronization: make(chan SyncRequest),
+		Instructions:    make(chan *instructions.HashInstruction),
+	}
+}
+
+type ConsensusEngine func(BlockChain) *Communication
+
+func IntervalToNewEpoch(epoch uint64, genesis time.Time) time.Duration {
+	return time.Until(genesis.Add(time.Duration(int64(epoch) * 1000000000)))
+}
+
+/*func NewConsensus(blockchain *BlockChain) *Consensus {
 	consensus := Consensus{
 		PeerRequest:    make(chan *PeerRequest),
 		NewBlock:       make(chan *instructions.Block),
@@ -50,6 +79,16 @@ func NewConsensus(blockchain *BlockChain) *Consensus {
 				consensus.PushNewBlock(block)
 			case signature := <-consensus.BlockSignature:
 				consensus.blockChain.AppendSignature(*signature)
+			}
+		}
+	}()
+	go func() {
+		for {
+			epoch := <-c.BlockFormationSignal
+			if ok, _ := consensus.blockChain.Engine.IsBlockLeader(epoch); ok {
+				checkpoint, epoch := consensus.blockChain.GetLastValidator()
+
+				BlockBuilder(chekpoint, epoch)
 			}
 		}
 	}()
@@ -74,27 +113,6 @@ func (c *Consensus) PushNewBlock(block *instructions.Block) {
 		sort.Sort(c.blockChain.RecentBlocks)
 		c.blockChain.IncorporateBlocks()
 	}
-}
-
-type ConsensusEngine interface {
-	RegisterPeer(crypto.Hash) bool
-	DropPeer(crypto.Hash)
-	BlockFormationSignal() chan uint64
-	IsBlockLeader(uint64) (bool, time.Time)
-	IsBlockValidator(uint64) bool
-	GetConsensus([]*SignedBlock) *SignedBlock
-}
-
-type BlockChain struct {
-	GenesisTime     time.Time
-	TotalStake      uint64
-	Epoch           uint64
-	CurrentState    *instructions.State
-	RecentBlocks    SignedBlocks
-	CandidateBlocks map[uint64]SignedBlocks
-	Engine          ConsensusEngine
-	AcceptPeers     bool
-	MinimumStake    uint64
 }
 
 func (b *BlockChain) IncoporateBlocks() {
@@ -128,7 +146,7 @@ func (b *BlockChain) AppendSignature(signature Signature) {
 	// TODO append to recent blocks also
 }
 
-func (b *BlockChain) GetLastValidator() *instructions.Validator {
+func (b *BlockChain) GetLastValidator() (*instructions.Validator, uint64) {
 	starting := b.CurrentState.Epoch
 	if len(b.RecentBlocks) == 0 || b.RecentBlocks[0].Epoch != starting+1 {
 		return &instructions.Validator{
@@ -149,7 +167,7 @@ func (b *BlockChain) GetLastValidator() *instructions.Validator {
 		Mutations: instructions.GroupBlockMutations(sequential),
 	}
 }
-
+*/
 func LauchNewGenesisConsensus(egine ConsensusEngine) {
 	//pool := NewInstructionPool()
 
