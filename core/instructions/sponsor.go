@@ -9,8 +9,9 @@ type SponsorshipOffer struct {
 	authored    *authoredInstruction
 	audience    []byte
 	contentType string
-	expiry      uint64
-	revenue     uint64
+	// NAO PRECISARIA DO CAMPO COM O CONTEUDO? PQ TIROU?
+	expiry  uint64
+	revenue uint64
 }
 
 func (sponsored *SponsorshipOffer) Validate(block *Block) bool {

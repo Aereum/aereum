@@ -79,3 +79,8 @@ func (c *Validator) GetEphemeralExpire(hash crypto.Hash) (bool, uint64) {
 	expire := c.State.EphemeralTokens.Exists(hash)
 	return expire > 0, expire
 }
+
+// func (c *Validator) BlockEpoch(hash crypto.Hash) uint64 {
+// 	epoch := c.Mutations.Epoch(hash)
+// 	return epoch
+// }

@@ -1,7 +1,6 @@
 package instructions
 
 import (
-	"fmt"
 	"reflect"
 	"testing"
 
@@ -54,9 +53,8 @@ func TestUpdateAudience(t *testing.T) {
 		readers[n], _ = crypto.RandomAsymetricKey()
 	}
 	update := author.NewUpdateAudience(audienceTest, readers, readers, readers, 2, "teste", 10, 2000)
-	// fmt.Printf(string(update.Serialize()))
 	update2 := ParseUpdateAudience(update.Serialize())
-	fmt.Printf(string(update2.audience))
+	// fmt.Printf(string(update2.audience))
 	if update2 == nil {
 		t.Error("could not parse UpdateAudience")
 		return

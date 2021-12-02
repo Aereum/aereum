@@ -390,6 +390,7 @@ func ParseUpdateAudience(data []byte) *UpdateAudience {
 	// if !audPublic.Verify(hashed[:], update.audSignature) {
 	// 	return nil
 	// }
+	// fmt.Printf(string(update.audSignature))
 	if update.authored.parseTail(data, position) {
 		return &update
 	}
