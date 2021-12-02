@@ -3,6 +3,7 @@ package network
 import (
 	"time"
 
+	"github.com/Aereum/aereum/core/consensus"
 	"github.com/Aereum/aereum/core/crypto"
 )
 
@@ -31,8 +32,8 @@ type ValidatedMessage struct {
 
 type InstructionQueue chan *HashedMessage
 
-func NewInstructionQueue(token crypto.PrivateKey, peers ValidatorNetwork) InstructionQueue {
-	queue := make(chan *HashedMessage)
+func NewInstructionQueue(token crypto.PrivateKey, peers ValidatorNetwork, comm consensus.Communication) {
+	//queue := make(chan *HashedMessage)
 	recentHashes := make([]map[crypto.Hash]struct{}, maxEpochReceiveMessage)
 	for n := 0; n < maxEpochReceiveMessage; n++ {
 		recentHashes[n] = make(map[crypto.Hash]struct{})
@@ -69,7 +70,6 @@ func NewInstructionQueue(token crypto.PrivateKey, peers ValidatorNetwork) Instru
 			}
 		}
 	}()
-	return queue
 }
 
 // ReceiveQueue spins a goroutine that receives messages strips out duplicated

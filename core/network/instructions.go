@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net"
 
+	"github.com/Aereum/aereum/core/consensus"
 	"github.com/Aereum/aereum/core/crypto"
 )
 
@@ -15,7 +16,7 @@ import (
 
 type InstructionNetWork map[crypto.Hash]*SecureConnection
 
-func NewInstructionNetwork(port int, prvKey crypto.PrivateKey, queue chan *HashedMessage, validator chan ValidatedConnection) {
+func NewInstructionNetwork(port int, prvKey crypto.PrivateKey, comm consensus.Communication, validator chan ValidatedConnection) {
 	listener, err := net.Listen("tcp", fmt.Sprintf(":%v", port))
 	network := make(InstructionNetWork)
 	if err != nil {

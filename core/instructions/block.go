@@ -141,6 +141,22 @@ func (b *Block) UpdateAudience(hash crypto.Hash, keys []byte) bool {
 	return true
 }
 
+func (b *Block) Serialize() []byte {
+	bytes := make([]byte, 0)
+	PutUint64(b.Epoch, &bytes)
+	PutByteArray(b.Parent[:], &bytes)
+	PutByteArray(b.Publisher[:], &bytes)
+	PutTime(b.PublishedAt, &bytes)
+	PutUint16(uint16(len(b.Instructions)), &bytes)
+	for _, instruction := range b.Instructions {
+		PutByteArray(instruction, &bytes)
+	}
+	PutByteArray(b.Hash[:], &bytes)
+	PutUint64(b.FeesCollected, &bytes)
+	PutByteArray(b.Signature, &bytes)
+	return bytes
+}
+
 func ParseBlock(data []byte) *Block {
 	position := 0
 	block := Block{}
