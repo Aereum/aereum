@@ -6,14 +6,6 @@ import (
 	"github.com/Aereum/aereum/core/instructions"
 )
 
-// architecture consists of
-//
-// Peers ----|
-//           |-> Instruction Queue (Parses Instruction) -> Consensus Engine
-// Others ---|
-//
-// Conensus Engine -> Instruction Queue -> Peer Brodast if from "Others"
-
 const maxEpochReceiveMessage = 100
 
 type HashedInstructionBytes struct {

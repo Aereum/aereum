@@ -199,15 +199,15 @@ func (c CipherNonce) SetNonce(nonce []byte) {
 }
 
 func (c CipherNonce) SealWithNewNonce(msg []byte) ([]byte, []byte) {
-	sealed := c.cipher.Seal(nil, c.nonce, msg, nil)
 	if n, err := rand.Read(c.nonce); n != c.cipher.NonceSize() {
 		panic(err)
 	}
+	sealed := c.cipher.Seal(nil, c.nonce, msg, nil)
 	return sealed, c.nonce
 }
 
 func (c Cipher) Open(msg []byte) ([]byte, error) {
-	var nonce []byte
+	nonce := make([]byte, NonceSize)
 	return c.cipher.Open(nil, nonce, msg, nil)
 }
 
