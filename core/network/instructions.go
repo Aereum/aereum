@@ -6,6 +6,7 @@ import (
 
 	"github.com/Aereum/aereum/core/consensus"
 	"github.com/Aereum/aereum/core/crypto"
+	"github.com/Aereum/aereum/core/instructions"
 )
 
 // pool of connections that are ready to receive primitive instructions
@@ -16,7 +17,7 @@ import (
 
 type InstructionNetWork map[crypto.Hash]*SecureConnection
 
-func NewInstructionNetwork(port int, prvKey crypto.PrivateKey, comm consensus.Communication, validator chan ValidatedConnection) {
+func NewInstructionNetwork(port int, prvKey crypto.PrivateKey, broker InstructionBroker, validator chan consensus.ValidatedConnection) InstructionNetWork {
 	listener, err := net.Listen("tcp", fmt.Sprintf(":%v", port))
 	network := make(InstructionNetWork)
 	if err != nil {
@@ -30,14 +31,15 @@ func NewInstructionNetwork(port int, prvKey crypto.PrivateKey, comm consensus.Co
 				if err != nil {
 					conn.Close()
 				} else {
-					network.handleMessengerConnection(secureConnection, queue)
+					network.handleMessengerConnection(secureConnection, broker)
 				}
 			}
 		}
 	}()
+	return network
 }
 
-func (net InstructionNetWork) handleMessengerConnection(conn *SecureConnection, queue chan *HashedMessage) {
+func (net InstructionNetWork) handleMessengerConnection(conn *SecureConnection, broker InstructionBroker) {
 	net[conn.hash] = conn
 	for {
 		data, err := conn.ReadMessage()
@@ -46,9 +48,9 @@ func (net InstructionNetWork) handleMessengerConnection(conn *SecureConnection, 
 			delete(net, conn.hash)
 			return
 		}
-		hashed := HashedMessage{msg: data}
+		hashed := HashedInstructionBytes{msg: data}
 		hashed.hash = crypto.Hasher(data)
-		//hashed.epoch = int(instructions.GetEpochFromByteArray(data))
-		queue <- &hashed
+		hashed.epoch = int(instructions.GetEpochFromByteArray(data))
+		broker <- &hashed
 	}
 }

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net"
 
+	"github.com/Aereum/aereum/core/consensus"
 	"github.com/Aereum/aereum/core/crypto"
 )
 
@@ -51,7 +52,7 @@ func (s *SecureConnection) ReadMessage() ([]byte, error) {
 
 type handlePort func(conn *SecureConnection)
 
-func ListenTCP(port int, handler handlePort, prvKey crypto.PrivateKey, validator chan ValidatedConnection) {
+func ListenTCP(port int, handler handlePort, prvKey crypto.PrivateKey, validator chan consensus.ValidatedConnection) {
 	listener, err := net.Listen("tcp", fmt.Sprintf(":%v", port))
 	if err != nil {
 		panic(err)

@@ -33,13 +33,19 @@ type SyncRequest struct {
 	Ok       chan bool
 }
 
+type ValidatedConnection struct {
+	Token crypto.Hash
+	Ok    chan bool
+}
+
 type Communication struct {
 	PeerRequest     chan *PeerRequest        // Node receives new peer requests from network
 	NewBlock        chan *instructions.Block // Node publishes to or receives new blocks from the network
 	BlockSignature  chan *Signature          // Node publishes to or receives signatures from the network
-	Checkpoint      chan *Checkpoint         // Node publishes new checkpoint to observers network
+	Checkpoint      chan *SignedBlock        // Node publishes new checkpoint to observers network
 	Checksum        chan *Checksum           // Node publishes to or receives checksums from the network
 	Synchronization chan SyncRequest         // Node receives sync request
+	ValidateConn    chan ValidatedConnection
 	Instructions    chan *instructions.HashInstruction
 }
 
@@ -48,7 +54,7 @@ func NewCommunication() *Communication {
 		PeerRequest:     make(chan *PeerRequest),
 		NewBlock:        make(chan *instructions.Block),
 		BlockSignature:  make(chan *Signature),
-		Checkpoint:      make(chan *Checkpoint),
+		Checkpoint:      make(chan *SignedBlock),
 		Checksum:        make(chan *Checksum),
 		Synchronization: make(chan SyncRequest),
 		Instructions:    make(chan *instructions.HashInstruction),

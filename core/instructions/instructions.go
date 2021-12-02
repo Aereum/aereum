@@ -38,6 +38,11 @@ type Payment struct {
 	Credit []Wallet
 }
 
+func GetEpochFromByteArray(inst []byte) uint64 {
+	epoch, _ := ParseUint64(inst, 2)
+	return epoch
+}
+
 func NewPayment(debitAcc crypto.Hash, value uint64) *Payment {
 	return &Payment{
 		Debit:  []Wallet{{debitAcc, value}},

@@ -5,7 +5,6 @@ import (
 
 	"github.com/Aereum/aereum/core/consensus"
 	"github.com/Aereum/aereum/core/crypto"
-	"github.com/Aereum/aereum/core/instructions"
 )
 
 const (
@@ -26,44 +25,26 @@ type MsgValidator struct {
 
 type MsgValidatorChan chan *MsgValidator
 
-type Node struct {
-	State      instructions.State
-	Validators ValidatorNetwork
-	Messengers InstructionNetwork
-	Atendees   AttendeeNetwork
-}
-
-func NewNode(state instructions.State,
-	prvKey crypto.PrivateKey,
-	trusted map[crypto.PublicKey]string) *Node {
+func NewNode(prvKey crypto.PrivateKey,
+	trusted map[crypto.PublicKey]string,
+	comm *consensus.Communication,
+	epoch uint64,
+) {
 	//
-
-	trustedConnections := ConnectTCPPool(trusted, prvKey)
-	instructionQueue := NewInstructionQueue(prvKey)
-
-	hashedMsgChan, validateConnChan := ReceiveQueue(state, make(chan struct{}))
-	node := &Node{}
-	blockChan := make(chan *consensus.SignedBlock)
-	node.Validators = NewValidatorNetwork(
-		validationNodePort,
-		prvKey,
-		hashedMsgChan,
-		validateConnChan,
-		trusted,
-	)
-
-	node.Messengers = *InstructionNetwork(
-		messageReceiveConnectionPort,
-		prvKey,
-		hashedMsgChan,
-		validateConnChan,
-	)
-
-	node.Atendees = NewAttendeeNetwork(
+	newBlockSignal := make(chan uint64)
+	peers := ValidatorNetwork(ConnectTCPPool(trusted, prvKey))
+	instructionBroker := NewInstructionBroker(prvKey, &peers, comm, newBlockSignal, epoch)
+	NewInstructionNetwork(messageReceiveConnectionPort, prvKey, instructionBroker, comm.ValidateConn)
+	attendees := NewAttendeeNetwork(
 		blockBroadcastPort,
 		prvKey,
-		blockChan,
-		validateConnChan,
+		comm,
 	)
-	return node
+	go func() {
+		for {
+			signedBlock := <-comm.Checkpoint
+			newBlockSignal <- signedBlock.Block.Epoch + 1
+			attendees.comm <- signedBlock
+		}
+	}()
 }

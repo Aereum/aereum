@@ -5,15 +5,11 @@ import (
 	"errors"
 	"net"
 
+	"github.com/Aereum/aereum/core/consensus"
 	"github.com/Aereum/aereum/core/crypto"
 )
 
 var errCouldNotSecure = errors.New("could not secure communication")
-
-type ValidatedConnection struct {
-	token crypto.Hash
-	ok    chan bool
-}
 
 // Simple implementation of hasdshake for secure communication between nodes.
 // The secure channel should not be used to transmit confidential information.
@@ -137,7 +133,7 @@ func PerformClientHandShake(conn net.Conn, prvKey crypto.PrivateKey, remotePub c
 	}, nil
 }
 
-func PerformServerHandShake(conn net.Conn, prvKey crypto.PrivateKey, validator chan ValidatedConnection) (*SecureConnection, error) {
+func PerformServerHandShake(conn net.Conn, prvKey crypto.PrivateKey, validator chan consensus.ValidatedConnection) (*SecureConnection, error) {
 	resp, err := readhs(conn)
 	if err != nil {
 		return nil, err
@@ -148,7 +144,7 @@ func PerformServerHandShake(conn net.Conn, prvKey crypto.PrivateKey, validator c
 	}
 	// check if public key is a member: TODO check if is a validator
 	ok := make(chan bool)
-	validator <- ValidatedConnection{token: crypto.Hasher(remoteKeyBytes), ok: ok}
+	validator <- consensus.ValidatedConnection{Token: crypto.Hasher(remoteKeyBytes), Ok: ok}
 	if !<-ok {
 		conn.Close()
 		return nil, errors.New("not a valid public key")

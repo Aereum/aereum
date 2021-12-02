@@ -14,11 +14,11 @@ type AttendeeNetwork struct {
 }
 
 func NewAttendeeNetwork(port int,
-	prvKey crypto.PrivateKey, comm chan *consensus.SignedBlock, validator chan ValidatedConnection) AttendeeNetwork {
+	prvKey crypto.PrivateKey, comm *consensus.Communication) AttendeeNetwork {
 	listener, err := net.Listen("tcp", fmt.Sprintf(":%v", port))
 	network := AttendeeNetwork{
 		attendees: make(map[crypto.Hash]*SecureConnection),
-		comm:      comm,
+		comm:      make(chan *consensus.SignedBlock),
 	}
 
 	if err != nil {
@@ -28,11 +28,11 @@ func NewAttendeeNetwork(port int,
 		for {
 			conn, err := listener.Accept()
 			if err == nil {
-				secureConnection, err := PerformServerHandShake(conn, prvKey, validator)
+				secureConnection, err := PerformServerHandShake(conn, prvKey, comm.ValidateConn)
 				if err != nil {
 					conn.Close()
 				} else {
-					network.handleAttendeeConnection(secureConnection, comm)
+					network.handleAttendeeConnection(secureConnection, comm.Checkpoint)
 				}
 			}
 		}
@@ -53,7 +53,7 @@ func (m AttendeeNetwork) handleAttendeeConnection(conn *SecureConnection, comm c
 	for {
 		block := <-comm
 		for hash, conn := range m.attendees {
-			blockBytes, _ := block.Serialize()
+			blockBytes := block.Block.Serialize()
 			if err := conn.WriteMessage(blockBytes); err != nil {
 				conn.conn.Close()
 				delete(m.attendees, hash)

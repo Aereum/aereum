@@ -4,6 +4,7 @@ import (
 	"net"
 	"testing"
 
+	"github.com/Aereum/aereum/core/consensus"
 	"github.com/Aereum/aereum/core/crypto"
 )
 
@@ -12,11 +13,11 @@ type ciphernonce struct {
 	nonce []byte
 }
 
-var validator chan ValidatedConnection = func() chan ValidatedConnection {
-	validator := make(chan ValidatedConnection)
+var validator chan consensus.ValidatedConnection = func() chan consensus.ValidatedConnection {
+	validator := make(chan consensus.ValidatedConnection)
 	go func() {
 		validate := <-validator
-		validate.ok <- true
+		validate.Ok <- true
 	}()
 	return validator
 }()
