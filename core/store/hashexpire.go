@@ -63,29 +63,26 @@ type HashExpireVault struct {
 
 func (w *HashExpireVault) Exists(hash crypto.Hash) uint64 {
 	response := make(chan QueryResult)
-	w.hs.Query(Query{hash: hash, param: []byte{1}, response: response})
-	resp := <-response
-	if !resp.ok {
+	ok, expire := w.hs.Query(Query{hash: hash, param: []byte{1}, response: response})
+	if !ok {
 		return 0
 	}
-	return binary.LittleEndian.Uint64(resp.data)
+	return binary.LittleEndian.Uint64(expire)
 }
 
 func (w *HashExpireVault) Insert(hash crypto.Hash, expire uint64) bool {
 	response := make(chan QueryResult)
 	param := make([]byte, 8+1)
-	param[0] = 2
+	param[0] = insert
 	binary.LittleEndian.PutUint64(param[1:], expire)
-	w.hs.Query(Query{hash: hash, param: param, response: response})
-	resp := <-response
-	return resp.ok
+	ok, _ := w.hs.Query(Query{hash: hash, param: param, response: response})
+	return ok
 }
 
 func (w *HashExpireVault) Remove(hash crypto.Hash) bool {
 	response := make(chan QueryResult)
-	w.hs.Query(Query{hash: hash, param: []byte{0}, response: response})
-	resp := <-response
-	return resp.ok
+	ok, _ := w.hs.Query(Query{hash: hash, param: []byte{0}, response: response})
+	return ok
 }
 
 func (w *HashExpireVault) Close() bool {
@@ -95,10 +92,12 @@ func (w *HashExpireVault) Close() bool {
 }
 
 func NewExpireHashVault(name string, epoch uint64, bitsForBucket int64) *HashExpireVault {
-	nbytes := 8 + int64(1<<bitsForBucket)
+	nbytes := 56 + (40*6+8)*int64(1<<bitsForBucket)
 	bytestore := NewMemoryStore(nbytes)
 	bucketstore := NewBucketStore(40, 6, bytestore)
-	return &HashExpireVault{
-		hs: NewHashStore(name, bucketstore, int(bitsForBucket), CreditOrDebit),
+	vault := &HashExpireVault{
+		hs: NewHashStore(name, bucketstore, int(bitsForBucket), DeleteOrInsertExpire),
 	}
+	vault.hs.Start()
+	return vault
 }
