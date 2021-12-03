@@ -1,6 +1,8 @@
 package instructions
 
 import (
+	"fmt"
+
 	"github.com/Aereum/aereum/core/crypto"
 )
 
@@ -357,7 +359,7 @@ func (a *Author) NewContent(audience *Audience, contentType string, message []by
 		content.hash = hashed[:]
 	}
 	subBulk := content.serializeSubBulk()
-	hashed := crypto.Hasher(subBulk)
+	hashed := crypto.Hasher(subBulk[10:])
 	var sign []byte
 	var err error
 	sign, err = audience.submission.Sign(hashed[:])
@@ -368,6 +370,7 @@ func (a *Author) NewContent(audience *Audience, contentType string, message []by
 	PutByteArray(content.subSignature, &subBulk)
 	PutByteArray(content.attorney, &subBulk)
 	hashed = crypto.Hasher(subBulk)
+	fmt.Println("_______________________>", hashed)
 	if a.attorney != nil {
 		content.signature, err = a.attorney.Sign(hashed[:])
 	} else {

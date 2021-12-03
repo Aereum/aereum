@@ -1,14 +1,15 @@
 package instructions
 
 import (
+	"fmt"
 	"reflect"
 	"testing"
 )
 
 func TestContent(t *testing.T) {
-	byte_message := make([]byte, 0)
-	PutString("content of the content instruction", &byte_message)
-	content := author.NewContent(audienceTest, "test", byte_message, true, true, 10, 2000)
+
+	content := author.NewContent(audienceTest, "test", []byte("content of the content instruction"), true, true, 10, 2000)
+	fmt.Printf("%+v\n", *content)
 	content2 := ParseContent(content.Serialize())
 	if content2 == nil {
 		t.Error("could not parse Content")
