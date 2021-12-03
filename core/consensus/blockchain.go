@@ -3,6 +3,7 @@ package consensus
 import (
 	"time"
 
+	"github.com/Aereum/aereum/core/crypto"
 	"github.com/Aereum/aereum/core/instructions"
 )
 
@@ -13,8 +14,6 @@ type BlockChain struct {
 	CurrentState    *instructions.State
 	RecentBlocks    SignedBlocks
 	CandidateBlocks map[uint64]SignedBlocks
-	AcceptPeers     bool
-	MinimumStake    uint64
 }
 
 func (b *BlockChain) GetLastCheckpoint() *Checkpoint {
@@ -44,4 +43,17 @@ func (b *BlockChain) GetLastCheckpoint() *Checkpoint {
 		CheckpointEpoch: sequential[len(sequential)-1].Epoch,
 		CheckpointHash:  sequential[len(sequential)-1].Hash,
 	}
+}
+
+func NewGenesisBlockChain() (*BlockChain, crypto.PrivateKey) {
+	state, key := instructions.NewGenesisState()
+	chain := BlockChain{
+		GenesisTime:     time.Now(),
+		TotalStake:      1000000,
+		Epoch:           0,
+		CurrentState:    state,
+		RecentBlocks:    make(SignedBlocks, 0),
+		CandidateBlocks: make(map[uint64]SignedBlocks),
+	}
+	return &chain, key
 }

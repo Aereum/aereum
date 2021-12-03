@@ -15,7 +15,9 @@
 // along with the aereum library. If not, see <http://www.gnu.org/licenses/>.
 package store
 
-import "github.com/Aereum/aereum/core/crypto"
+import (
+	"github.com/Aereum/aereum/core/crypto"
+)
 
 const (
 	delete byte = iota
@@ -60,23 +62,20 @@ type HashVault struct {
 
 func (w *HashVault) Exists(hash crypto.Hash) bool {
 	response := make(chan QueryResult)
-	w.hs.Query(Query{hash: hash, param: []byte{1}, response: response})
-	resp := <-response
-	return resp.ok
+	ok, _ := w.hs.Query(Query{hash: hash, param: []byte{exists}, response: response})
+	return ok
 }
 
 func (w *HashVault) Insert(hash crypto.Hash) bool {
 	response := make(chan QueryResult)
-	w.hs.Query(Query{hash: hash, param: []byte{2}, response: response})
-	resp := <-response
-	return resp.ok
+	ok, _ := w.hs.Query(Query{hash: hash, param: []byte{insert}, response: response})
+	return ok
 }
 
 func (w *HashVault) Remove(hash crypto.Hash) bool {
 	response := make(chan QueryResult)
-	w.hs.Query(Query{hash: hash, param: []byte{0}, response: response})
-	resp := <-response
-	return resp.ok
+	ok, _ := w.hs.Query(Query{hash: hash, param: []byte{delete}, response: response})
+	return ok
 }
 
 func (w *HashVault) Close() bool {
@@ -86,10 +85,13 @@ func (w *HashVault) Close() bool {
 }
 
 func NewHashVault(name string, epoch uint64, bitsForBucket int64) *HashVault {
-	nbytes := 8 + int64(1<<bitsForBucket)
+	nbytes := 56 + (32*6+8)*int64(1<<bitsForBucket)
 	bytestore := NewMemoryStore(nbytes)
-	bucketstore := NewBucketStore(40, 6, bytestore)
-	return &HashVault{
-		hs: NewHashStore(name, bucketstore, int(bitsForBucket), CreditOrDebit),
+	bucketstore := NewBucketStore(32, 6, bytestore)
+	vault := &HashVault{
+		hs: NewHashStore(name, bucketstore, int(bitsForBucket), DeleteOrInsert),
 	}
+	vault.hs.Start()
+	return vault
+
 }

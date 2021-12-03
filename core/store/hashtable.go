@@ -213,6 +213,7 @@ func (ws *HashStore) ProcessMutation(hashMask int64, added *Item, deleted *Item,
 					ws.freeOverflows = append(ws.freeOverflows, lastBucket.n)
 					previousBucket.WriteOverflow(0)
 				}
+				break
 			}
 		}
 	}
