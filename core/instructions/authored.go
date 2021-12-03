@@ -324,7 +324,7 @@ func (a *Author) NewUpdateAudience(audience *Audience, readers, submiters, moder
 }
 
 func (a *Author) ModerateContent(audience *Audience, content *Content, epoch, fee uint64) *Content {
-	if audience == nil {
+	if audience == nil || audience.moderation == nil {
 		return nil
 	}
 	if !bytes.Equal(audience.token.ToBytes(), content.audience) {
