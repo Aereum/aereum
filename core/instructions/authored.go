@@ -1,6 +1,8 @@
 package instructions
 
 import (
+	"bytes"
+
 	"github.com/Aereum/aereum/core/crypto"
 )
 
@@ -319,6 +321,59 @@ func (a *Author) NewUpdateAudience(audience *Audience, readers, submiters, moder
 		return &update
 	}
 	return nil
+}
+
+func (a *Author) ModerateContent(audience *Audience, content *Content, epoch, fee uint64) *Content {
+	if audience == nil {
+		return nil
+	}
+	if !bytes.Equal(audience.token.ToBytes(), content.audience) {
+		return nil
+	}
+	newContent := &Content{
+		epoch:        epoch,
+		published:    content.epoch,
+		author:       content.author,
+		audience:     content.audience,
+		contentType:  content.contentType,
+		content:      content.content,
+		sponsored:    content.sponsored,
+		encrypted:    content.encrypted,
+		subSignature: content.subSignature,
+		moderator:    a.token.ToBytes(),
+		attorney:     []byte{},
+		wallet:       []byte{},
+		fee:          fee,
+	}
+	hash := crypto.Hasher(newContent.serializeModBulk())
+	var err error
+	newContent.modSignature, err = audience.moderation.Sign(hash[:])
+	if err != nil {
+		return nil
+	}
+	if a.attorney != nil {
+		newContent.attorney = a.attorney.ToBytes()
+		hash = crypto.Hasher(newContent.serializeSignBulk())
+		newContent.signature, err = a.attorney.Sign(hash[:])
+	} else {
+		hash = crypto.Hasher(newContent.serializeSignBulk())
+		newContent.signature, err = a.token.Sign(hash[:])
+	}
+	if err != nil {
+		return nil
+	}
+	if a.wallet != nil {
+		newContent.wallet = a.wallet.ToBytes()
+		hash = crypto.Hasher(newContent.serializeWalletBulk())
+		newContent.walletSignature, err = a.attorney.Sign(hash[:])
+	} else {
+		hash = crypto.Hasher(newContent.serializeWalletBulk())
+		newContent.walletSignature, err = a.token.Sign(hash[:])
+	}
+	if err != nil {
+		return nil
+	}
+	return newContent
 }
 
 func (a *Author) NewContent(audience *Audience, contentType string, message []byte, hash, encrypted bool, epoch, fee uint64) *Content {
