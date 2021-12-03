@@ -6,8 +6,9 @@ import (
 )
 
 func TestSponsorshipOffer(t *testing.T) {
-	sponsorshipOffer := author.NewSponsorshipOffer(audienceTest, "test", 12, 100, 10, 2000)
-	sponsorshipOffer2 := ParseCreateAudience(sponsorshipOffer.Serialize())
+	// mapTest := map
+	sponsorshipOffer := author.NewSponsorshipOffer(audienceTest, "test", mapTest, 12, 100, 10, 2000)
+	sponsorshipOffer2 := ParseSponsorshipOffer(sponsorshipOffer.Serialize())
 	if sponsorshipOffer2 == nil {
 		t.Error("could not parse SponsorshipOffer")
 		return
@@ -18,9 +19,9 @@ func TestSponsorshipOffer(t *testing.T) {
 }
 
 func TestSponsorshipAcceptance(t *testing.T) {
-	sponsorshipOffer := author.NewSponsorshipOffer(audienceTest, "test", 12, 100, 10, 2000)
+	sponsorshipOffer := author.NewSponsorshipOffer(audienceTest, "test", mapTest, 12, 100, 10, 2000)
 	sponsorshipAcceptance := author.NewSponsorshipAcceptance(audienceTest, sponsorshipOffer, 10, 2000)
-	sponsorshipAcceptance2 := ParseCreateAudience(sponsorshipAcceptance.Serialize())
+	sponsorshipAcceptance2 := ParseSponsorshipAcceptance(sponsorshipAcceptance.Serialize())
 	if sponsorshipAcceptance2 == nil {
 		t.Error("could not parse SponsorshipAcceptance")
 		return

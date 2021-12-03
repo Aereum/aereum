@@ -9,9 +9,9 @@ type SponsorshipOffer struct {
 	authored    *authoredInstruction
 	audience    []byte
 	contentType string
-	// NAO PRECISARIA DO CAMPO COM O CONTEUDO? PQ TIROU?
-	expiry  uint64
-	revenue uint64
+	content     map[[]byte][]byte
+	expiry      uint64
+	revenue     uint64
 }
 
 func (sponsored *SponsorshipOffer) Validate(block *Block) bool {
@@ -57,6 +57,12 @@ func (sponsored *SponsorshipOffer) serializeBulk() []byte {
 	bytes := make([]byte, 0)
 	PutByteArray(sponsored.audience, &bytes)
 	PutString(sponsored.contentType, &bytes)
+	contentLength := len(sponsored.content)
+	PutUint16(uint16(contentLength), &bytes)
+	for k, v := range sponsored.content {
+		PutByteArray(k, &bytes)
+		PutByteArray(v, &bytes)
+	}
 	PutUint64(sponsored.expiry, &bytes)
 	PutUint64(sponsored.revenue, &bytes)
 	return bytes
@@ -76,6 +82,14 @@ func ParseSponsorshipOffer(data []byte) *SponsorshipOffer {
 	position := sponsored.authored.parseHead(data)
 	sponsored.audience, position = ParseByteArray(data, position)
 	sponsored.contentType, position = ParseString(data, position)
+	_, mapLength := ParseUint64(data, position)
+	contentMap := make(map[[]byte][]byte, 0)
+	for i := 0; i < mapLength; i++ {
+		currentK, position := ParseByteArray(data, position)
+		currentV, position := ParseByteArray(data, position)
+		contentMap[currentK] = currentV
+	}
+	sponsored.content = contentMap
 	sponsored.expiry, position = ParseUint64(data, position)
 	sponsored.revenue, position = ParseUint64(data, position)
 	if sponsored.authored.parseTail(data, position) {
@@ -93,6 +107,10 @@ type SponsorshipAcceptance struct {
 }
 
 func (accept *SponsorshipAcceptance) Validate(block *Block) bool {
+
+	// NAO ENCONTREI A FUNCAO E NAO CONSEGUI MONTAR A FUNCAO
+	// block.validator.setNewHash(accept.offer.content)
+
 	if !block.validator.HasMember(accept.authored.authorHash()) {
 		return false
 	}

@@ -321,59 +321,81 @@ func (a *Author) NewUpdateAudience(audience *Audience, readers, submiters, moder
 	return nil
 }
 
-func (a *Author) NewContent(audience *Audience, contentType string, message, hash []byte, sponsored, encrypted bool, epoch, fee uint64) *Content {
+func (a *Author) NewContent(audience *Audience, contentType string, message []byte, hash, encrypted bool, epoch, fee uint64) *Content {
 	if audience == nil {
 		return nil
 	}
-	content := Content{
-		authored:     a.NewAuthored(epoch, fee),
-		audience:     audience.token.PublicKey().ToBytes(),
+	content := &Content{
+		epoch:        epoch,
 		published:    epoch,
+		author:       a.token.PublicKey().ToBytes(),
+		audience:     audience.token.PublicKey().ToBytes(),
 		contentType:  contentType,
-		content:      message,
-		hash:         hash,
-		sponsored:    sponsored,
+		hash:         []byte{},
+		sponsored:    false,
 		encrypted:    encrypted,
-		subSignature: []byte{},
+		attorney:     []byte{},
+		moderator:    []byte{},
 		modSignature: []byte{},
+		wallet:       []byte{},
+		fee:          fee,
+	}
+	if a.attorney != nil {
+		content.attorney = a.attorney.PublicKey().ToBytes()
+	}
+	if a.wallet != nil {
+		content.wallet = a.wallet.PublicKey().ToBytes()
+	}
+	if encrypted {
+		// cipher := crypto.CipherFromKey(audience.readCipher)
+		cipher := crypto.CipherFromKey(audience.audienceKeyCipher)
+		content.content = cipher.Seal(message)
+	} else {
+		content.content = message
+	}
+	if hash {
+		hashed := crypto.Hasher(message)
+		content.hash = hashed[:]
 	}
 	subBulk := content.serializeSubBulk()
-	var subSign []byte
-	var subErr error
-	subSign, subErr = audience.submission.Sign(subBulk)
-	if subErr != nil {
+	hashed := crypto.Hasher(subBulk)
+	var sign []byte
+	var err error
+	sign, err = audience.submission.Sign(hashed[:])
+	if err != nil {
 		return nil
 	}
-	content.subSignature = subSign
-	modBulk := content.serializeModBulk()
-	var modSign []byte
-	var modErr error
-	modSign, modErr = audience.moderation.Sign(modBulk)
-	if modErr != nil {
+	content.subSignature = sign
+	PutByteArray(content.subSignature, &subBulk)
+	PutByteArray(content.attorney, &subBulk)
+	hashed = crypto.Hasher(subBulk)
+	if a.attorney != nil {
+		content.signature, err = a.attorney.Sign(hashed[:])
+	} else {
+		content.author, err = a.attorney.Sign(hashed[:])
+	}
+	if err != nil {
 		return nil
 	}
-	content.modSignature = modSign
-	bulk := content.serializeBulk()
-	if a.sign(content.authored, bulk, iContent) {
-		return &content
+	if audience.moderation != nil {
+		content.moderator = audience.moderation.PublicKey().ToBytes()
+		hashed = crypto.Hasher(content.serializeModBulk())
+		audience.moderation.Sign(hashed[:])
 	}
-	return nil
+	hashed = crypto.Hasher(content.serializeWalletBulk())
+	if a.wallet == nil {
+		sign, err = a.wallet.Sign(hashed[:])
+	} else {
+		sign, err = a.token.Sign(hashed[:])
+	}
+	if err != nil {
+		return nil
+	}
+	content.walletSignature = sign
+	return content
 }
 
-func (a *Author) NewReact(audience *Audience, hash []byte, reaction byte, epoch, fee uint64) *React {
-	react := React{
-		authored: a.NewAuthored(epoch, fee),
-		hash:     hash,
-		reaction: reaction,
-	}
-	bulk := react.serializeBulk()
-	if a.sign(react.authored, bulk, iReact) {
-		return &react
-	}
-	return nil
-}
-
-func (a *Author) NewSponsorshipOffer(audience *Audience, contentType string, expiry, revenue, epoch, fee uint64) *SponsorshipOffer {
+func (a *Author) NewSponsorshipOffer(audience *Audience, contentType string, content map[[]byte][]byte, expiry, revenue, epoch, fee uint64) *SponsorshipOffer {
 	if audience == nil {
 		return nil
 	}
@@ -381,6 +403,7 @@ func (a *Author) NewSponsorshipOffer(audience *Audience, contentType string, exp
 		authored:    a.NewAuthored(epoch, fee),
 		audience:    audience.token.ToBytes(),
 		contentType: contentType,
+		content:     content,
 		expiry:      expiry,
 		revenue:     revenue,
 	}
