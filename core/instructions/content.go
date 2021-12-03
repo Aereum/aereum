@@ -77,8 +77,18 @@ func (content *Content) Validate(block *Block) bool {
 	return true
 }
 
+func (a *Content) Payments() *Payment {
+	if len(a.wallet) < 0 {
+		return NewPayment(crypto.Hasher(a.wallet), a.fee)
+	}
+	if len(a.attorney) < 0 {
+		return NewPayment(crypto.Hasher(a.attorney), a.fee)
+	}
+	return NewPayment(crypto.Hasher(a.author), a.fee)
+}
+
 // func (content *Content) Payments() *Payment {
-// 	return content.authored.payments()
+// 	return content.payments()
 // }
 
 func (content *Content) Kind() byte {

@@ -347,7 +347,6 @@ func (a *Author) NewContent(audience *Audience, contentType string, message []by
 		content.wallet = a.wallet.PublicKey().ToBytes()
 	}
 	if encrypted {
-		// cipher := crypto.CipherFromKey(audience.readCipher)
 		cipher := crypto.CipherFromKey(audience.audienceKeyCipher)
 		content.content = cipher.Seal(message)
 	} else {
@@ -393,6 +392,19 @@ func (a *Author) NewContent(audience *Audience, contentType string, message []by
 	}
 	content.walletSignature = sign
 	return content
+}
+
+func (a *Author) NewReact(hash []byte, reaction byte, epoch, fee uint64) *React {
+	react := React{
+		authored: a.NewAuthored(epoch, fee),
+		hash:     hash,
+		reaction: reaction,
+	}
+	bulk := react.serializeBulk()
+	if a.sign(react.authored, bulk, iReact) {
+		return &react
+	}
+	return nil
 }
 
 func (a *Author) NewSponsorshipOffer(audience *Audience, contentType string, content []byte, expiry, revenue, epoch, fee uint64) *SponsorshipOffer {
