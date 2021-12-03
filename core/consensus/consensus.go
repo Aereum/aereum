@@ -67,40 +67,7 @@ func IntervalToNewEpoch(epoch uint64, genesis time.Time) time.Duration {
 	return time.Until(genesis.Add(time.Duration(int64(epoch) * 1000000000)))
 }
 
-/*func NewConsensus(blockchain *BlockChain) *Consensus {
-	consensus := Consensus{
-		PeerRequest:    make(chan *PeerRequest),
-		NewBlock:       make(chan *instructions.Block),
-		BlockSignature: make(chan *Signature),
-		Checkpoint:     make(chan *Checkpoint),
-		blockChain:     blockchain,
-		pool:           NewInstructionPool(),
-	}
-	go func() {
-		for {
-			select {
-			case peer := <-consensus.PeerRequest:
-				peer.Response <- consensus.blockChain.Engine.RegisterPeer(peer.Token)
-			case block := <-consensus.NewBlock:
-				consensus.PushNewBlock(block)
-			case signature := <-consensus.BlockSignature:
-				consensus.blockChain.AppendSignature(*signature)
-			}
-		}
-	}()
-	go func() {
-		for {
-			epoch := <-c.BlockFormationSignal
-			if ok, _ := consensus.blockChain.Engine.IsBlockLeader(epoch); ok {
-				checkpoint, epoch := consensus.blockChain.GetLastValidator()
-
-				BlockBuilder(chekpoint, epoch)
-			}
-		}
-	}()
-	return &consensus
-}
-
+/*
 func (c *Consensus) PushNewBlock(block *instructions.Block) {
 	epoch := block.Epoch
 	newSignedBlock := SignedBlock{
