@@ -47,8 +47,7 @@ func TestSecureConnection(t *testing.T) {
 		t.Error(err)
 	}
 	msg := <-cipher
-	sec.cipherRemote.SetNonce(msg.nonce)
-	msgData, err := sec.cipherRemote.Open(msg.msg)
+	msgData, err := sec.cipherRemote.OpenNewNonce(msg.msg, msg.nonce)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -56,8 +55,7 @@ func TestSecureConnection(t *testing.T) {
 		t.Fatalf("wrong message:%v", string(msgData))
 	}
 	msg = <-cipher
-	sec.cipher.SetNonce(msg.nonce)
-	msgData, err = sec.cipher.Open(msg.msg)
+	msgData, err = sec.cipher.OpenNewNonce(msg.msg, msg.nonce)
 	if err != nil {
 		t.Fatal(err)
 	}
