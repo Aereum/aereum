@@ -1,7 +1,6 @@
 package instructions
 
 import (
-	"fmt"
 	"reflect"
 	"testing"
 )
@@ -9,7 +8,6 @@ import (
 func TestContent(t *testing.T) {
 
 	content := author.NewContent(audienceTest, "test", []byte("content of the content instruction"), true, true, 10, 2000)
-	fmt.Printf("%+v\n", *content)
 	content2 := ParseContent(content.Serialize())
 	if content2 == nil {
 		t.Error("could not parse Content")

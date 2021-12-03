@@ -1,8 +1,6 @@
 package instructions
 
 import (
-	"fmt"
-
 	"github.com/Aereum/aereum/core/crypto"
 )
 
@@ -18,10 +16,10 @@ type Content struct {
 	sponsored       bool
 	encrypted       bool
 	subSignature    []byte
-	attorney        []byte
-	signature       []byte
 	moderator       []byte
 	modSignature    []byte
+	attorney        []byte
+	signature       []byte
 	wallet          []byte
 	fee             uint64
 	walletSignature []byte
@@ -114,15 +112,20 @@ func (content *Content) serializeSubBulk() []byte {
 func (content *Content) serializeModBulk() []byte {
 	bytes := content.serializeSubBulk()
 	PutByteArray(content.subSignature, &bytes)
-	PutByteArray(content.attorney, &bytes)
-	PutByteArray(content.signature, &bytes)
 	PutByteArray(content.moderator, &bytes)
 	return bytes
 }
 
-func (content *Content) serializeWalletBulk() []byte {
+func (content *Content) serializeSignBulk() []byte {
 	bytes := content.serializeModBulk()
 	PutByteArray(content.modSignature, &bytes)
+	PutByteArray(content.attorney, &bytes)
+	return bytes
+}
+
+func (content *Content) serializeWalletBulk() []byte {
+	bytes := content.serializeSignBulk()
+	PutByteArray(content.signature, &bytes)
 	PutByteArray(content.wallet, &bytes)
 	PutUint64(content.fee, &bytes)
 	return bytes
@@ -150,16 +153,19 @@ func ParseContent(data []byte) *Content {
 	content.sponsored, position = ParseBool(data, position)
 	content.encrypted, position = ParseBool(data, position)
 	content.subSignature, position = ParseByteArray(data, position)
+	content.moderator, position = ParseByteArray(data, position)
+	content.modSignature, position = ParseByteArray(data, position)
+	if len(content.moderator) == 0 && (content.epoch != content.published) {
+		return nil
+	}
 	content.attorney, position = ParseByteArray(data, position)
-	withoutEpoch := make([]byte, position-8)
-	copy(withoutEpoch[0:2], data[0:2])
-	copy(withoutEpoch[2:], data[16:position])
-	hash := crypto.Hasher(withoutEpoch)
-	fmt.Println("_______________________", hash)
+	hash := crypto.Hasher(data[0:position])
 	var pubKey crypto.PublicKey
 	var err error
 	if len(content.attorney) > 0 {
 		pubKey, err = crypto.PublicKeyFromBytes(content.attorney)
+	} else if len(content.moderator) > 0 {
+		pubKey, err = crypto.PublicKeyFromBytes(content.moderator)
 	} else {
 		pubKey, err = crypto.PublicKeyFromBytes(content.author)
 	}
@@ -167,22 +173,13 @@ func ParseContent(data []byte) *Content {
 		return nil
 	}
 	content.signature, position = ParseByteArray(data, position)
-	fmt.Printf("\n\n%+v\n", content)
 	if !pubKey.Verify(hash[:], content.signature) {
 		return nil
 	}
-	fmt.Println("******", 3)
-	content.moderator, position = ParseByteArray(data, position)
-	content.modSignature, position = ParseByteArray(data, position)
-	if len(content.moderator) == 0 && (content.epoch != content.published) {
-		return nil
-	}
-	fmt.Println("******", 4)
 	content.wallet, position = ParseByteArray(data, position)
 	content.fee, position = ParseUint64(data, position)
 	hash = crypto.Hasher(data[0:position])
 	content.walletSignature, _ = ParseByteArray(data, position)
-	fmt.Println("******", 5)
 	if len(content.wallet) > 0 {
 		pubKey, err = crypto.PublicKeyFromBytes(content.wallet)
 		if err != nil {

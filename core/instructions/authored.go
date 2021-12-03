@@ -1,8 +1,6 @@
 package instructions
 
 import (
-	"fmt"
-
 	"github.com/Aereum/aereum/core/crypto"
 )
 
@@ -368,24 +366,25 @@ func (a *Author) NewContent(audience *Audience, contentType string, message []by
 	}
 	content.subSignature = sign
 	PutByteArray(content.subSignature, &subBulk)
-	PutByteArray(content.attorney, &subBulk)
-	hashed = crypto.Hasher(subBulk)
-	fmt.Println("_______________________>", hashed)
+	if audience.moderation != nil {
+		content.moderator = a.token.PublicKey().ToBytes()
+		hashed = crypto.Hasher(content.serializeModBulk())
+		content.modSignature, err = audience.moderation.Sign(hashed[:])
+		if err != nil {
+			return nil
+		}
+	}
+	hashed = crypto.Hasher(content.serializeSignBulk())
 	if a.attorney != nil {
 		content.signature, err = a.attorney.Sign(hashed[:])
 	} else {
-		content.author, err = a.attorney.Sign(hashed[:])
+		content.signature, err = a.token.Sign(hashed[:])
 	}
 	if err != nil {
 		return nil
 	}
-	if audience.moderation != nil {
-		content.moderator = audience.moderation.PublicKey().ToBytes()
-		hashed = crypto.Hasher(content.serializeModBulk())
-		audience.moderation.Sign(hashed[:])
-	}
 	hashed = crypto.Hasher(content.serializeWalletBulk())
-	if a.wallet == nil {
+	if a.wallet != nil {
 		sign, err = a.wallet.Sign(hashed[:])
 	} else {
 		sign, err = a.token.Sign(hashed[:])
