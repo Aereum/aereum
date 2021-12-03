@@ -9,6 +9,7 @@ type SponsorshipOffer struct {
 	authored    *authoredInstruction
 	audience    []byte
 	contentType string
+	content     []byte
 	expiry      uint64
 	revenue     uint64
 }
@@ -60,6 +61,7 @@ func (sponsored *SponsorshipOffer) serializeBulk() []byte {
 	bytes := make([]byte, 0)
 	PutByteArray(sponsored.audience, &bytes)
 	PutString(sponsored.contentType, &bytes)
+	PutByteArray(sponsored.content, &bytes)
 	PutUint64(sponsored.expiry, &bytes)
 	PutUint64(sponsored.revenue, &bytes)
 	return bytes
@@ -79,6 +81,7 @@ func ParseSponsorshipOffer(data []byte) *SponsorshipOffer {
 	position := sponsored.authored.parseHead(data)
 	sponsored.audience, position = ParseByteArray(data, position)
 	sponsored.contentType, position = ParseString(data, position)
+	sponsored.content, position = ParseByteArray(data, position)
 	sponsored.expiry, position = ParseUint64(data, position)
 	sponsored.revenue, position = ParseUint64(data, position)
 	if sponsored.authored.parseTail(data, position) {
@@ -100,6 +103,10 @@ func (a *SponsorshipAcceptance) Epoch() uint64 {
 }
 
 func (accept *SponsorshipAcceptance) Validate(block *Block) bool {
+
+	// NAO ENCONTREI A FUNCAO E NAO CONSEGUI MONTAR A FUNCAO
+	// block.validator.setNewHash(accept.offer.content)
+
 	if !block.validator.HasMember(accept.authored.authorHash()) {
 		return false
 	}

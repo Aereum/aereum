@@ -269,7 +269,6 @@ func (a *Author) NewAcceptJoinAudience(audience *Audience, member crypto.PublicK
 		submit:   []byte{},
 		moderate: []byte{},
 	}
-	// accept.read, _ = member.Encrypt(audience.readCipher)
 	accept.read, _ = member.Encrypt(audience.audienceKeyCipher)
 	if level > 0 {
 		accept.submit, _ = member.Encrypt(audience.submitKeyCipher)
@@ -278,9 +277,6 @@ func (a *Author) NewAcceptJoinAudience(audience *Audience, member crypto.PublicK
 		accept.moderate, _ = member.Encrypt(audience.moderateKeyCipher)
 
 	}
-	// if level > 2 {
-	// 	accept.audience, _ = member.Encrypt(audience.audienceKeyCipher)
-	// }
 	modbulk := accept.serializeModBulk()
 	var sign []byte
 	var err error
@@ -302,7 +298,6 @@ func (a *Author) NewUpdateAudience(audience *Audience, readers, submiters, moder
 		audience:      audience.token.PublicKey().ToBytes(),
 		submission:    audience.submission.PublicKey().ToBytes(),
 		moderation:    audience.moderation.PublicKey().ToBytes(),
-		audienceKey:   audience.SealedToken(),
 		submissionKey: audience.SealedSubmission(),
 		moderationKey: audience.SealedModeration(),
 		flag:          flag,
@@ -311,6 +306,14 @@ func (a *Author) NewUpdateAudience(audience *Audience, readers, submiters, moder
 		subMembers:    audience.SubmitTokenCiphers(submiters),
 		modMembers:    audience.ModerateTokenCiphers(moderators),
 	}
+	audBulk := update.serializeAudBulk()
+	var sign []byte
+	var err error
+	sign, err = audience.token.Sign(audBulk)
+	if err != nil {
+		return nil
+	}
+	update.audSignature = sign
 	bulk := update.serializeBulk()
 	if a.sign(update.authored, bulk, iUpdateAudience) {
 		return &update
@@ -344,7 +347,6 @@ func (a *Author) NewContent(audience *Audience, contentType string, message []by
 		content.wallet = a.wallet.PublicKey().ToBytes()
 	}
 	if encrypted {
-		// cipher := crypto.CipherFromKey(audience.readCipher)
 		cipher := crypto.CipherFromKey(audience.audienceKeyCipher)
 		content.content = cipher.Seal(message)
 	} else {
@@ -390,6 +392,55 @@ func (a *Author) NewContent(audience *Audience, contentType string, message []by
 	}
 	content.walletSignature = sign
 	return content
+}
+
+func (a *Author) NewReact(hash []byte, reaction byte, epoch, fee uint64) *React {
+	react := React{
+		authored: a.NewAuthored(epoch, fee),
+		hash:     hash,
+		reaction: reaction,
+	}
+	bulk := react.serializeBulk()
+	if a.sign(react.authored, bulk, iReact) {
+		return &react
+	}
+	return nil
+}
+
+func (a *Author) NewSponsorshipOffer(audience *Audience, contentType string, content []byte, expiry, revenue, epoch, fee uint64) *SponsorshipOffer {
+	if audience == nil {
+		return nil
+	}
+	sponsorOffer := SponsorshipOffer{
+		authored:    a.NewAuthored(epoch, fee),
+		audience:    audience.token.ToBytes(),
+		contentType: contentType,
+		content:     content,
+		expiry:      expiry,
+		revenue:     revenue,
+	}
+	bulk := sponsorOffer.serializeBulk()
+	if a.sign(sponsorOffer.authored, bulk, iSponsorshipOffer) {
+		return &sponsorOffer
+	}
+	return nil
+}
+
+func (a *Author) NewSponsorshipAcceptance(audience *Audience, offer *SponsorshipOffer, epoch, fee uint64) *SponsorshipAcceptance {
+	if audience == nil {
+		return nil
+	}
+	sponsorAcceptance := SponsorshipAcceptance{
+		authored:     a.NewAuthored(epoch, fee),
+		offer:        offer,
+		audience:     audience.token.ToBytes(),
+		modSignature: []byte{},
+	}
+	bulk := sponsorAcceptance.serializeBulk()
+	if a.sign(sponsorAcceptance.authored, bulk, iSponsorshipAcceptance) {
+		return &sponsorAcceptance
+	}
+	return nil
 }
 
 func (a *Author) sign(authored *authoredInstruction, bulk []byte, insType byte) bool {

@@ -6,7 +6,6 @@ import (
 
 // Content creation instruction
 type Content struct {
-	authored        *authoredInstruction
 	epoch           uint64
 	published       uint64
 	author          []byte
@@ -46,7 +45,7 @@ func (content *Content) Validate(block *Block) bool {
 		if len(content.subSignature) != 0 || len(content.modSignature) != 0 {
 			return false
 		}
-		hash := crypto.Hasher(append(content.authored.author, content.audience...))
+		hash := crypto.Hasher(append(content.author, content.audience...))
 		ok, contentHash := block.validator.HasGrantedSponser(hash)
 		if !ok {
 			return false
@@ -78,9 +77,19 @@ func (content *Content) Validate(block *Block) bool {
 	return true
 }
 
-func (content *Content) Payments() *Payment {
-	return content.authored.payments()
+func (a *Content) Payments() *Payment {
+	if len(a.wallet) < 0 {
+		return NewPayment(crypto.Hasher(a.wallet), a.fee)
+	}
+	if len(a.attorney) < 0 {
+		return NewPayment(crypto.Hasher(a.attorney), a.fee)
+	}
+	return NewPayment(crypto.Hasher(a.author), a.fee)
 }
+
+// func (content *Content) Payments() *Payment {
+// 	return content.payments()
+// }
 
 func (content *Content) Kind() byte {
 	return iContent
@@ -127,7 +136,7 @@ func ParseContent(data []byte) *Content {
 		return nil
 	}
 	var content Content
-	position := content.authored.parseHead(data)
+	position := 0
 	content.epoch, position = ParseUint64(data, position)
 	content.published, position = ParseUint64(data, position)
 	content.author, position = ParseByteArray(data, position)
@@ -228,16 +237,3 @@ func ParseReact(data []byte) *React {
 	}
 	return nil
 }
-
-// CREATING TEST ENTRY
-// type ContentBase struct {
-// 	audience     crypto.PrivateKey
-// 	author       crypto.PrivateKey
-// 	contentType  string
-// 	content      []byte
-// 	hash         []byte
-// 	sponsored    bool
-// 	encrypted    bool
-// 	subSignature []byte
-// 	modSignature []byte
-// }

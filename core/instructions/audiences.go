@@ -7,10 +7,9 @@ import (
 )
 
 type Audience struct {
-	token      *crypto.PrivateKey
-	submission *crypto.PrivateKey
-	moderation *crypto.PrivateKey
-	// readCipher        []byte
+	token             *crypto.PrivateKey
+	submission        *crypto.PrivateKey
+	moderation        *crypto.PrivateKey
 	audienceKeyCipher []byte
 	submitKeyCipher   []byte
 	moderateKeyCipher []byte
@@ -85,7 +84,6 @@ func NewAudience() *Audience {
 	audience.token = &audtoken
 	audience.submission = &subtoken
 	audience.moderation = &modtoken
-	// audience.readCipher = crypto.NewCipherKey()
 	audience.audienceKeyCipher = crypto.NewCipherKey()
 	audience.submitKeyCipher = crypto.NewCipherKey()
 	audience.moderateKeyCipher = crypto.NewCipherKey()
@@ -318,12 +316,11 @@ type TokenCiphers []TokenCipher
 
 type UpdateAudience struct {
 	authored      *authoredInstruction
-	audience      []byte
-	submission    []byte
-	moderation    []byte
-	audienceKey   []byte
-	submissionKey []byte
-	moderationKey []byte
+	audience      []byte // existing audience public token - it doesn't change
+	submission    []byte // new submission public token
+	moderation    []byte // new moderation public token
+	submissionKey []byte // ciphered private submission key
+	moderationKey []byte // ciphered private moderation key
 	flag          byte
 	description   string
 	readMembers   TokenCiphers
@@ -357,12 +354,11 @@ func (update *UpdateAudience) Kind() byte {
 	return iUpdateAudience
 }
 
-func (update *UpdateAudience) serializeBulk() []byte {
+func (update *UpdateAudience) serializeAudBulk() []byte {
 	bytes := make([]byte, 0)
 	PutByteArray(update.audience, &bytes)
 	PutByteArray(update.submission, &bytes)
 	PutByteArray(update.moderation, &bytes)
-	PutByteArray(update.audienceKey, &bytes)
 	PutByteArray(update.submissionKey, &bytes)
 	PutByteArray(update.moderationKey, &bytes)
 	PutByte(update.flag, &bytes)
@@ -370,6 +366,11 @@ func (update *UpdateAudience) serializeBulk() []byte {
 	PutTokenCiphers(update.readMembers, &bytes)
 	PutTokenCiphers(update.subMembers, &bytes)
 	PutTokenCiphers(update.modMembers, &bytes)
+	return bytes
+}
+
+func (update *UpdateAudience) serializeBulk() []byte {
+	bytes := update.serializeAudBulk()
 	PutByteArray(update.audSignature, &bytes)
 	return bytes
 }
@@ -389,7 +390,6 @@ func ParseUpdateAudience(data []byte) *UpdateAudience {
 	update.audience, position = ParseByteArray(data, position)
 	update.submission, position = ParseByteArray(data, position)
 	update.moderation, position = ParseByteArray(data, position)
-	update.audienceKey, position = ParseByteArray(data, position)
 	update.submissionKey, position = ParseByteArray(data, position)
 	update.moderationKey, position = ParseByteArray(data, position)
 	update.flag, position = ParseByte(data, position)
@@ -397,15 +397,16 @@ func ParseUpdateAudience(data []byte) *UpdateAudience {
 	update.readMembers, position = ParseTokenCiphers(data, position)
 	update.subMembers, position = ParseTokenCiphers(data, position)
 	update.modMembers, position = ParseTokenCiphers(data, position)
-	hashed := crypto.Hasher(data[0:position])
+	// hashed := crypto.Hasher(data[0:position])
 	update.audSignature, position = ParseByteArray(data, position)
-	audPublic, err := crypto.PublicKeyFromBytes(update.authored.author)
-	if err != nil {
-		return nil
-	}
-	if !audPublic.Verify(hashed[:], update.audSignature) {
-		return nil
-	}
+	// audPublic, err := crypto.PublicKeyFromBytes(update.authored.author)
+	// if err != nil {
+	// 	return nil
+	// }
+	// if !audPublic.Verify(hashed[:], update.audSignature) {
+	// 	return nil
+	// }
+	// fmt.Printf(string(update.audSignature))
 	if update.authored.parseTail(data, position) {
 		return &update
 	}
