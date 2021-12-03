@@ -395,7 +395,7 @@ func (a *Author) NewContent(audience *Audience, contentType string, message []by
 	return content
 }
 
-func (a *Author) NewSponsorshipOffer(audience *Audience, contentType string, content map[[]byte][]byte, expiry, revenue, epoch, fee uint64) *SponsorshipOffer {
+func (a *Author) NewSponsorshipOffer(audience *Audience, contentType string, content []byte, expiry, revenue, epoch, fee uint64) *SponsorshipOffer {
 	if audience == nil {
 		return nil
 	}
