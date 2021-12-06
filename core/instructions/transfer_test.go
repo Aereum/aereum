@@ -37,3 +37,18 @@ func TestDeposit(t *testing.T) {
 	}
 
 }
+
+func TestWithdraw(t *testing.T) {
+
+	_, to := crypto.RandomAsymetricKey()
+	withdraw := NewWithdraw(to, 10, 10, 10)
+	withdraw2 := ParseWithdraw(withdraw.Serialize())
+	if withdraw2 == nil {
+		t.Error("Could not Withdraw.")
+		return
+	}
+	if ok := reflect.DeepEqual(*withdraw, *withdraw2); !ok {
+		t.Error("Parse and Serialization not working for Withdraw messages.")
+	}
+
+}
