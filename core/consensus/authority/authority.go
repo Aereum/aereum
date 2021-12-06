@@ -1,6 +1,7 @@
 package authority
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/Aereum/aereum/core/consensus"
@@ -32,9 +33,12 @@ func NewProofOfAtuhority(chain *consensus.BlockChain, token crypto.PrivateKey) *
 	go func() {
 		epoch := chain.Epoch + 1
 		for {
+			fmt.Println(epoch)
 			nextBlock := time.Now().Add(consensus.IntervalToNewEpoch(epoch, chain.GenesisTime))
+			fmt.Println(nextBlock)
 			newBlock := <-consensus.BlockBuilder(chain.GetLastCheckpoint(), epoch, token, nextBlock, pool)
 			chain.CurrentState.IncorporateBlock(newBlock)
+			epoch += 1
 		}
 	}()
 

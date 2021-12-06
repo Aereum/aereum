@@ -10,7 +10,7 @@ import (
 type InstructionPool struct {
 	queue        []crypto.Hash // order in which instructions are received
 	instructions map[crypto.Hash]instructions.Instruction
-	mu           *sync.Mutex
+	mu           sync.Mutex
 }
 
 func NewInstructionPool() *InstructionPool {
