@@ -49,8 +49,8 @@ func NewDeposit(from crypto.PrivateKey, value, epoch, fee uint64) *Deposit {
 	return deposit
 }
 
-func NewWithdrawal(from crypto.PrivateKey, value, epoch, fee uint64) *Deposit {
-	deposit := &Deposit{
+func NewWithdraw(from crypto.PrivateKey, value, epoch, fee uint64) *Withdraw {
+	deposit := &Withdraw{
 		Token: from.PublicKey().ToBytes(),
 		epoch: epoch,
 		Fee:   fee,
