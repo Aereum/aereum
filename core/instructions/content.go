@@ -87,10 +87,6 @@ func (a *Content) Payments() *Payment {
 	return NewPayment(crypto.Hasher(a.author), a.fee)
 }
 
-// func (content *Content) Payments() *Payment {
-// 	return content.payments()
-// }
-
 func (content *Content) Kind() byte {
 	return iContent
 }

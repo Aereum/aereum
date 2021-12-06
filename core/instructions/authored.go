@@ -27,6 +27,15 @@ type authoredInstruction struct {
 	walletSignature []byte
 }
 
+func NewAuthor(token, wallet, attorney *crypto.PrivateKey) *Author {
+	author := &Author{
+		token:    token,
+		wallet:   wallet,
+		attorney: attorney,
+	}
+	return author
+}
+
 func (a *authoredInstruction) authorHash() crypto.Hash {
 	return crypto.Hasher(a.author)
 }

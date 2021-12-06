@@ -15,7 +15,8 @@ var (
 		attorney: &attorney,
 		wallet:   &wallet,
 	}
-	jsonString1 = `{"teste":1}`
+	jsonString1     = `{"teste":1}`
+	jsonString1_new = `{"update":1}`
 )
 
 var (
@@ -30,8 +31,37 @@ var (
 	jsonString2 = `{"teste":1}`
 )
 
-func generalTesting(t testing.T) {
-	// member1 := author1.NewJoinNetwork("member1", jsonString1, 10, 20)
-	// member2 := author2.NewJoinNetwork("member2", jsonString2, 11, 20)
+var (
+	state1 = State()
+
+	validator1 = Validator()
+)
+
+func TestGeneral(t *testing.T) {
+
+	hash := crypto.Hash()
+	checkpoint := 10
+	publisher_token, _ := crypto.RandomAsymetricKey()
+
+	block := NewBlock(hash, checkpoint, 10, publisher_token.ToBytes(), validator)
+
+	author1.NewJoinNetwork("member1", jsonString1, 10, 20)
+	author2.NewJoinNetwork("member2", jsonString2, 11, 20)
+
+	// fmt.Print(author1.token.ToBytes())
+	author1.NewUpdateInfo(jsonString1_new, 12, 10)
+
+	recipients := make([]Recipient, 1)
+	recipients[0] = Recipient{Token: author2.token.ToBytes(), Value: 10}
+
+	transfer := &Transfer{
+		Version:         0,
+		InstructionType: 0,
+		epoch:           20,
+		From:            author1.token.ToBytes(),
+		To:              recipients,
+		Reason:          "Sponsored content recieved",
+		Fee:             10,
+	}
 
 }

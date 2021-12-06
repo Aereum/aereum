@@ -37,3 +37,29 @@ func TestTransfer(t *testing.T) {
 		t.Error("Parse and Serialization not working for Transfer messages.")
 	}
 }
+
+func TestDeposit(t *testing.T) {
+
+	token, _ := crypto.RandomAsymetricKey()
+	message := &Deposit{
+		Version:         0,
+		InstructionType: 0,
+		epoch:           10928298,
+		Token:           token.ToBytes(),
+		Value:           10,
+		Reason:          "Sponsored content recieved",
+		Fee:             10,
+		Signature:       []byte{1, 2, 3},
+	}
+
+	deposit := message.Serialize()
+	deposit2 := ParseDeposit(deposit)
+	if deposit2 == nil {
+		t.Error("Could not Deposit.")
+		return
+	}
+	if ok := reflect.DeepEqual(*message, *deposit2); !ok {
+		t.Error("Parse and Serialization not working for Deposit messages.")
+	}
+
+}
