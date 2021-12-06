@@ -13,14 +13,16 @@ var (
 
 func TestGeneral(t *testing.T) {
 	state, token := NewGenesisState()
+	if _, balance := state.Wallets.Balance(crypto.Hasher(token.PublicKey().ToBytes())); balance == 0 {
+		t.Error("wrong genesis")
+	}
 	validator := &Validator{State: state}
 	block := NewBlock(crypto.Hasher([]byte{}), 0, 1, token.PublicKey().ToBytes(), validator)
 	creator := &Author{token: &token}
 	pubKey, prvKey := crypto.RandomAsymetricKey()
 	firstAuthor := &Author{token: &prvKey, wallet: &token}
-	var inst Instruction
-	inst = creator.NewJoinNetworkThirdParty(pubKey.ToBytes(), "First Member", jsonString1, 1, 1)
-	if block.Incorporate(inst) != true {
+	join := creator.NewJoinNetworkThirdParty(pubKey.ToBytes(), "First Member", jsonString1, 1, 1)
+	if block.Incorporate(join) != true {
 		t.Error("could not add new member")
 	}
 	state.IncorporateBlock(block)
@@ -31,7 +33,7 @@ func TestGeneral(t *testing.T) {
 		t.Error("state did not add new caption")
 	}
 	block = NewBlock(crypto.Hasher([]byte{}), 0, 2, token.PublicKey().ToBytes(), validator)
-	inst = firstAuthor.NewUpdateInfo(jsonString1_new, 12, 10)
-	block.Incorporate(inst)
+	update := firstAuthor.NewUpdateInfo(jsonString1_new, 12, 10)
+	block.Incorporate(update)
 	state.IncorporateBlock(block)
 }

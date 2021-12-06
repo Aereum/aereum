@@ -41,10 +41,10 @@ func (a *authoredInstruction) authorHash() crypto.Hash {
 }
 
 func (a *authoredInstruction) payments() *Payment {
-	if len(a.wallet) < 0 {
+	if len(a.wallet) > 0 {
 		return NewPayment(crypto.Hasher(a.wallet), a.fee)
 	}
-	if len(a.attorney) < 0 {
+	if len(a.attorney) > 0 {
 		return NewPayment(crypto.Hasher(a.attorney), a.fee)
 	}
 	return NewPayment(crypto.Hasher(a.author), a.fee)
@@ -188,6 +188,10 @@ func (a *Author) NewJoinNetworkThirdParty(token []byte, caption string, details 
 	}
 	if a.wallet != nil {
 		authored.wallet = a.wallet.PublicKey().ToBytes()
+	} else if a.attorney != nil {
+		authored.wallet = a.attorney.PublicKey().ToBytes()
+	} else {
+		authored.wallet = a.token.PublicKey().ToBytes()
 	}
 	join := JoinNetwork{
 		authored: &authored,
@@ -544,10 +548,17 @@ func (a *Author) sign(authored *authoredInstruction, bulk []byte, insType byte) 
 	} else {
 		authored.signature, err = a.token.Sign(hash[:])
 	}
+	if err != nil {
+		return false
+	}
+	PutByteArray(authored.signature, &bytes)
+	hash = crypto.Hasher(bytes)
 	if a.wallet != nil {
-		PutByteArray(authored.signature, &bytes)
-		hash = crypto.Hasher(bytes)
 		authored.walletSignature, err = a.wallet.Sign(hash[:])
+	} else if a.attorney != nil {
+		authored.walletSignature, err = a.attorney.Sign(hash[:])
+	} else {
+		authored.walletSignature, err = a.token.Sign(hash[:])
 	}
 	return err == nil
 }
