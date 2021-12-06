@@ -175,6 +175,32 @@ func (a *Author) NewJoinNetwork(caption string, details string, epoch, fee uint6
 	return nil
 }
 
+func (a *Author) NewJoinNetworkThirdParty(token []byte, caption string, details string, epoch, fee uint64) *JoinNetwork {
+	authored := authoredInstruction{
+		epoch:    epoch,
+		author:   token,
+		fee:      fee,
+		attorney: []byte{},
+		wallet:   []byte{},
+	}
+	if a.attorney != nil {
+		authored.attorney = a.attorney.PublicKey().ToBytes()
+	}
+	if a.wallet != nil {
+		authored.wallet = a.wallet.PublicKey().ToBytes()
+	}
+	join := JoinNetwork{
+		authored: &authored,
+		caption:  caption,
+		details:  details,
+	}
+	bulk := join.serializeBulk()
+	if a.sign(join.authored, bulk, iJoinNetwork) {
+		return &join
+	}
+	return nil
+}
+
 func (a *Author) NewUpdateInfo(details string, epoch, fee uint64) *UpdateInfo {
 	update := UpdateInfo{
 		authored: a.NewAuthored(epoch, fee),
