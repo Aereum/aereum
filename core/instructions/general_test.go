@@ -1,6 +1,7 @@
 package instructions
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/Aereum/aereum/core/crypto"
@@ -18,12 +19,13 @@ func TestGeneral(t *testing.T) {
 		t.Error("wrong genesis")
 	}
 	validator := &Validator{State: state}
-	block := NewBlock(crypto.Hasher([]byte{}), 0, 1, token.PublicKey().ToBytes(), validator)
+	_, blockFormationToken := crypto.RandomAsymetricKey()
+	block := NewBlock(crypto.Hasher([]byte{}), 0, 1, blockFormationToken.PublicKey().ToBytes(), validator)
 	creator := &Author{token: &token}
 	pubKey, prvKey := crypto.RandomAsymetricKey()
 	firstAuthor := &Author{token: &prvKey, wallet: &token}
-	join_fee := 10
-	join := creator.NewJoinNetworkThirdParty(pubKey.ToBytes(), "First Member", jsonString1, 1, uint64(join_fee))
+	joinFee := 10
+	join := creator.NewJoinNetworkThirdParty(pubKey.ToBytes(), "First Member", jsonString1, 1, uint64(joinFee))
 	if block.Incorporate(join) != true {
 		t.Error("could not add new member")
 	}
@@ -34,7 +36,8 @@ func TestGeneral(t *testing.T) {
 	if !state.Captions.Exists(crypto.Hasher([]byte("First Member"))) {
 		t.Error("state did not add new caption")
 	}
-	if _, balance := state.Wallets.Balance(crypto.Hasher(token.PublicKey().ToBytes())); balance != 1e6-1 {
+	if _, balance := state.Wallets.Balance(crypto.Hasher(token.PublicKey().ToBytes())); balance != 1e6-1-uint64(joinFee) {
+		fmt.Print(balance)
 		t.Error("state did not add debit wallet", balance)
 	}
 	block = NewBlock(crypto.Hasher([]byte{}), 0, 2, token.PublicKey().ToBytes(), validator)
@@ -43,7 +46,7 @@ func TestGeneral(t *testing.T) {
 	state.IncorporateBlock(block)
 
 	_, new_balance_author := state.Wallets.Balance(crypto.Hasher(creator.token.PublicKey().ToBytes()))
-	if new_balance_author-balance != uint64(join_fee) {
+	if new_balance_author-balance != uint64(joinFee) {
 		t.Error("state did not update creator wallet balance")
 	}
 

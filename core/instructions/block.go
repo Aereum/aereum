@@ -62,6 +62,7 @@ func (b *Block) TransferPayments(payments *Payment) {
 			b.mutations.DeltaWallets[debit.Account] = delta - int(debit.FungibleTokens)
 		} else {
 			b.mutations.DeltaWallets[debit.Account] = -int(debit.FungibleTokens)
+			// fmt.Println(debit.Account, debit.FungibleTokens)
 		}
 	}
 	for _, credit := range payments.Credit {
