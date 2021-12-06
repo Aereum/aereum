@@ -2,6 +2,7 @@ package instructions
 
 import (
 	"errors"
+	"fmt"
 
 	"github.com/Aereum/aereum/core/crypto"
 	"github.com/Aereum/aereum/core/store"
@@ -84,4 +85,5 @@ func (s *State) IncorporateBlock(b *Block) {
 		s.Audiences.SetKeys(hash, keys)
 	}
 	s.Wallets.Credit(crypto.Hasher(b.Publisher), b.FeesCollected)
+	fmt.Println(len(b.Instructions), b.FeesCollected)
 }

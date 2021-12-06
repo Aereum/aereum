@@ -32,6 +32,9 @@ func TestGeneral(t *testing.T) {
 	if !state.Captions.Exists(crypto.Hasher([]byte("First Member"))) {
 		t.Error("state did not add new caption")
 	}
+	if _, balance := state.Wallets.Balance(crypto.Hasher(token.PublicKey().ToBytes())); balance != 1e6-1 {
+		t.Error("state did not add debit wallet", balance)
+	}
 	block = NewBlock(crypto.Hasher([]byte{}), 0, 2, token.PublicKey().ToBytes(), validator)
 	update := firstAuthor.NewUpdateInfo(jsonString1_new, 12, 10)
 	block.Incorporate(update)
