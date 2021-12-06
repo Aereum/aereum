@@ -36,14 +36,16 @@ func (s *SecureConnection) ReadMessage() ([]byte, error) {
 	if n, err := s.conn.Read(nonce); n != crypto.NonceSize {
 		return nil, err
 	}
-	s.cipherRemote.SetNonce(nonce)
 	lengthBytes := make([]byte, 2)
+	if n, err := s.conn.Read(lengthBytes); n != 2 {
+		return nil, err
+	}
 	lenght := int(lengthBytes[0]) + (int(lengthBytes[1]) << 8)
 	sealedMsg := make([]byte, lenght)
 	if n, err := s.conn.Read(sealedMsg); n != int(lenght) {
 		return nil, err
 	}
-	if msg, err := s.cipherRemote.Open(sealedMsg); err != nil {
+	if msg, err := s.cipherRemote.OpenNewNonce(sealedMsg, nonce); err != nil {
 		return nil, err
 	} else {
 		return msg, nil

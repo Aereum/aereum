@@ -47,8 +47,7 @@ func NewInstructionBroker(
 								peers.Broadcast(message)
 							}
 						}
-
-						broker <- hashInst
+						//broker <- hashInst
 						// if instruction was not received from peer it should be broadcasted
 					}
 				}

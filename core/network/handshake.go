@@ -149,6 +149,7 @@ func PerformServerHandShake(conn net.Conn, prvKey crypto.PrivateKey, validator c
 		conn.Close()
 		return nil, errors.New("not a valid public key")
 	}
+
 	remoteKey, err := crypto.PublicKeyFromBytes(remoteKeyBytes)
 	if err != nil {
 		return nil, err

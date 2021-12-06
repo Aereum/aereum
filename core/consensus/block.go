@@ -92,14 +92,14 @@ func BlockBuilder(checkpoint *Checkpoint, epoch uint64, token crypto.PrivateKey,
 				break
 			}
 			newInstruction, newHash := pool.Unqueue()
-			cache = append(cache, instructionCache{newInstruction, newHash})
 			if newInstruction != nil {
+				cache = append(cache, instructionCache{newInstruction, newHash})
 				communication <- processInstruction{
 					instruction: newInstruction,
 					valid:       valid,
 				}
 				if <-valid {
-					pool.Delete(newHash)
+					cache = cache[0 : len(cache)-1]
 				}
 			}
 		}

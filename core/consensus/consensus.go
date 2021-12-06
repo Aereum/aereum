@@ -57,6 +57,7 @@ func NewCommunication() *Communication {
 		Checkpoint:      make(chan *SignedBlock),
 		Checksum:        make(chan *Checksum),
 		Synchronization: make(chan SyncRequest),
+		ValidateConn:    make(chan ValidatedConnection),
 		Instructions:    make(chan *instructions.HashInstruction),
 	}
 }

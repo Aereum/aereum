@@ -26,6 +26,8 @@ func NewProofOfAtuhority(chain *consensus.BlockChain, token crypto.PrivateKey) *
 				sync.Ok <- false
 			case hashedInst := <-comm.Instructions:
 				pool.Queue(hashedInst.Instruction, hashedInst.Hash)
+			case validate := <-comm.ValidateConn:
+				validate.Ok <- true
 			}
 		}
 	}()
@@ -35,7 +37,7 @@ func NewProofOfAtuhority(chain *consensus.BlockChain, token crypto.PrivateKey) *
 		for {
 			fmt.Println(epoch)
 			nextBlock := time.Now().Add(consensus.IntervalToNewEpoch(epoch, chain.GenesisTime))
-			fmt.Println(nextBlock)
+			//fmt.Println(nextBlock)
 			newBlock := <-consensus.BlockBuilder(chain.GetLastCheckpoint(), epoch, token, nextBlock, pool)
 			chain.CurrentState.IncorporateBlock(newBlock)
 			epoch += 1

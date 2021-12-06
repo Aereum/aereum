@@ -17,6 +17,18 @@ import (
 
 type InstructionNetWork map[crypto.Hash]*SecureConnection
 
+func NewInstructionClient(address string, prv crypto.PrivateKey, rmt crypto.PublicKey) (*SecureConnection, error) {
+	conn, err := net.Dial("tcp", address)
+	if err != nil {
+		return nil, err
+	}
+	secure, err := PerformClientHandShake(conn, prv, rmt)
+	if err != nil {
+		return nil, err
+	}
+	return secure, nil
+}
+
 func NewInstructionNetwork(port int, prvKey crypto.PrivateKey, broker InstructionBroker, validator chan consensus.ValidatedConnection) InstructionNetWork {
 	listener, err := net.Listen("tcp", fmt.Sprintf(":%v", port))
 	network := make(InstructionNetWork)
@@ -40,6 +52,7 @@ func NewInstructionNetwork(port int, prvKey crypto.PrivateKey, broker Instructio
 }
 
 func (net InstructionNetWork) handleMessengerConnection(conn *SecureConnection, broker InstructionBroker) {
+
 	net[conn.hash] = conn
 	for {
 		data, err := conn.ReadMessage()
@@ -51,6 +64,7 @@ func (net InstructionNetWork) handleMessengerConnection(conn *SecureConnection, 
 		hashed := HashedInstructionBytes{msg: data}
 		hashed.hash = crypto.Hasher(data)
 		hashed.epoch = int(instructions.GetEpochFromByteArray(data))
+
 		broker <- &hashed
 	}
 }
