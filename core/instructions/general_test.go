@@ -13,7 +13,8 @@ var (
 
 func TestGeneral(t *testing.T) {
 	state, token := NewGenesisState()
-	if _, balance := state.Wallets.Balance(crypto.Hasher(token.PublicKey().ToBytes())); balance == 0 {
+	_, balance := state.Wallets.Balance(crypto.Hasher(token.PublicKey().ToBytes()))
+	if balance == 0 {
 		t.Error("wrong genesis")
 	}
 	validator := &Validator{State: state}
@@ -21,7 +22,8 @@ func TestGeneral(t *testing.T) {
 	creator := &Author{token: &token}
 	pubKey, prvKey := crypto.RandomAsymetricKey()
 	firstAuthor := &Author{token: &prvKey, wallet: &token}
-	join := creator.NewJoinNetworkThirdParty(pubKey.ToBytes(), "First Member", jsonString1, 1, 1)
+	join_fee := 10
+	join := creator.NewJoinNetworkThirdParty(pubKey.ToBytes(), "First Member", jsonString1, 1, uint64(join_fee))
 	if block.Incorporate(join) != true {
 		t.Error("could not add new member")
 	}
@@ -39,4 +41,14 @@ func TestGeneral(t *testing.T) {
 	update := firstAuthor.NewUpdateInfo(jsonString1_new, 12, 10)
 	block.Incorporate(update)
 	state.IncorporateBlock(block)
+
+	_, new_balance_author := state.Wallets.Balance(crypto.Hasher(creator.token.PublicKey().ToBytes()))
+	if new_balance_author-balance != uint64(join_fee) {
+		t.Error("state did not update creator wallet balance")
+	}
+
+	_, new_balance_firstAuthor := state.Wallets.Balance(crypto.Hasher(firstAuthor.token.PublicKey().ToBytes()))
+	if new_balance_firstAuthor != uint64(0) {
+		t.Error("first author wallet must start with zero aero")
+	}
 }
