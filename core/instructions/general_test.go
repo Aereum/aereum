@@ -36,22 +36,28 @@ func TestGeneral(t *testing.T) {
 	if !state.Captions.Exists(crypto.Hasher([]byte("First Member"))) {
 		t.Error("state did not add new caption")
 	}
-	if _, balance := state.Wallets.Balance(crypto.Hasher(token.PublicKey().ToBytes())); balance != 1e6-1-uint64(joinFee) {
+	if _, balance := state.Wallets.Balance(crypto.Hasher(token.PublicKey().ToBytes())); balance != 1e6-uint64(joinFee) {
 		fmt.Print(balance)
-		t.Error("state did not add debit wallet", balance)
+		t.Error("state did not debit wallet", balance)
 	}
 	block = NewBlock(crypto.Hasher([]byte{}), 0, 2, token.PublicKey().ToBytes(), validator)
 	update := firstAuthor.NewUpdateInfo(jsonString1_new, 12, 10)
 	block.Incorporate(update)
 	state.IncorporateBlock(block)
 
-	_, new_balance_author := state.Wallets.Balance(crypto.Hasher(creator.token.PublicKey().ToBytes()))
-	if new_balance_author-balance != uint64(joinFee) {
-		t.Error("state did not update creator wallet balance")
-	}
+	// _, new_balance_author := state.Wallets.Balance(crypto.Hasher(creator.token.PublicKey().ToBytes()))
+	// if new_balance_author-balance != uint64(joinFee) {
+	// 	t.Error("state did not update creator wallet balance")
+	// }
 
-	_, new_balance_firstAuthor := state.Wallets.Balance(crypto.Hasher(firstAuthor.token.PublicKey().ToBytes()))
-	if new_balance_firstAuthor != uint64(0) {
+	_, balanceFirstAuthor := state.Wallets.Balance(crypto.Hasher(firstAuthor.token.PublicKey().ToBytes()))
+	if balanceFirstAuthor != uint64(0) {
 		t.Error("first author wallet must start with zero aero")
 	}
+
+	_, balanceBlockFormator := state.Wallets.Balance(crypto.Hasher(blockFormationToken.PublicKey().ToBytes()))
+	if balanceBlockFormator != uint64(joinFee) {
+		t.Error("block formator has not received fee")
+	}
+
 }
