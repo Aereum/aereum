@@ -43,7 +43,8 @@ func NewInstructionNetwork(port int, prvKey crypto.PrivateKey, broker Instructio
 				if err != nil {
 					conn.Close()
 				} else {
-					network.handleMessengerConnection(secureConnection, broker)
+					//network.handleMessengerConnection(secureConnection, broker)
+					go InstructionConnectionHandler(secureConnection, broker)
 				}
 			}
 		}
@@ -51,8 +52,22 @@ func NewInstructionNetwork(port int, prvKey crypto.PrivateKey, broker Instructio
 	return network
 }
 
-func (net InstructionNetWork) handleMessengerConnection(conn *SecureConnection, broker InstructionBroker) {
+func InstructionConnectionHandler(conn *SecureConnection, broker InstructionBroker) {
+	for {
+		data, err := conn.ReadMessage()
+		if err != nil {
+			conn.conn.Close()
+			return
+		}
+		hashed := HashedInstructionBytes{msg: data}
+		hashed.hash = crypto.Hasher(data)
+		hashed.epoch = int(instructions.GetEpochFromByteArray(data))
 
+		broker <- &hashed
+	}
+}
+
+func (net InstructionNetWork) handleMessengerConnection(conn *SecureConnection, broker InstructionBroker) {
 	net[conn.hash] = conn
 	for {
 		data, err := conn.ReadMessage()
