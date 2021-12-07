@@ -45,8 +45,8 @@ func (b *BlockChain) GetLastCheckpoint() *Checkpoint {
 	}
 }
 
-func NewGenesisBlockChain() (*BlockChain, crypto.PrivateKey) {
-	state, key := instructions.NewGenesisState()
+func NewGenesisBlockChain(token crypto.PrivateKey) *BlockChain {
+	state := instructions.NewGenesisStateWithToken(token)
 	chain := BlockChain{
 		GenesisTime:     time.Now(),
 		TotalStake:      1000000,
@@ -55,5 +55,5 @@ func NewGenesisBlockChain() (*BlockChain, crypto.PrivateKey) {
 		RecentBlocks:    make(SignedBlocks, 0),
 		CandidateBlocks: make(map[uint64]SignedBlocks),
 	}
-	return &chain, key
+	return &chain
 }

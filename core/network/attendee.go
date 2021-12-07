@@ -13,6 +13,18 @@ type AttendeeNetwork struct {
 	comm      chan *consensus.SignedBlock
 }
 
+func NewAttendeeClient(address string, prv crypto.PrivateKey, rmt crypto.PublicKey) (*SecureConnection, error) {
+	conn, err := net.Dial("tcp", address)
+	if err != nil {
+		return nil, err
+	}
+	secure, err := PerformClientHandShake(conn, prv, rmt)
+	if err != nil {
+		return nil, err
+	}
+	return secure, nil
+}
+
 func NewAttendeeNetwork(port int,
 	prvKey crypto.PrivateKey, comm *consensus.Communication) AttendeeNetwork {
 	listener, err := net.Listen("tcp", fmt.Sprintf(":%v", port))

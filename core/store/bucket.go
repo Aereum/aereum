@@ -21,6 +21,7 @@ package store
 import (
 	"bytes"
 	"encoding/binary"
+	"fmt"
 )
 
 const maxCloningBlockSize = 1 << 20
@@ -150,7 +151,7 @@ func (b *Bucket) ReadBulk(count int64) [][]byte {
 			bItem = 0
 			bucket = bucket.NextBucket()
 			if bucket == nil {
-				panic("could not read enough items")
+				panic(fmt.Sprintf("could not read enough items: %v of %v", count, n))
 			}
 		}
 	}

@@ -132,6 +132,14 @@ func PublicKeyFromBytes(bytes []byte) (PublicKey, error) {
 	return PublicKey{key: key}, nil
 }
 
+func PrivateKeyFromBytes(bytes []byte) (PrivateKey, error) {
+	key, err := x509.ParsePKCS1PrivateKey(bytes)
+	if err != nil {
+		return PrivateKey{}, err
+	}
+	return PrivateKey{key: key}, nil
+}
+
 func (p PrivateKey) ToBytes() []byte {
 	return x509.MarshalPKCS1PrivateKey(p.key)
 }

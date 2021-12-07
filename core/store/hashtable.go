@@ -161,13 +161,13 @@ func (ws *HashStore) findAndOperate(q Query) QueryResult {
 			countAccounts += 1
 			if countAccounts > int(totalAccounts) {
 				resp := ws.operation(false, q.hash, bucket, item, q.param)
-				ws.ProcessMutation(hashMask, resp.added, resp.deleted, countAccounts)
+				wallet.ProcessMutation(hashMask, resp.added, resp.deleted, countAccounts) // ws -> wallet
 				return resp.result
 			}
 			data := bucket.ReadItem(item)
 			if q.hash.Equals(data) {
 				resp := ws.operation(true, q.hash, bucket, item, q.param)
-				ws.ProcessMutation(hashMask, resp.added, resp.deleted, countAccounts)
+				wallet.ProcessMutation(hashMask, resp.added, resp.deleted, countAccounts) // ws -> walltet
 				return resp.result
 			}
 		}
@@ -189,7 +189,7 @@ func (ws *HashStore) ProcessMutation(hashMask int64, added *Item, deleted *Item,
 				added.bucket.AppendOverflow()
 			}
 		}
-		if (ws.store.bucketCount > 2*int64(1<<ws.bitsForBucket)) && !ws.store.isCloning {
+		if (ws.store.bucketCount > 2*int64(1<<ws.bitsForBucket)) && !ws.store.isCloning && !ws.isDoubling {
 			ws.startDuplication()
 		}
 	}
@@ -249,7 +249,6 @@ func (w *HashStore) transferBuckets(starting, N int64) {
 }
 
 func (w *HashStore) continueDuplication(bucket int64) {
-	fmt.Println("continue duplication")
 	//for bucket := int64(0); bucket < 1<<w.bitsForBucket; bucket += NBuckets {
 	if bucket+NBuckets > 1<<w.bitsForBucket {
 		w.transferBuckets(bucket, 1<<w.bitsForBucket-bucket)
@@ -263,7 +262,6 @@ func (w *HashStore) continueDuplication(bucket int64) {
 			w.doubleJob <- bucket + NBuckets
 		}()
 	} else {
-		fmt.Println("end duplication")
 		// task completed merge stores
 		w.store.bytes.Merge(w.newHashStore.store.bytes)
 		w.bitsForBucket = w.newHashStore.bitsForBucket
@@ -279,7 +277,6 @@ func (w *HashStore) continueDuplication(bucket int64) {
 }
 
 func (w *HashStore) startDuplication() {
-	fmt.Println("start duplication")
 	w.isDoubling = true
 	newStoreBitsForBucket := int64(w.bitsForBucket + 1)
 	newStoreInitialBuckets := int64(1 << newStoreBitsForBucket)

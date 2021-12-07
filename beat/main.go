@@ -2,6 +2,9 @@ package main
 
 import (
 	"fmt"
+	"io"
+	"log"
+	"os"
 	"time"
 
 	"github.com/Aereum/aereum/core/crypto"
@@ -14,8 +17,51 @@ import (
 
 func main() {
 
-	chain, token := consensus.NewGenesisBlockChain()
+	var token crypto.PrivateKey
+	generate := false
+	total := 50000
+	var data []byte
 
+	if generate {
+		file, err := os.Create("teste.dat")
+		if err != nil {
+			log.Fatal(err)
+		}
+		_, token = crypto.RandomAsymetricKey()
+		data := make([]byte, 0)
+		instructions.PutByteArray(token.ToBytes(), &data)
+		for n := 0; n < total; n++ {
+			_, authors := crypto.RandomAsymetricKey()
+			inst := instructions.NewSingleReciepientTransfer(token, authors.PublicKey().ToBytes(), "whatever", 10, 1, 10)
+			instructions.PutByteArray(inst.Serialize(), &data)
+		}
+		if n, err := file.Write(data); n != len(data) || err != nil {
+			file.Close()
+			log.Fatal(err)
+		}
+	}
+	file, err := os.Open("teste.dat")
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer file.Close()
+	data, err = io.ReadAll(file)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	position := 0
+	bytes, position := instructions.ParseByteArray(data, position)
+	token, err = crypto.PrivateKeyFromBytes(bytes)
+	if err != nil {
+		log.Fatal(err)
+	}
+	createMsg := make([][]byte, 50000)
+	for n := 0; n < len(createMsg); n++ {
+		createMsg[n], position = instructions.ParseByteArray(data, position)
+	}
+
+	chain := consensus.NewGenesisBlockChain(token)
 	consensus := authority.NewProofOfAtuhority(chain, token)
 	network.NewNode(token, make(map[crypto.PublicKey]string), consensus, 0)
 	conns := make([]*network.SecureConnection, 10)
@@ -27,13 +73,6 @@ func main() {
 		if err != nil {
 			panic(err)
 		}
-	}
-
-	createMsg := make([][]byte, 50000)
-	for n := 0; n < len(createMsg); n++ {
-		_, authors := crypto.RandomAsymetricKey()
-		inst := instructions.NewSingleReciepientTransfer(token, authors.PublicKey().ToBytes(), "whatever", 10, 1, 10)
-		createMsg[n] = inst.Serialize()
 	}
 
 	//conn, err := network.NewInstructionClient(":7802", token, token.PublicKey())
