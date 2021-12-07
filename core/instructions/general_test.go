@@ -58,13 +58,13 @@ func TestGeneral(t *testing.T) {
 	}
 
 	// BLOCK 2
-	block = NewBlock(crypto.Hasher([]byte{}), 1, 2, token.PublicKey().ToBytes(), validator)
+	block = NewBlock(crypto.Hasher([]byte{}), 1, 2, blockFormationToken.PublicKey().ToBytes(), validator)
 	count := 1
 
 	// Join Network - Second member, sent by first member
-	_, wallet2 := crypto.RandomAsymetricKey()
+	//_, wallet2 := crypto.RandomAsymetricKey()
 	pubKey2, prvKey2 := crypto.RandomAsymetricKey()
-	secondAuthor := &Author{token: &prvKey2, wallet: &wallet2} // estou colocando a wallet da eve pra todo mundo
+	secondAuthor := &Author{token: &prvKey2, wallet: &token} // estou colocando a wallet da eve pra todo mundo
 	join2 := secondAuthor.NewJoinNetwork("Second Member", jsonString1, 2, uint64(joinFee))
 	if block.Incorporate(join2) != true {
 		t.Error("could not add second member")
@@ -72,9 +72,9 @@ func TestGeneral(t *testing.T) {
 	count = count + 1
 
 	// Join Network - Third member, sent by first member
-	_, wallet3 := crypto.RandomAsymetricKey()
-	pubKey3, prvKey3 := crypto.RandomAsymetricKey()
-	thirdAuthor := &Author{token: &prvKey3, wallet: &wallet3} // estou colocando a wallet da eve pra todo mundo
+	//_, wallet3 := crypto.RandomAsymetricKey()
+	_, prvKey3 := crypto.RandomAsymetricKey()
+	thirdAuthor := &Author{token: &prvKey3, wallet: &token} // estou colocando a wallet da eve pra todo mundo
 	join3 := thirdAuthor.NewJoinNetwork("Third Member", jsonString1, 2, uint64(joinFee))
 	if block.Incorporate(join3) != true {
 		t.Error("could not add third member")
@@ -83,23 +83,31 @@ func TestGeneral(t *testing.T) {
 
 	// First author update info
 	update := firstAuthor.NewUpdateInfo(jsonString1_new, 2, uint64(joinFee))
-	block.Incorporate(update)
+	if !block.Incorporate(update) {
+		t.Error("could not add update")
+	}
 	count = count + 1
 
 	// Create audience
 	audienceTest := NewAudience()
 	createAudience := firstAuthor.NewCreateAudience(audienceTest, 1, "first audience", 2, uint64(joinFee))
-	block.Incorporate(createAudience)
+	if !block.Incorporate(createAudience) {
+		t.Error("could not add create audience")
+	}
 	count = count + 1
 
 	// Transfer from eve to first member
-	transfer := NewSingleReciepientTransfer(*eve.token, secondAuthor.token.ToBytes(), "first transfer", 100, 2, uint64(joinFee))
-	block.Incorporate(transfer)
+	transfer := NewSingleReciepientTransfer(*eve.token, secondAuthor.token.PublicKey().ToBytes(), "first transfer", 100, 2, uint64(joinFee))
+	if !block.Incorporate(transfer) {
+		t.Error("could not add transfer")
+	}
 	count = count + 1
 
 	// Power of attorney
-	poa := firstAuthor.NewGrantPowerOfAttorney(pubKey3.ToBytes(), 2, uint64(joinFee))
-	block.Incorporate(poa)
+	poa := firstAuthor.NewGrantPowerOfAttorney(token.PublicKey().ToBytes(), 2, uint64(joinFee))
+	if !block.Incorporate(poa) {
+		t.Error("could not add poa")
+	}
 	count = count + 1
 
 	// Block incorporation and balance checks
