@@ -19,7 +19,7 @@ func main() {
 
 	var token crypto.PrivateKey
 	generate := false
-	total := 50000
+	total := 100000
 	var data []byte
 
 	if generate {
@@ -56,7 +56,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	createMsg := make([][]byte, 50000)
+	createMsg := make([][]byte, total)
 	for n := 0; n < len(createMsg); n++ {
 		createMsg[n], position = instructions.ParseByteArray(data, position)
 	}
@@ -65,7 +65,6 @@ func main() {
 	consensus := authority.NewProofOfAtuhority(chain, token)
 	network.NewNode(token, make(map[crypto.PublicKey]string), consensus, 0)
 	conns := make([]*network.SecureConnection, 10)
-
 	for n := 0; n < 10; n++ {
 		var err error
 		time.Sleep(time.Millisecond)
@@ -74,12 +73,6 @@ func main() {
 			panic(err)
 		}
 	}
-
-	//conn, err := network.NewInstructionClient(":7802", token, token.PublicKey())
-	//if err != nil {
-	//	panic(err)
-	//}
-
 	ww := time.NewTicker(4 * time.Second)
 	for n := 0; n < len(createMsg); n++ {
 		time.Sleep(time.Microsecond)
