@@ -13,18 +13,24 @@ var (
 )
 
 func TestGeneral(t *testing.T) {
+
 	state, token := NewGenesisState()
 	_, balance := state.Wallets.Balance(crypto.Hasher(token.PublicKey().ToBytes()))
 	if balance == 0 {
 		t.Error("wrong genesis")
 	}
+
 	validator := &Validator{State: state}
 	_, blockFormationToken := crypto.RandomAsymetricKey()
+
+	// First Block
 	block := NewBlock(crypto.Hasher([]byte{}), 0, 1, blockFormationToken.PublicKey().ToBytes(), validator)
 	creator := &Author{token: &token}
 	pubKey, prvKey := crypto.RandomAsymetricKey()
 	firstAuthor := &Author{token: &prvKey, wallet: &token}
 	joinFee := 10
+
+	// Join Network
 	join := creator.NewJoinNetworkThirdParty(pubKey.ToBytes(), "First Member", jsonString1, 1, uint64(joinFee))
 	if block.Incorporate(join) != true {
 		t.Error("could not add new member")
@@ -40,15 +46,6 @@ func TestGeneral(t *testing.T) {
 		fmt.Print(balance)
 		t.Error("state did not debit wallet", balance)
 	}
-	block = NewBlock(crypto.Hasher([]byte{}), 0, 2, token.PublicKey().ToBytes(), validator)
-	update := firstAuthor.NewUpdateInfo(jsonString1_new, 12, 10)
-	block.Incorporate(update)
-	state.IncorporateBlock(block)
-
-	// _, new_balance_author := state.Wallets.Balance(crypto.Hasher(creator.token.PublicKey().ToBytes()))
-	// if new_balance_author-balance != uint64(joinFee) {
-	// 	t.Error("state did not update creator wallet balance")
-	// }
 
 	_, balanceFirstAuthor := state.Wallets.Balance(crypto.Hasher(firstAuthor.token.PublicKey().ToBytes()))
 	if balanceFirstAuthor != uint64(0) {
@@ -60,4 +57,36 @@ func TestGeneral(t *testing.T) {
 		t.Error("block formator has not received fee")
 	}
 
+	// Second member Network instruction sent by first member
+	_, prvKey2 := crypto.RandomAsymetricKey()
+	secondAuthor := &Author{token: &prvKey2, wallet: &token}
+	join2 := secondAuthor.NewJoinNetwork("Second Member", jsonString1, 1, uint64(joinFee))
+	if block.Incorporate(join2) != true {
+		t.Error("could not add new member")
+	}
+
+	// Second Block
+	block = NewBlock(crypto.Hasher([]byte{}), 0, 2, token.PublicKey().ToBytes(), validator)
+
+	update := firstAuthor.NewUpdateInfo(jsonString1_new, 12, 10)
+	block.Incorporate(update)
+	state.IncorporateBlock(block)
+
+	// First author update info
+	firstAuthor.NewUpdateInfo(jsonString1_new, 1, uint64(joinFee))
+
+	// Create audience
+	var (
+		audienceTest *Audience = NewAudience()
+	)
+	firstAuthor.NewCreateAudience(audienceTest, 1, "first audience", 2, uint64(joinFee))
+
+	// Join audience
+	secondAuthor.NewJoinAudience(audienceTest.token.ToBytes(), "first audience member", 2, uint64(joinFee))
+
+	// Accept join audience
+	firstAuthor.NewAcceptJoinAudience(audienceTest, secondAuthor.token.PublicKey(), 2, 2, uint64(joinFee))
+
+	// Content
+	// firstAuthor.NewContent(audienceTest, "text", PutString("first post"), 1, 1, 2, uint64(joinFee))
 }
