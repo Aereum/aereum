@@ -24,27 +24,37 @@ func TestGeneral(t *testing.T) {
 	_, blockFormationToken := crypto.RandomAsymetricKey()
 
 	// BLOCK 1
+
+	// Starting block
 	block := NewBlock(crypto.Hasher([]byte{}), 0, 1, blockFormationToken.PublicKey().ToBytes(), validator)
 	eve := &Author{token: &token}
-	pubKey1, prvKey1 := crypto.RandomAsymetricKey()
-	firstAuthor := &Author{token: &prvKey1, wallet: &token}
 	joinFee := 10
+	eveSpent := 0
+	count := 0
 
-	// Join Network
-	join := eve.NewJoinNetworkThirdParty(pubKey1.ToBytes(), "First Member", jsonString1, 1, uint64(joinFee))
+	// First member crypto data
+	pubKey1, prvKey1 := crypto.RandomAsymetricKey()
+	_, prvWal1 := crypto.RandomAsymetricKey()
+	firstAuthor := &Author{token: &prvKey1, wallet: &prvWal1}
+	firstBalance := 0
+
+	// Join Network sent by eve (pq nao posso usar join network normal?)
+	join := eve.NewJoinNetworkThirdParty(pubKey1.ToBytes(), "member1", jsonString1, 1, uint64(joinFee))
 	if block.Incorporate(join) != true {
 		t.Error("could not add new member")
 	}
+	eveSpent = eveSpent + joinFee
+	count = count + 1
 
-	// Block incorporation and balance checks
+	// Block 1 incorporation and balance checks
 	state.IncorporateBlock(block)
 	if !state.Members.Exists(crypto.Hasher(pubKey1.ToBytes())) {
 		t.Error("state did not add new member")
 	}
-	if !state.Captions.Exists(crypto.Hasher([]byte("First Member"))) {
-		t.Error("state did not add new caption")
+	if !state.Captions.Exists(crypto.Hasher([]byte("member1"))) {
+		t.Error("state did not add new member caption")
 	}
-	if _, balance := state.Wallets.Balance(crypto.Hasher(token.PublicKey().ToBytes())); balance != 1e6-uint64(joinFee) {
+	if _, balance := state.Wallets.Balance(crypto.Hasher(token.PublicKey().ToBytes())); balance != 1e6-uint64(eveSpent) {
 		fmt.Print(balance)
 		t.Error("state did not debit wallet", balance)
 	}
@@ -53,78 +63,77 @@ func TestGeneral(t *testing.T) {
 		t.Error("first author wallet must start with zero aero")
 	}
 	_, balanceBlockFormator := state.Wallets.Balance(crypto.Hasher(blockFormationToken.PublicKey().ToBytes()))
-	if balanceBlockFormator != uint64(joinFee) {
+	if balanceBlockFormator != uint64(count*joinFee) {
 		t.Error("block formator has not received fee")
 	}
 
 	// BLOCK 2
 	block = NewBlock(crypto.Hasher([]byte{}), 1, 2, blockFormationToken.PublicKey().ToBytes(), validator)
-	count := 1
-
-	// Join Network - Second member, sent by first member
-	//_, wallet2 := crypto.RandomAsymetricKey()
-	pubKey2, prvKey2 := crypto.RandomAsymetricKey()
-	secondAuthor := &Author{token: &prvKey2, wallet: &token} // estou colocando a wallet da eve pra todo mundo
-	join2 := secondAuthor.NewJoinNetwork("Second Member", jsonString1, 2, uint64(joinFee))
-	if block.Incorporate(join2) != true {
-		t.Error("could not add second member")
-	}
-	count = count + 1
-
-	// Join Network - Third member, sent by first member
-	//_, wallet3 := crypto.RandomAsymetricKey()
-	_, prvKey3 := crypto.RandomAsymetricKey()
-	thirdAuthor := &Author{token: &prvKey3, wallet: &token} // estou colocando a wallet da eve pra todo mundo
-	join3 := thirdAuthor.NewJoinNetwork("Third Member", jsonString1, 2, uint64(joinFee))
-	if block.Incorporate(join3) != true {
-		t.Error("could not add third member")
-	}
-	count = count + 1
-
-	// First author update info
-	update := firstAuthor.NewUpdateInfo(jsonString1_new, 2, uint64(joinFee))
-	if !block.Incorporate(update) {
-		t.Error("could not add update")
-	}
-	count = count + 1
-
-	// Create audience
-	audienceTest := NewAudience()
-	createAudience := firstAuthor.NewCreateAudience(audienceTest, 1, "first audience", 2, uint64(joinFee))
-	if !block.Incorporate(createAudience) {
-		t.Error("could not add create audience")
-	}
-	count = count + 1
 
 	// Transfer from eve to first member
-	transfer := NewSingleReciepientTransfer(*eve.token, secondAuthor.token.PublicKey().ToBytes(), "first transfer", 100, 2, uint64(joinFee))
+	transfer := NewSingleReciepientTransfer(*eve.token, firstAuthor.token.PublicKey().ToBytes(), "first transfer", 100, 2, uint64(joinFee))
 	if !block.Incorporate(transfer) {
 		t.Error("could not add transfer")
 	}
+	firstBalance = firstBalance + 100
+	eveSpent = eveSpent + 100 + joinFee
 	count = count + 1
 
-	// Power of attorney
-	poa := firstAuthor.NewGrantPowerOfAttorney(token.PublicKey().ToBytes(), 2, uint64(joinFee))
-	if !block.Incorporate(poa) {
-		t.Error("could not add poa")
+	// Join Network - Second member, sent by eve
+	pubKey2, prvKey2 := crypto.RandomAsymetricKey()
+	_, prvWal2 := crypto.RandomAsymetricKey()
+	secondAuthor := &Author{token: &prvKey2, wallet: &prvWal2}
+	secondBalance := 0
+	join2 := eve.NewJoinNetworkThirdParty(pubKey2.ToBytes(), "member2", jsonString1, 2, uint64(joinFee))
+	// join2 := eve.NewJoinNetwork("member2", jsonString1, 2, uint64(joinFee))
+	if block.Incorporate(join2) != true {
+		t.Error("could not add member2")
 	}
+	eveSpent = eveSpent + joinFee
 	count = count + 1
 
-	// Block incorporation and balance checks
+	// Join Network - Third member, sent by member1
+	pubKey3, prvKey3 := crypto.RandomAsymetricKey()
+	_, prvWal3 := crypto.RandomAsymetricKey()
+	thirdAuthor := &Author{token: &prvKey3, wallet: &prvWal3}
+	thirdBalance := 0
+	join3 := eve.NewJoinNetworkThirdParty(pubKey3.ToBytes(), "member3", jsonString1, 2, uint64(joinFee))
+	// join3 := firstAuthor.NewJoinNetwork("member3", jsonString1, 2, uint64(joinFee))
+	if block.Incorporate(join3) != true {
+		t.Error("could not add member3")
+	}
+	eveSpent = eveSpent + joinFee
+	count = count + 1
+
+	// First author update info
+	update := eve.NewUpdateInfo(jsonString1_new, 2, uint64(joinFee))
+	if !block.Incorporate(update) {
+		t.Error("could not add update")
+	}
+	eveSpent = eveSpent + joinFee
+	count = count + 1
+
+	// Block 2 incorporation and balance checks
 	state.IncorporateBlock(block)
 	if !state.Members.Exists(crypto.Hasher(pubKey2.ToBytes())) {
 		t.Error("state did not add second member")
 	}
-	if !state.Captions.Exists(crypto.Hasher([]byte("Second Member"))) {
+	if !state.Captions.Exists(crypto.Hasher([]byte("member2"))) {
 		t.Error("state did not add second member caption")
 	}
-	if _, balance := state.Wallets.Balance(crypto.Hasher(token.PublicKey().ToBytes())); balance != 1e6-uint64(count*joinFee-100) {
+	if !state.Members.Exists(crypto.Hasher(pubKey3.ToBytes())) {
+		t.Error("state did not add third member")
+	}
+	if !state.Captions.Exists(crypto.Hasher([]byte("member3"))) {
+		t.Error("state did not add third member caption")
+	}
+	if _, balance := state.Wallets.Balance(crypto.Hasher(token.PublicKey().ToBytes())); balance != 1e6-uint64(eveSpent) {
 		fmt.Print(balance)
 		t.Error("state did not debit wallet", balance)
 	}
-	_, balanceFirstAuthor = state.Wallets.Balance(crypto.Hasher(secondAuthor.token.PublicKey().ToBytes()))
-	if balanceFirstAuthor != uint64(100) {
-		t.Error("first author did not receive transfer")
+	_, balanceFirstAuthor = state.Wallets.Balance(crypto.Hasher(firstAuthor.token.PublicKey().ToBytes()))
+	if balanceFirstAuthor != uint64(firstBalance) {
+		t.Error("first author did not receive eve transfer")
 	}
 	_, balanceBlockFormator = state.Wallets.Balance(crypto.Hasher(blockFormationToken.PublicKey().ToBytes()))
 	if balanceBlockFormator != uint64(count*joinFee) {
@@ -132,15 +141,172 @@ func TestGeneral(t *testing.T) {
 	}
 
 	// BLOCK 3
+	block = NewBlock(crypto.Hasher([]byte{}), 2, 3, blockFormationToken.PublicKey().ToBytes(), validator)
 
-	// Join audience
-	joinAudience := secondAuthor.NewJoinAudience(audienceTest.token.ToBytes(), "first audience member", 2, uint64(joinFee))
-	block.Incorporate(joinAudience)
+	// Transfer from eve to second member
+	transfer = NewSingleReciepientTransfer(*eve.token, secondAuthor.token.PublicKey().ToBytes(), "second transfer", 100, 3, uint64(joinFee))
+	if !block.Incorporate(transfer) {
+		t.Error("could not add second transfer")
+	}
+	secondBalance = secondBalance + 100
+	eveSpent = eveSpent + 100 + joinFee
 	count = count + 1
 
-	// Accept join audience
-	firstAuthor.NewAcceptJoinAudience(audienceTest, secondAuthor.token.PublicKey(), 2, 2, uint64(joinFee))
+	// Transfer from eve to third member
+	transfer = NewSingleReciepientTransfer(*eve.token, thirdAuthor.token.PublicKey().ToBytes(), "third transfer", 100, 3, uint64(joinFee))
+	if !block.Incorporate(transfer) {
+		t.Error("could not add third transfer")
+	}
+	thirdBalance = thirdBalance + 100
+	eveSpent = eveSpent + 100 + joinFee
+	count = count + 1
+
+	// Create audience
+	audienceTest := NewAudience()
+	createAudience := firstAuthor.NewCreateAudience(audienceTest, 1, "first audience", 3, uint64(joinFee))
+	if !block.Incorporate(createAudience) {
+		t.Error("could not add create audience")
+	}
+	count = count + 1
+	firstBalance = firstBalance - joinFee
+
+	// Power of attorney sent by first author with third author as attorney
+	poa := firstAuthor.NewGrantPowerOfAttorney(thirdAuthor.token.PublicKey().ToBytes(), 3, uint64(joinFee))
+	if !block.Incorporate(poa) {
+		t.Error("could not add poa")
+	}
+	count = count + 1
+	firstBalance = firstBalance - joinFee
+
+	// Block 3 incorporation and balance checks
+	state.IncorporateBlock(block)
+	if !state.Audiences.Exists(crypto.Hasher(audienceTest.token.ToBytes())) {
+		t.Error("state did not create audience")
+	}
+	if !state.PowerOfAttorney.Exists(crypto.Hasher(firstAuthor.attorney.ToBytes())) {
+		t.Error("power of attorney was not granted") // acho que ainda preciso checar se bate com o pubkey3
+	}
+	if _, balance := state.Wallets.Balance(crypto.Hasher(token.PublicKey().ToBytes())); balance != 1e6-uint64(eveSpent) {
+		fmt.Print(balance)
+		t.Error("state did not debit wallet", balance)
+	}
+	_, balanceFirstAuthor = state.Wallets.Balance(crypto.Hasher(firstAuthor.token.PublicKey().ToBytes()))
+	if balanceFirstAuthor != uint64(firstBalance) {
+		t.Error("first author did not spent on instructions")
+	}
+	_, balanceSecondAuthor := state.Wallets.Balance(crypto.Hasher(secondAuthor.token.PublicKey().ToBytes()))
+	if balanceSecondAuthor != uint64(secondBalance) {
+		t.Error("second author did not receive transfer")
+	}
+	_, balanceThirdAuthor := state.Wallets.Balance(crypto.Hasher(thirdAuthor.token.PublicKey().ToBytes()))
+	if balanceThirdAuthor != uint64(thirdBalance) {
+		t.Error("third author did not receive transfer")
+	}
+	_, balanceBlockFormator = state.Wallets.Balance(crypto.Hasher(blockFormationToken.PublicKey().ToBytes()))
+	if balanceBlockFormator != uint64(count*joinFee) {
+		t.Error("block formator has not received fee for processed instructions")
+	}
+
+	// BLOCK 4
+	block = NewBlock(crypto.Hasher([]byte{}), 3, 4, blockFormationToken.PublicKey().ToBytes(), validator)
+
+	// Join audience sent by second member
+	joinAudience := secondAuthor.NewJoinAudience(audienceTest.token.ToBytes(), "first audience member", 4, uint64(joinFee))
+	block.Incorporate(joinAudience)
+	if !block.Incorporate(joinAudience) {
+		t.Error("could not send join audience instruction")
+	}
+	secondBalance = secondBalance - joinFee
+	count = count + 1
 
 	// Content
-	firstAuthor.NewContent(audienceTest, "text", []byte("first content"), true, true, 2, uint64(joinFee))
+	content := firstAuthor.NewContent(audienceTest, "text", []byte("first content"), true, true, 4, uint64(joinFee))
+	block.Incorporate(content)
+	if !block.Incorporate(content) {
+		t.Error("could not publish content to audience")
+	}
+	secondBalance = secondBalance - joinFee
+	count = count + 1
+
+	// Sponsorship Offer
+	sponsorOffer := thirdAuthor.NewSponsorshipOffer(audienceTest, "txt", []byte("sponsor"), 2, 20, 4, uint64(joinFee))
+	block.Incorporate(sponsorOffer)
+	if !block.Incorporate(sponsorOffer) {
+		t.Error("could not publish sponsor offer to audience")
+	}
+	thirdBalance = thirdBalance - joinFee
+	count = count + 1
+
+	// Block 4 incorporation and balance checks
+	state.IncorporateBlock(block)
+	// if !state.Audiences.(crypto.Hasher(audienceTest.token.ToBytes())) { // Nao sei como checar se o join request da audience chegou
+	// 	t.Error("state did not create audience")
+	// }
+	// COMO CHECAR SPONSOR OFFER
+	// if !state.SponsorOffers.Exists(crypto.Hasher(sponsorOffer.Serialize())) {
+	// 	t.Error("sponsor offer was not incorporated") // acho que ainda preciso checar se bate com o pubkey3
+	// }
+	if _, balance := state.Wallets.Balance(crypto.Hasher(token.PublicKey().ToBytes())); balance != 1e6-uint64(eveSpent) {
+		fmt.Print(balance)
+		t.Error("state did not debit wallet", balance)
+	}
+	_, balanceFirstAuthor = state.Wallets.Balance(crypto.Hasher(firstAuthor.token.PublicKey().ToBytes()))
+	if balanceFirstAuthor != uint64(firstBalance) {
+		t.Error("first author did not spent on instructions")
+	}
+	_, balanceSecondAuthor = state.Wallets.Balance(crypto.Hasher(secondAuthor.token.PublicKey().ToBytes()))
+	if balanceSecondAuthor != uint64(secondBalance) {
+		t.Error("second author did not receive transfer")
+	}
+	_, balanceThirdAuthor = state.Wallets.Balance(crypto.Hasher(thirdAuthor.token.PublicKey().ToBytes()))
+	if balanceThirdAuthor != uint64(thirdBalance) {
+		t.Error("third author did not receive transfer")
+	}
+	_, balanceBlockFormator = state.Wallets.Balance(crypto.Hasher(blockFormationToken.PublicKey().ToBytes()))
+	if balanceBlockFormator != uint64(count*joinFee) {
+		t.Error("block formator has not received fee for processed instructions")
+	}
+
+	// BLOCK 5
+	block = NewBlock(crypto.Hasher([]byte{}), 4, 5, blockFormationToken.PublicKey().ToBytes(), validator)
+
+	// Accept join audience
+	acceptJoin := thirdAuthor.NewAcceptJoinAudience(audienceTest, secondAuthor.token.PublicKey(), 2, 2, uint64(joinFee))
+	block.Incorporate(acceptJoin)
+	if !block.Incorporate(acceptJoin) {
+		t.Error("could not accept join request to audience")
+	}
+	firstBalance = firstBalance - joinFee // attorney esta enviando em nome de member1, porem quem paga eh member1
+	count = count + 1
+
+	sponsordAccept := thirdAuthor.NewSponsorshipAcceptance(audienceTest, sponsorOffer, 5, uint64(joinFee))
+	block.Incorporate(sponsordAccept)
+	if !block.Incorporate(sponsordAccept) {
+		t.Error("could not accept join request to audience")
+	}
+	firstBalance = firstBalance - joinFee
+	count = count + 1
+
+	state.IncorporateBlock(block)
+	if _, balance := state.Wallets.Balance(crypto.Hasher(token.PublicKey().ToBytes())); balance != 1e6-uint64(eveSpent) {
+		fmt.Print(balance)
+		t.Error("state did not debit wallet", balance)
+	}
+	_, balanceFirstAuthor = state.Wallets.Balance(crypto.Hasher(firstAuthor.token.PublicKey().ToBytes()))
+	if balanceFirstAuthor != uint64(firstBalance) {
+		t.Error("first author did not spent on instructions")
+	}
+	_, balanceSecondAuthor = state.Wallets.Balance(crypto.Hasher(secondAuthor.token.PublicKey().ToBytes()))
+	if balanceSecondAuthor != uint64(secondBalance) {
+		t.Error("second author did not receive transfer")
+	}
+	_, balanceThirdAuthor = state.Wallets.Balance(crypto.Hasher(thirdAuthor.token.PublicKey().ToBytes()))
+	if balanceThirdAuthor != uint64(thirdBalance) {
+		t.Error("third author did not receive transfer")
+	}
+	_, balanceBlockFormator = state.Wallets.Balance(crypto.Hasher(blockFormationToken.PublicKey().ToBytes()))
+	if balanceBlockFormator != uint64(count*joinFee) {
+		t.Error("block formator has not received fee for processed instructions")
+	}
+
 }
