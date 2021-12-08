@@ -5,6 +5,7 @@ import (
 	"log"
 
 	"github.com/Aereum/aereum/core/crypto"
+	"github.com/Aereum/aereum/core/instructions"
 	"github.com/Aereum/aereum/core/network"
 )
 
@@ -31,6 +32,11 @@ func main() {
 		if err != nil {
 			log.Fatal("connection error")
 		}
-		fmt.Print(len(data))
+		block := instructions.ParseBlock(data)
+		if block != nil {
+			fmt.Println(block.JSONSimple())
+		} else {
+			fmt.Println(".....")
+		}
 	}
 }
