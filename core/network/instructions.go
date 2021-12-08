@@ -66,20 +66,3 @@ func InstructionConnectionHandler(conn *SecureConnection, broker InstructionBrok
 		broker <- &hashed
 	}
 }
-
-func (net InstructionNetWork) handleMessengerConnection(conn *SecureConnection, broker InstructionBroker) {
-	net[conn.hash] = conn
-	for {
-		data, err := conn.ReadMessage()
-		if err != nil {
-			conn.conn.Close()
-			delete(net, conn.hash)
-			return
-		}
-		hashed := HashedInstructionBytes{msg: data}
-		hashed.hash = crypto.Hasher(data)
-		hashed.epoch = int(instructions.GetEpochFromByteArray(data))
-
-		broker <- &hashed
-	}
-}

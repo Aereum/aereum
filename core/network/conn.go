@@ -20,10 +20,10 @@ type SecureConnection struct {
 
 func (s *SecureConnection) WriteMessage(msg []byte) error {
 	sealed, nonce := s.cipher.SealWithNewNonce(msg)
-	if len(sealed) > 1<<16-1 {
+	if len(sealed) > 1<<32-1 {
 		return errMessageTooLarge
 	}
-	msgToSend := append(nonce, byte(len(sealed)), byte(len(sealed)>>8))
+	msgToSend := append(nonce, byte(len(sealed)), byte(len(sealed)>>8), byte(len(sealed)>>16), byte(len(sealed)>>24))
 	msgToSend = append(msgToSend, sealed...)
 	if n, err := s.conn.Write(msgToSend); n != len(sealed) {
 		return err
@@ -36,11 +36,11 @@ func (s *SecureConnection) ReadMessage() ([]byte, error) {
 	if n, err := s.conn.Read(nonce); n != crypto.NonceSize {
 		return nil, err
 	}
-	lengthBytes := make([]byte, 2)
-	if n, err := s.conn.Read(lengthBytes); n != 2 {
+	lengthBytes := make([]byte, 4)
+	if n, err := s.conn.Read(lengthBytes); n != 4 {
 		return nil, err
 	}
-	lenght := int(lengthBytes[0]) + (int(lengthBytes[1]) << 8)
+	lenght := int(lengthBytes[0]) + (int(lengthBytes[1]) << 8) + (int(lengthBytes[2]) << 16) + (int(lengthBytes[3]) << 24)
 	sealedMsg := make([]byte, lenght)
 	if n, err := s.conn.Read(sealedMsg); n != int(lenght) {
 		return nil, err

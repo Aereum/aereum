@@ -1,6 +1,8 @@
 package network
 
 import (
+	"fmt"
+
 	"github.com/Aereum/aereum/core/consensus"
 	"github.com/Aereum/aereum/core/crypto"
 	"github.com/Aereum/aereum/core/instructions"
@@ -34,7 +36,7 @@ func NewInstructionBroker(
 		for {
 			select {
 			case hashInst := <-broker:
-				if deltaEpoch := int(hashInst.epoch) - currentEpoch; deltaEpoch < 100 && deltaEpoch > 0 {
+				if deltaEpoch := currentEpoch - int(hashInst.epoch); deltaEpoch < 100 && deltaEpoch >= 0 {
 					if _, exists := recentHashes[deltaEpoch][hashInst.hash]; !exists {
 						recentHashes[deltaEpoch][hashInst.hash] = struct{}{}
 						if instruction := instructions.ParseInstruction(hashInst.msg); instruction != nil {
@@ -54,10 +56,11 @@ func NewInstructionBroker(
 			case newEpoch := <-newBlockSignal:
 				deltaEpoch := int(newEpoch) - currentEpoch
 				if deltaEpoch != 1 {
-					panic("TODO: decide what to do...")
+					panic(fmt.Sprintf("TODO: decide what to do... %v, %v", newEpoch, currentEpoch))
 				}
 				recentHashes = append(recentHashes[1:], make(map[crypto.Hash]struct{}))
 				currentEpoch = int(newEpoch)
+				fmt.Printf("current epoch: %v\n", currentEpoch)
 			}
 		}
 	}()

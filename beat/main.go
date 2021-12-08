@@ -19,7 +19,7 @@ func main() {
 
 	var token crypto.PrivateKey
 	generate := false
-	total := 100000
+	total := 10000
 	var data []byte
 
 	if generate {
@@ -53,6 +53,7 @@ func main() {
 	position := 0
 	bytes, position := instructions.ParseByteArray(data, position)
 	token, err = crypto.PrivateKeyFromBytes(bytes)
+	//fmt.Println(token.PublicKey().ToBytes())
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -63,23 +64,24 @@ func main() {
 
 	chain := consensus.NewGenesisBlockChain(token)
 	consensus := authority.NewProofOfAtuhority(chain, token)
-	network.NewNode(token, make(map[crypto.PublicKey]string), consensus, 0)
+	network.NewNode(token, make(map[crypto.PublicKey]string), consensus, 1)
+
 	conns := make([]*network.SecureConnection, 10)
 	for n := 0; n < 10; n++ {
 		var err error
-		time.Sleep(time.Millisecond)
+		time.Sleep(time.Microsecond)
 		conns[n], err = network.NewInstructionClient(":7802", token, token.PublicKey())
 		if err != nil {
 			panic(err)
 		}
 	}
-	ww := time.NewTicker(4 * time.Second)
-	for n := 0; n < len(createMsg); n++ {
-		time.Sleep(time.Microsecond)
+	//ww := time.NewTicker(4 * time.Second)
+	for n := 0; n < total; n++ {
+		time.Sleep(10 * time.Millisecond)
 		if err := conns[n%10].WriteMessage(createMsg[n]); err != nil {
 			fmt.Println(err)
 			break
 		}
 	}
-	<-ww.C
+	//<-ww.C
 }

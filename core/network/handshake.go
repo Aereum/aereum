@@ -176,6 +176,10 @@ func PerformServerHandShake(conn net.Conn, prvKey crypto.PrivateKey, validator c
 	}
 	msgToSend := prependLength(remoteCipherKeyBackEncrypted)
 	msgToSend = append(msgToSend, prependLength(keyEncrypted)...)
+	_, err = readhs(conn)
+	if err != nil {
+		return nil, err
+	}
 	writehs(conn, msgToSend)
 	return &SecureConnection{
 		hash:         crypto.Hasher(remoteKeyBytes),

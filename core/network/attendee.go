@@ -36,6 +36,7 @@ func NewAttendeeNetwork(port int,
 	if err != nil {
 		panic(err)
 	}
+	// listener loop
 	go func() {
 		for {
 			conn, err := listener.Accept()
@@ -44,32 +45,24 @@ func NewAttendeeNetwork(port int,
 				if err != nil {
 					conn.Close()
 				} else {
-					network.handleAttendeeConnection(secureConnection, comm.Checkpoint)
+					network.attendees[secureConnection.hash] = secureConnection
 				}
 			}
 		}
 	}()
-	return network
-}
-
-func (m AttendeeNetwork) handleAttendeeConnection(conn *SecureConnection, comm chan *consensus.SignedBlock) {
-	m.attendees[conn.hash] = conn
+	// write loop
 	go func() {
-		_, err := conn.ReadMessage()
-		if err != nil {
-			conn.conn.Close()
-			delete(m.attendees, conn.hash)
-			return
-		}
-	}()
-	for {
-		block := <-comm
-		for hash, conn := range m.attendees {
+		for {
+			block := <-network.comm
 			blockBytes := block.Block.Serialize()
-			if err := conn.WriteMessage(blockBytes); err != nil {
-				conn.conn.Close()
-				delete(m.attendees, hash)
+			for hash, conn := range network.attendees {
+				if err := conn.WriteMessage(blockBytes); err != nil {
+					conn.conn.Close()
+					delete(network.attendees, hash)
+				}
 			}
 		}
-	}
+	}()
+
+	return network
 }
