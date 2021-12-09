@@ -78,10 +78,10 @@ func (content *Content) Validate(block *Block) bool {
 }
 
 func (a *Content) Payments() *Payment {
-	if len(a.wallet) < 0 {
+	if len(a.wallet) > 0 {
 		return NewPayment(crypto.Hasher(a.wallet), a.fee)
 	}
-	if len(a.attorney) < 0 {
+	if len(a.attorney) > 0 {
 		return NewPayment(crypto.Hasher(a.attorney), a.fee)
 	}
 	return NewPayment(crypto.Hasher(a.author), a.fee)

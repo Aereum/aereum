@@ -36,7 +36,7 @@ func NewBlock(parent crypto.Hash, checkpoint, epoch uint64, publisher []byte, va
 func (b *Block) Incorporate(instruction Instruction) bool {
 	payments := instruction.Payments()
 	if !b.CanPay(payments) {
-		if instruction.Kind() == iCreateAudience {
+		if instruction.Kind() == iContent {
 			fmt.Println("--------------------")
 		}
 		return false
