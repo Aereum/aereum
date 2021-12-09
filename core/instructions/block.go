@@ -1,6 +1,7 @@
 package instructions
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/Aereum/aereum/core/crypto"
@@ -35,6 +36,9 @@ func NewBlock(parent crypto.Hash, checkpoint, epoch uint64, publisher []byte, va
 func (b *Block) Incorporate(instruction Instruction) bool {
 	payments := instruction.Payments()
 	if !b.CanPay(payments) {
+		if instruction.Kind() == iCreateAudience {
+			fmt.Println("--------------------")
+		}
 		return false
 	}
 	if !instruction.Validate(b) {
@@ -142,7 +146,18 @@ func (b *Block) UpdateAudience(hash crypto.Hash, keys []byte) bool {
 	return true
 }
 
+func (b *Block) Sign(token crypto.PrivateKey) {
+	hashed := crypto.Hasher(b.serializeWithoutSignature())
+	b.Signature, _ = token.Sign(hashed[:])
+}
+
 func (b *Block) Serialize() []byte {
+	bytes := b.serializeWithoutSignature()
+	PutByteArray(b.Signature, &bytes)
+	return bytes
+}
+
+func (b *Block) serializeWithoutSignature() []byte {
 	bytes := make([]byte, 0)
 	PutUint64(b.Epoch, &bytes)
 	PutByteArray(b.Parent[:], &bytes)
@@ -154,7 +169,6 @@ func (b *Block) Serialize() []byte {
 	}
 	PutByteArray(b.Hash[:], &bytes)
 	PutUint64(b.FeesCollected, &bytes)
-	PutByteArray(b.Signature, &bytes)
 	return bytes
 }
 
@@ -175,6 +189,7 @@ func ParseBlock(data []byte) *Block {
 		return nil
 	}
 	if !pubkey.Verify(hashed[:], block.Signature) {
+		fmt.Println("wrong signature")
 		return nil
 	}
 	block.mutations = NewMutation()

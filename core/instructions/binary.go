@@ -130,6 +130,7 @@ func ParseByteArrayArray(data []byte, position int) ([][]byte, int) {
 		return [][]byte{}, position
 	}
 	length := int(data[position+0]) | int(data[position+1])<<8
+	position += 2
 	output := make([][]byte, length)
 	for n := 0; n < length; n++ {
 		output[n], position = ParseByteArray(data, position)
@@ -186,11 +187,11 @@ func ParseUint64(data []byte, position int) (uint64, int) {
 
 func ParseTime(data []byte, position int) (time.Time, int) {
 	bytes, newposition := ParseByteArray(data, position)
-	var t *time.Time
+	var t time.Time
 	if err := t.UnmarshalBinary(bytes); err != nil {
 		panic("cannot parse time")
 	}
-	return *t, newposition
+	return t, newposition
 
 }
 

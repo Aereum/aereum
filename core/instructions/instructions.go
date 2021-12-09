@@ -75,6 +75,7 @@ type Instruction interface {
 	Payments() *Payment
 	Serialize() []byte
 	Epoch() uint64
+	Kind() byte
 }
 
 func ParseInstruction(data []byte) Instruction {

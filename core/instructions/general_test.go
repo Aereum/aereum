@@ -71,7 +71,7 @@ func TestGeneral(t *testing.T) {
 	block = NewBlock(crypto.Hasher([]byte{}), 1, 2, blockFormationToken.PublicKey().ToBytes(), validator)
 
 	// Transfer from eve to first member
-	transfer := NewSingleReciepientTransfer(*eve.token, firstAuthor.token.PublicKey().ToBytes(), "first transfer", 100, 2, uint64(joinFee))
+	transfer := NewSingleReciepientTransfer(*eve.token, firstAuthor.wallet.PublicKey().ToBytes(), "first transfer", 100, 2, uint64(joinFee))
 	if !block.Incorporate(transfer) {
 		t.Error("could not add transfer")
 	}
@@ -131,7 +131,7 @@ func TestGeneral(t *testing.T) {
 		fmt.Print(balance)
 		t.Error("state did not debit wallet", balance)
 	}
-	_, balanceFirstAuthor = state.Wallets.Balance(crypto.Hasher(firstAuthor.token.PublicKey().ToBytes()))
+	_, balanceFirstAuthor = state.Wallets.Balance(crypto.Hasher(firstAuthor.wallet.PublicKey().ToBytes()))
 	if balanceFirstAuthor != uint64(firstBalance) {
 		t.Error("first author did not receive eve transfer")
 	}
@@ -175,22 +175,24 @@ func TestGeneral(t *testing.T) {
 	if !block.Incorporate(poa) {
 		t.Error("could not add poa")
 	}
+	firstAuthor.attorney = thirdAuthor.token
 	count = count + 1
 	firstBalance = firstBalance - joinFee
 
 	// Block 3 incorporation and balance checks
 	state.IncorporateBlock(block)
-	if !state.Audiences.Exists(crypto.Hasher(audienceTest.token.ToBytes())) {
+	if !state.Audiences.Exists(crypto.Hasher(audienceTest.token.PublicKey().ToBytes())) {
 		t.Error("state did not create audience")
 	}
-	if !state.PowerOfAttorney.Exists(crypto.Hasher(firstAuthor.attorney.ToBytes())) {
+	hashAttorney := crypto.Hasher(append(firstAuthor.token.PublicKey().ToBytes(), thirdAuthor.token.PublicKey().ToBytes()...))
+	if !state.PowerOfAttorney.Exists(hashAttorney) {
 		t.Error("power of attorney was not granted") // acho que ainda preciso checar se bate com o pubkey3
 	}
 	if _, balance := state.Wallets.Balance(crypto.Hasher(token.PublicKey().ToBytes())); balance != 1e6-uint64(eveSpent) {
 		fmt.Print(balance)
 		t.Error("state did not debit wallet", balance)
 	}
-	_, balanceFirstAuthor = state.Wallets.Balance(crypto.Hasher(firstAuthor.token.PublicKey().ToBytes()))
+	_, balanceFirstAuthor = state.Wallets.Balance(crypto.Hasher(firstAuthor.wallet.PublicKey().ToBytes()))
 	if balanceFirstAuthor != uint64(firstBalance) {
 		t.Error("first author did not spent on instructions")
 	}
