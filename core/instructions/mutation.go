@@ -29,6 +29,7 @@ func NewMutation() *Mutation {
 		NewMembers:   make(map[crypto.Hash]struct{}),
 		NewCaption:   make(map[crypto.Hash]struct{}),
 		NewAudiences: make(map[crypto.Hash][]byte),
+		UpdAudiences: make(map[crypto.Hash][]byte),
 		NewEphemeral: make(map[crypto.Hash]uint64),
 	}
 }
