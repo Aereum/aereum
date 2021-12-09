@@ -237,10 +237,7 @@ func TestGeneral(t *testing.T) {
 	// Block 4 incorporation and balance checks
 	state.IncorporateBlock(block)
 
-	// COMO CHECAR SPONSOR OFFER
-	// if !state.SponsorOffers.Exists() {
-	// 	t.Error("sponsor offer was not incorporated")
-	// }
+	// COMO CHECAR SPONSOR OFFER NO ESTADO (???)
 	_, balanceFirstAuthor = state.Wallets.Balance(crypto.Hasher(firstAuthor.wallet.PublicKey().ToBytes()))
 	if balanceFirstAuthor != uint64(firstBalance) {
 		t.Error("first author did not spent on instructions")
@@ -282,19 +279,68 @@ func TestGeneral(t *testing.T) {
 	state.IncorporateBlock(block)
 	_, balanceFirstAuthor = state.Wallets.Balance(crypto.Hasher(firstAuthor.wallet.PublicKey().ToBytes()))
 	if balanceFirstAuthor != uint64(firstBalance) {
-		t.Error("first author did not spent on instructions")
+		t.Error("first author did not spend on instructions")
 	}
 	_, balanceSecondAuthor = state.Wallets.Balance(crypto.Hasher(secondAuthor.wallet.PublicKey().ToBytes()))
 	if balanceSecondAuthor != uint64(secondBalance) {
-		t.Error("second author did not receive transfer")
+		t.Error("second author did not spend on instructions")
 	}
 	_, balanceThirdAuthor = state.Wallets.Balance(crypto.Hasher(thirdAuthor.wallet.PublicKey().ToBytes()))
 	if balanceThirdAuthor != uint64(thirdBalance) {
-		t.Error("third author did not receive transfer")
+		t.Error("third author did not spend on instructions")
 	}
 	_, balanceAudience := state.Wallets.Balance(crypto.Hasher(audienceTest.token.PublicKey().ToBytes()))
 	if balanceAudience != 20 {
 		t.Error("audience did not receive revenue from sponsor")
+	}
+	_, balanceBlockFormator = state.Wallets.Balance(crypto.Hasher(blockFormationToken.PublicKey().ToBytes()))
+	if balanceBlockFormator != uint64(count*joinFee) {
+		t.Error("block formator has not received fee for processed instructions")
+	}
+
+	// BLOCK 6
+	block = NewBlock(crypto.Hasher([]byte{}), 5, 6, blockFormationToken.PublicKey().ToBytes(), validator)
+
+	// React to content sent by member2
+	react := secondAuthor.NewReact([]byte("teste"), 1, 6, uint64(joinFee))
+	if !block.Incorporate(react) {
+		t.Error("could not accept react to content")
+	}
+	secondBalance = secondBalance - joinFee
+	count = count + 1
+
+	// Update audience keys by member1
+	readers := make([]crypto.PublicKey, 3)
+	for n := 0; n < 3; n++ {
+		readers[n], _ = crypto.RandomAsymetricKey()
+	}
+	updateAudience := firstAuthor.NewUpdateAudience(audienceTest, readers, readers, readers, 1, "removing member2 from audience", 6, uint64(joinFee))
+	if !block.Incorporate(updateAudience) {
+		t.Error("could not accept update audience instruction")
+	}
+	firstBalance = firstBalance - joinFee
+	count = count + 1
+
+	// Secure Channel by member 2
+	secure := secondAuthor.NewSecureChannel([]byte("teste"), uint64(1), []byte("encryptedNonce"), []byte("content"), 6, uint64(joinFee))
+	if !block.Incorporate(secure) {
+		t.Error("could not accept secure channel instruction")
+	}
+	secondBalance = secondBalance - joinFee
+	count = count + 1
+
+	state.IncorporateBlock(block)
+	_, balanceFirstAuthor = state.Wallets.Balance(crypto.Hasher(firstAuthor.wallet.PublicKey().ToBytes()))
+	if balanceFirstAuthor != uint64(firstBalance) {
+		t.Error("first author did not spend on instructions")
+	}
+	_, balanceSecondAuthor = state.Wallets.Balance(crypto.Hasher(secondAuthor.wallet.PublicKey().ToBytes()))
+	if balanceSecondAuthor != uint64(secondBalance) {
+		t.Error("second author did not spend on instructions")
+	}
+	_, balanceThirdAuthor = state.Wallets.Balance(crypto.Hasher(thirdAuthor.wallet.PublicKey().ToBytes()))
+	if balanceThirdAuthor != uint64(thirdBalance) {
+		t.Error("third author did not spend on instructions")
 	}
 	_, balanceBlockFormator = state.Wallets.Balance(crypto.Hasher(blockFormationToken.PublicKey().ToBytes()))
 	if balanceBlockFormator != uint64(count*joinFee) {
