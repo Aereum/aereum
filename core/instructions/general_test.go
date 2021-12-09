@@ -58,7 +58,7 @@ func TestGeneral(t *testing.T) {
 		fmt.Print(balance)
 		t.Error("state did not debit wallet", balance)
 	}
-	_, balanceFirstAuthor := state.Wallets.Balance(crypto.Hasher(firstAuthor.token.PublicKey().ToBytes()))
+	_, balanceFirstAuthor := state.Wallets.Balance(crypto.Hasher(firstAuthor.wallet.PublicKey().ToBytes()))
 	if balanceFirstAuthor != uint64(0) {
 		t.Error("first author wallet must start with zero aero")
 	}
@@ -212,7 +212,6 @@ func TestGeneral(t *testing.T) {
 
 	// Join audience sent by second member
 	joinAudience := secondAuthor.NewJoinAudience(audienceTest.token.ToBytes(), "first audience member", 4, uint64(joinFee))
-	block.Incorporate(joinAudience)
 	if !block.Incorporate(joinAudience) {
 		t.Error("could not send join audience instruction")
 	}
@@ -224,7 +223,7 @@ func TestGeneral(t *testing.T) {
 	if !block.Incorporate(content) {
 		t.Error("could not publish content to audience")
 	}
-	secondBalance = secondBalance - joinFee
+	firstBalance = firstBalance - joinFee
 	count = count + 1
 
 	// Sponsorship Offer
@@ -238,10 +237,6 @@ func TestGeneral(t *testing.T) {
 	// Block 4 incorporation and balance checks
 	state.IncorporateBlock(block)
 
-	// COMO CHECAR SE CHEGOU JOIN AUDIENCE
-	// if !state.Audiences.(crypto.Hasher(audienceTest.token.ToBytes())) {
-	// 	t.Error("state did not create audience")
-	// }
 	// COMO CHECAR SPONSOR OFFER
 	// if !state.SponsorOffers.Exists() {
 	// 	t.Error("sponsor offer was not incorporated")
@@ -251,6 +246,7 @@ func TestGeneral(t *testing.T) {
 		t.Error("first author did not spent on instructions")
 	}
 	_, balanceSecondAuthor = state.Wallets.Balance(crypto.Hasher(secondAuthor.wallet.PublicKey().ToBytes()))
+	fmt.Print(balanceSecondAuthor)
 	if balanceSecondAuthor != uint64(secondBalance) {
 		t.Error("second author did not receive transfer")
 	}
@@ -271,7 +267,8 @@ func TestGeneral(t *testing.T) {
 	if !block.Incorporate(acceptJoin) {
 		t.Error("could not accept join request to audience")
 	}
-	firstBalance = firstBalance - joinFee // attorney esta enviando em nome de member1, porem quem paga eh member1
+	// firstBalance = firstBalance - joinFee // attorney esta enviando em nome de member1, porem quem paga eh member1
+	thirdBalance = thirdBalance - joinFee
 	count = count + 1
 
 	// Accept sponsor offer
@@ -279,7 +276,8 @@ func TestGeneral(t *testing.T) {
 	if !block.Incorporate(sponsordAccept) {
 		t.Error("could not accept sponsorship acceptance")
 	}
-	firstBalance = firstBalance - joinFee
+	// firstBalance = firstBalance - joinFee
+	thirdBalance = thirdBalance - joinFee
 	count = count + 1
 
 	state.IncorporateBlock(block)
