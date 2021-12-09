@@ -3,50 +3,50 @@ package consensus
 import (
 	"time"
 
+	"github.com/Aereum/aereum/core/chain"
 	"github.com/Aereum/aereum/core/crypto"
-	"github.com/Aereum/aereum/core/instructions"
 )
 
 type BlockChain struct {
 	GenesisTime     time.Time
 	TotalStake      uint64
 	Epoch           uint64
-	CurrentState    *instructions.State
+	CurrentState    *chain.State
 	RecentBlocks    SignedBlocks
 	CandidateBlocks map[uint64]SignedBlocks
 }
 
 func (b *BlockChain) GetLastCheckpoint() *Checkpoint {
 	starting := b.CurrentState.Epoch
-	if len(b.RecentBlocks) == 0 || b.RecentBlocks[0].Block.Epoch != starting+1 {
+	if len(b.RecentBlocks) == 0 || b.RecentBlocks[0].Block.Epoch() != starting+1 {
 		return &Checkpoint{
-			Validator: &instructions.Validator{
+			Validator: &chain.MutatingState{
 				State:     b.CurrentState,
-				Mutations: instructions.NewMutation(),
+				Mutations: chain.NewMutation(),
 			},
 			CheckpointEpoch: b.CurrentState.Epoch,
 		}
 	}
-	sequential := make([]*instructions.Block, 0)
+	sequential := make([]*chain.Block, 0)
 	for _, block := range b.RecentBlocks {
-		if block.Block.Epoch != starting+1 {
+		if block.Block.Epoch() != starting+1 {
 			break
 		}
 		starting += 1
 		sequential = append(sequential, block.Block)
 	}
 	return &Checkpoint{
-		Validator: &instructions.Validator{
+		Validator: &chain.MutatingState{
 			State:     b.CurrentState,
-			Mutations: instructions.GroupBlockMutations(sequential),
+			Mutations: chain.GroupBlockMutations(sequential),
 		},
-		CheckpointEpoch: sequential[len(sequential)-1].Epoch,
+		CheckpointEpoch: sequential[len(sequential)-1].Epoch(),
 		CheckpointHash:  sequential[len(sequential)-1].Hash,
 	}
 }
 
 func NewGenesisBlockChain(token crypto.PrivateKey) *BlockChain {
-	state := instructions.NewGenesisStateWithToken(token)
+	state := chain.NewGenesisStateWithToken(token)
 	chain := BlockChain{
 		GenesisTime:     time.Now(),
 		TotalStake:      1000000,

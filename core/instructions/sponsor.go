@@ -2,6 +2,7 @@ package instructions
 
 import (
 	"github.com/Aereum/aereum/core/crypto"
+	"github.com/Aereum/aereum/core/util"
 )
 
 // 	Content creation instruction
@@ -18,32 +19,32 @@ func (a *SponsorshipOffer) Epoch() uint64 {
 	return a.authored.epoch
 }
 
-func (sponsored *SponsorshipOffer) Validate(block *Block) bool {
-	if !block.validator.HasMember(sponsored.authored.authorHash()) {
+func (sponsored *SponsorshipOffer) Validate(v InstructionValidator) bool {
+	if !v.HasMember(sponsored.authored.authorHash()) {
 		return false
 	}
 	audienceHash := crypto.Hasher(sponsored.audience)
-	keys := block.validator.GetAudienceKeys(audienceHash)
+	keys := v.GetAudienceKeys(audienceHash)
 	if keys == nil {
 		return false
 	}
-	if sponsored.expiry <= block.Epoch {
+	if sponsored.expiry <= v.Epoch() {
 		return false
 	}
 	var balance uint64
 	if sponsored.authored.wallet != nil {
-		balance = block.validator.Balance(crypto.Hasher(sponsored.authored.wallet))
+		balance = v.Balance(crypto.Hasher(sponsored.authored.wallet))
 	} else if sponsored.authored.attorney != nil {
-		balance = block.validator.Balance(crypto.Hasher(sponsored.authored.attorney))
+		balance = v.Balance(crypto.Hasher(sponsored.authored.attorney))
 	} else {
-		balance = block.validator.Balance(crypto.Hasher(sponsored.authored.author))
+		balance = v.Balance(crypto.Hasher(sponsored.authored.author))
 	}
 	if sponsored.revenue+sponsored.authored.fee > balance {
 		return false
 	}
 	hash := crypto.Hasher(sponsored.Serialize())
-	if block.SetNewSpnOffer(hash, sponsored.expiry) {
-		block.FeesCollected += sponsored.authored.fee
+	if v.SetNewSpnOffer(hash, sponsored.expiry) {
+		v.AddFeeCollected(sponsored.authored.fee)
 		return true
 	}
 	return false
@@ -59,11 +60,11 @@ func (sponsored *SponsorshipOffer) Kind() byte {
 
 func (sponsored *SponsorshipOffer) serializeBulk() []byte {
 	bytes := make([]byte, 0)
-	PutByteArray(sponsored.audience, &bytes)
-	PutString(sponsored.contentType, &bytes)
-	PutByteArray(sponsored.content, &bytes)
-	PutUint64(sponsored.expiry, &bytes)
-	PutUint64(sponsored.revenue, &bytes)
+	util.PutByteArray(sponsored.audience, &bytes)
+	util.PutString(sponsored.contentType, &bytes)
+	util.PutByteArray(sponsored.content, &bytes)
+	util.PutUint64(sponsored.expiry, &bytes)
+	util.PutUint64(sponsored.revenue, &bytes)
 	return bytes
 }
 
@@ -79,11 +80,11 @@ func ParseSponsorshipOffer(data []byte) *SponsorshipOffer {
 		authored: &authoredInstruction{},
 	}
 	position := sponsored.authored.parseHead(data)
-	sponsored.audience, position = ParseByteArray(data, position)
-	sponsored.contentType, position = ParseString(data, position)
-	sponsored.content, position = ParseByteArray(data, position)
-	sponsored.expiry, position = ParseUint64(data, position)
-	sponsored.revenue, position = ParseUint64(data, position)
+	sponsored.audience, position = util.ParseByteArray(data, position)
+	sponsored.contentType, position = util.ParseString(data, position)
+	sponsored.content, position = util.ParseByteArray(data, position)
+	sponsored.expiry, position = util.ParseUint64(data, position)
+	sponsored.revenue, position = util.ParseUint64(data, position)
 	if sponsored.authored.parseTail(data, position) {
 		return &sponsored
 	}
@@ -102,23 +103,23 @@ func (a *SponsorshipAcceptance) Epoch() uint64 {
 	return a.authored.epoch
 }
 
-func (accept *SponsorshipAcceptance) Validate(block *Block) bool {
+func (accept *SponsorshipAcceptance) Validate(v InstructionValidator) bool {
 
 	// NAO ENCONTREI A FUNCAO E NAO CONSEGUI MONTAR A FUNCAO
 	// block.validator.setNewHash(accept.offer.content)
-	if !block.validator.HasMember(accept.authored.authorHash()) {
+	if !v.HasMember(accept.authored.authorHash()) {
 		return false
 	}
 	audienceHash := crypto.Hasher(accept.audience)
-	keys := block.validator.GetAudienceKeys(audienceHash)
+	keys := v.GetAudienceKeys(audienceHash)
 	if keys == nil {
 		return false
 	}
-	if accept.offer.expiry < block.Epoch {
+	if accept.offer.expiry < v.Epoch() {
 		return false
 	}
 	offerHash := crypto.Hasher(accept.offer.Serialize())
-	if block.validator.SponsorshipOffer(offerHash) == 0 {
+	if v.SponsorshipOffer(offerHash) == 0 {
 		return false
 	}
 	//hash := crypto.Hasher(accept.serializeModBulk())
@@ -129,8 +130,8 @@ func (accept *SponsorshipAcceptance) Validate(block *Block) bool {
 	if !modKey.Verify(accept.serializeModBulk(), accept.modSignature) {
 		return false
 	}
-	if block.SetNewUseSonOffer(offerHash) {
-		block.FeesCollected += accept.authored.fee
+	if v.SetNewUseSpnOffer(offerHash) {
+		v.AddFeeCollected(accept.authored.fee)
 		return true
 	}
 	return false
@@ -155,14 +156,14 @@ func (accept *SponsorshipAcceptance) Kind() byte {
 
 func (accept *SponsorshipAcceptance) serializeModBulk() []byte {
 	bytes := make([]byte, 0)
-	PutByteArray(accept.audience, &bytes)
-	PutByteArray(accept.offer.Serialize(), &bytes)
+	util.PutByteArray(accept.audience, &bytes)
+	util.PutByteArray(accept.offer.Serialize(), &bytes)
 	return bytes
 }
 
 func (accept *SponsorshipAcceptance) serializeBulk() []byte {
 	bytes := accept.serializeModBulk()
-	PutByteArray(accept.modSignature, &bytes)
+	util.PutByteArray(accept.modSignature, &bytes)
 	return bytes
 }
 
@@ -178,14 +179,14 @@ func ParseSponsorshipAcceptance(data []byte) *SponsorshipAcceptance {
 		authored: &authoredInstruction{},
 	}
 	position := accept.authored.parseHead(data)
-	accept.audience, position = ParseByteArray(data, position)
+	accept.audience, position = util.ParseByteArray(data, position)
 	var offerBytes []byte
-	offerBytes, position = ParseByteArray(data, position)
+	offerBytes, position = util.ParseByteArray(data, position)
 	accept.offer = ParseSponsorshipOffer(offerBytes)
 	if accept.offer == nil {
 		return nil
 	}
-	accept.modSignature, position = ParseByteArray(data, position)
+	accept.modSignature, position = util.ParseByteArray(data, position)
 	if accept.authored.parseTail(data, position) {
 		return &accept
 	}

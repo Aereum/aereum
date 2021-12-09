@@ -1,8 +1,22 @@
-package instructions
+// Copyright 2021 The Aereum Authors
+// This file is part of the aereum library.
+//
+// The aereum library is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Lesser General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// The aereum library is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// GNU Lesser General Public License for more details.
+//
+// You should have received a copy of the GNU Lesser General Public License
+// along with the aereum library. If not, see <http://www.gnu.org/licenses/>.
+package chain
 
-/*import (
+import (
 	"errors"
-	"fmt"
 
 	"github.com/Aereum/aereum/core/crypto"
 	"github.com/Aereum/aereum/core/store"
@@ -105,11 +119,5 @@ func (s *State) IncorporateBlock(b *Block) {
 	for hash, keys := range b.mutations.UpdAudiences {
 		s.Audiences.SetKeys(hash, keys)
 	}
-	for hash, expire := range b.mutations.NewEphemeral {
-		s.EphemeralTokens.Insert(hash, expire)
-		//s.EphemeralExpire[expire]
-	}
 	s.Wallets.Credit(crypto.Hasher(b.Publisher), b.FeesCollected)
-	fmt.Println(len(b.Instructions), b.FeesCollected)
 }
-*/

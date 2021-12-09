@@ -1,6 +1,9 @@
 package instructions
 
-import "github.com/Aereum/aereum/core/crypto"
+import (
+	"github.com/Aereum/aereum/core/crypto"
+	"github.com/Aereum/aereum/core/util"
+)
 
 const (
 	iTransfer byte = iota
@@ -23,6 +26,28 @@ const (
 	iUnkown
 )
 
+type InstructionValidator interface {
+	SetNewGrantPower(hash crypto.Hash) bool
+	SetNewRevokePower(hash crypto.Hash) bool
+	SetNewUseSpnOffer(hash crypto.Hash) bool
+	SetNewSpnOffer(hash crypto.Hash, expire uint64) bool
+	SetPublishSponsor(hash crypto.Hash) bool
+	SetNewEphemeralToken(hash crypto.Hash, expire uint64) bool
+	SetNewMember(tokenHash crypto.Hash, captionHashe crypto.Hash) bool
+	SetNewAudience(hash crypto.Hash, keys []byte) bool
+	UpdateAudience(hash crypto.Hash, keys []byte) bool
+	Balance(hash crypto.Hash) uint64
+	PowerOfAttorney(hash crypto.Hash) bool
+	SponsorshipOffer(hash crypto.Hash) uint64
+	HasMember(hash crypto.Hash) bool
+	HasCaption(hash crypto.Hash) bool
+	HasGrantedSponser(hash crypto.Hash) (bool, crypto.Hash)
+	GetAudienceKeys(hash crypto.Hash) []byte
+	GetEphemeralExpire(hash crypto.Hash) (bool, uint64)
+	AddFeeCollected(uint64)
+	Epoch() uint64
+}
+
 type HashInstruction struct {
 	Instruction Instruction
 	Hash        crypto.Hash
@@ -39,7 +64,7 @@ type Payment struct {
 }
 
 func GetEpochFromByteArray(inst []byte) uint64 {
-	epoch, _ := ParseUint64(inst, 2)
+	epoch, _ := util.ParseUint64(inst, 2)
 	return epoch
 }
 
@@ -71,7 +96,7 @@ func (p *Payment) NewDebit(account crypto.Hash, value uint64) {
 }
 
 type Instruction interface {
-	Validate(*Block) bool
+	Validate(InstructionValidator) bool
 	Payments() *Payment
 	Serialize() []byte
 	Epoch() uint64

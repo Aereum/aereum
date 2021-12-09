@@ -1,8 +1,23 @@
-package instructions
+// Copyright 2021 The Aereum Authors
+// This file is part of the aereum library.
+//
+// The aereum library is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Lesser General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// The aereum library is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// GNU Lesser General Public License for more details.
+//
+// You should have received a copy of the GNU Lesser General Public License
+// along with the aereum library. If not, see <http://www.gnu.org/licenses/>.
+package chain
 
 import "github.com/Aereum/aereum/core/crypto"
 
-type Mutation struct {
+type mutation struct {
 	DeltaWallets map[crypto.Hash]int
 	GrantPower   map[crypto.Hash]struct{}
 	RevokePower  map[crypto.Hash]struct{}
@@ -17,8 +32,8 @@ type Mutation struct {
 	NewEphemeral map[crypto.Hash]uint64
 }
 
-func NewMutation() *Mutation {
-	return &Mutation{
+func NewMutation() *mutation {
+	return &mutation{
 		DeltaWallets: make(map[crypto.Hash]int),
 		GrantPower:   make(map[crypto.Hash]struct{}),
 		RevokePower:  make(map[crypto.Hash]struct{}),
@@ -34,12 +49,12 @@ func NewMutation() *Mutation {
 	}
 }
 
-func (m *Mutation) DeltaBalance(hash crypto.Hash) int {
+func (m *mutation) DeltaBalance(hash crypto.Hash) int {
 	balance := m.DeltaWallets[hash]
 	return balance
 }
 
-func (m *Mutation) HasGrantedSponsorship(hash crypto.Hash) (bool, crypto.Hash) {
+func (m *mutation) HasGrantedSponsorship(hash crypto.Hash) (bool, crypto.Hash) {
 	if _, ok := m.PublishSpn[hash]; ok {
 		return false, crypto.Hasher([]byte{})
 	}
@@ -47,37 +62,37 @@ func (m *Mutation) HasGrantedSponsorship(hash crypto.Hash) (bool, crypto.Hash) {
 	return ok, contentHash
 }
 
-func (m *Mutation) HasGrantPower(hash crypto.Hash) bool {
+func (m *mutation) HasGrantPower(hash crypto.Hash) bool {
 	_, ok := m.GrantPower[hash]
 	return ok
 }
 
-func (m *Mutation) HasRevokePower(hash crypto.Hash) bool {
+func (m *mutation) HasRevokePower(hash crypto.Hash) bool {
 	_, ok := m.RevokePower[hash]
 	return ok
 }
 
-func (m *Mutation) HasUsedSponsorOffer(hash crypto.Hash) bool {
+func (m *mutation) HasUsedSponsorOffer(hash crypto.Hash) bool {
 	_, ok := m.UseSpnOffer[hash]
 	return ok
 }
 
-func (m *Mutation) GetSponsorOffer(hash crypto.Hash) bool {
+func (m *mutation) GetSponsorOffer(hash crypto.Hash) bool {
 	_, ok := m.NewSpnOffer[hash]
 	return ok
 }
 
-func (m *Mutation) HasMember(hash crypto.Hash) bool {
+func (m *mutation) HasMember(hash crypto.Hash) bool {
 	_, ok := m.NewMembers[hash]
 	return ok
 }
 
-func (m *Mutation) HasCaption(hash crypto.Hash) bool {
+func (m *mutation) HasCaption(hash crypto.Hash) bool {
 	_, ok := m.NewCaption[hash]
 	return ok
 }
 
-func (m *Mutation) GetAudience(hash crypto.Hash) []byte {
+func (m *mutation) GetAudience(hash crypto.Hash) []byte {
 	if audience, ok := m.UpdAudiences[hash]; ok {
 		return audience
 	}
@@ -85,12 +100,12 @@ func (m *Mutation) GetAudience(hash crypto.Hash) []byte {
 	return audience
 }
 
-func (m *Mutation) HasEphemeral(hash crypto.Hash) (bool, uint64) {
+func (m *mutation) HasEphemeral(hash crypto.Hash) (bool, uint64) {
 	expire, ok := m.NewEphemeral[hash]
 	return ok, expire
 }
 
-func GroupBlockMutations(blocks []*Block) *Mutation {
+func GroupBlockMutations(blocks []*Block) *mutation {
 	grouped := NewMutation()
 	for _, block := range blocks {
 		for acc, balance := range block.mutations.DeltaWallets {

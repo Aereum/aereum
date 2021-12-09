@@ -2,9 +2,9 @@ package instructions
 
 import (
 	"encoding/json"
-	"fmt"
 
 	"github.com/Aereum/aereum/core/crypto"
+	"github.com/Aereum/aereum/core/util"
 )
 
 type JoinNetwork struct {
@@ -17,20 +17,20 @@ func (a *JoinNetwork) Epoch() uint64 {
 	return a.authored.epoch
 }
 
-func (join *JoinNetwork) Validate(block *Block) bool {
+func (join *JoinNetwork) Validate(v InstructionValidator) bool {
 	captionHash := crypto.Hasher([]byte(join.caption))
-	if block.validator.HasCaption(captionHash) {
+	if v.HasCaption(captionHash) {
 		return false
 	}
 	authorHash := crypto.Hasher([]byte(join.authored.author))
-	if block.validator.HasMember(authorHash) {
+	if v.HasMember(authorHash) {
 		return false
 	}
 	if !json.Valid([]byte(join.details)) {
 		return false
 	}
-	if block.SetNewMember(authorHash, captionHash) {
-		block.FeesCollected += join.authored.fee
+	if v.SetNewMember(authorHash, captionHash) {
+		v.AddFeeCollected(join.authored.fee)
 		return true
 	}
 	return false
@@ -46,8 +46,8 @@ func (join *JoinNetwork) Kind() byte {
 
 func (join *JoinNetwork) serializeBulk() []byte {
 	bytes := make([]byte, 0)
-	PutString(join.caption, &bytes)
-	PutString(join.details, &bytes)
+	util.PutString(join.caption, &bytes)
+	util.PutString(join.details, &bytes)
 	return bytes
 }
 
@@ -63,8 +63,8 @@ func ParseJoinNetwork(data []byte) *JoinNetwork {
 		authored: &authoredInstruction{},
 	}
 	position := join.authored.parseHead(data)
-	join.caption, position = ParseString(data, position)
-	join.details, position = ParseString(data, position)
+	join.caption, position = util.ParseString(data, position)
+	join.details, position = util.ParseString(data, position)
 	if !json.Valid([]byte(join.details)) {
 		return nil
 	}
@@ -83,12 +83,12 @@ func (a *UpdateInfo) Epoch() uint64 {
 	return a.authored.epoch
 }
 
-func (update *UpdateInfo) Validate(block *Block) bool {
-	if !block.validator.HasMember(update.authored.authorHash()) {
+func (update *UpdateInfo) Validate(v InstructionValidator) bool {
+	if !v.HasMember(update.authored.authorHash()) {
 		return false
 	}
 	if json.Valid([]byte(update.details)) {
-		block.FeesCollected += update.authored.fee
+		v.AddFeeCollected(update.authored.fee)
 		return true
 	}
 	return false
@@ -104,7 +104,7 @@ func (update *UpdateInfo) Kind() byte {
 
 func (update *UpdateInfo) serializeBulk() []byte {
 	bytes := make([]byte, 0)
-	PutString(update.details, &bytes)
+	util.PutString(update.details, &bytes)
 	return bytes
 }
 
@@ -120,7 +120,7 @@ func ParseUpdateInfo(data []byte) *UpdateInfo {
 		authored: &authoredInstruction{},
 	}
 	position := update.authored.parseHead(data)
-	update.details, position = ParseString(data, position)
+	update.details, position = util.ParseString(data, position)
 	if !json.Valid([]byte(update.details)) {
 		return nil
 	}
@@ -139,19 +139,19 @@ func (a *GrantPowerOfAttorney) Epoch() uint64 {
 	return a.authored.epoch
 }
 
-func (grant *GrantPowerOfAttorney) Validate(block *Block) bool {
-	if !block.validator.HasMember(grant.authored.authorHash()) {
+func (grant *GrantPowerOfAttorney) Validate(v InstructionValidator) bool {
+	if !v.HasMember(grant.authored.authorHash()) {
 		return false
 	}
-	if !block.validator.HasMember(crypto.Hasher(grant.attorney)) {
+	if !v.HasMember(crypto.Hasher(grant.attorney)) {
 		return false
 	}
 	hash := crypto.Hasher(append(grant.authored.author, grant.attorney...))
-	if block.validator.PowerOfAttorney(hash) {
+	if v.PowerOfAttorney(hash) {
 		return false
 	}
-	if block.SetNewGrantPower(hash) {
-		block.FeesCollected += grant.authored.fee
+	if v.SetNewGrantPower(hash) {
+		v.AddFeeCollected(grant.authored.fee)
 		return true
 	}
 	return false
@@ -167,7 +167,7 @@ func (grant *GrantPowerOfAttorney) Kind() byte {
 
 func (grant *GrantPowerOfAttorney) serializeBulk() []byte {
 	bytes := make([]byte, 0)
-	PutByteArray(grant.attorney, &bytes)
+	util.PutByteArray(grant.attorney, &bytes)
 	return bytes
 }
 
@@ -183,7 +183,7 @@ func ParseGrantPowerOfAttorney(data []byte) *GrantPowerOfAttorney {
 		authored: &authoredInstruction{},
 	}
 	position := grant.authored.parseHead(data)
-	grant.attorney, position = ParseByteArray(data, position)
+	grant.attorney, position = util.ParseByteArray(data, position)
 	if grant.authored.parseTail(data, position) {
 		return &grant
 	}
@@ -199,19 +199,19 @@ func (a *RevokePowerOfAttorney) Epoch() uint64 {
 	return a.authored.epoch
 }
 
-func (revoke *RevokePowerOfAttorney) Validate(block *Block) bool {
-	if !block.validator.HasMember(revoke.authored.authorHash()) {
+func (revoke *RevokePowerOfAttorney) Validate(v InstructionValidator) bool {
+	if !v.HasMember(revoke.authored.authorHash()) {
 		return false
 	}
-	if !block.validator.HasMember(crypto.Hasher(revoke.attorney)) {
+	if !v.HasMember(crypto.Hasher(revoke.attorney)) {
 		return false
 	}
 	hash := crypto.Hasher(append(revoke.authored.author, revoke.attorney...))
-	if !block.validator.PowerOfAttorney(hash) {
+	if !v.PowerOfAttorney(hash) {
 		return false
 	}
-	if block.SetNewRevokePower(hash) {
-		block.FeesCollected += revoke.authored.fee
+	if v.SetNewRevokePower(hash) {
+		v.AddFeeCollected(revoke.authored.fee)
 		return true
 	}
 	return false
@@ -227,7 +227,7 @@ func (revoke *RevokePowerOfAttorney) Kind() byte {
 
 func (revoke *RevokePowerOfAttorney) serializeBulk() []byte {
 	bytes := make([]byte, 0)
-	PutByteArray(revoke.attorney, &bytes)
+	util.PutByteArray(revoke.attorney, &bytes)
 	return bytes
 }
 
@@ -243,7 +243,7 @@ func ParseRevokePowerOfAttorney(data []byte) *RevokePowerOfAttorney {
 		authored: &authoredInstruction{},
 	}
 	position := revoke.authored.parseHead(data)
-	revoke.attorney, position = ParseByteArray(data, position)
+	revoke.attorney, position = util.ParseByteArray(data, position)
 	if revoke.authored.parseTail(data, position) {
 		return &revoke
 	}
@@ -260,19 +260,19 @@ func (a *CreateEphemeral) Epoch() uint64 {
 	return a.authored.epoch
 }
 
-func (ephemeral *CreateEphemeral) Validate(block *Block) bool {
-	if !block.validator.HasMember(ephemeral.authored.authorHash()) {
+func (ephemeral *CreateEphemeral) Validate(v InstructionValidator) bool {
+	if !v.HasMember(ephemeral.authored.authorHash()) {
 		return false
 	}
-	if ephemeral.expiry <= block.Epoch {
+	if ephemeral.expiry <= v.Epoch() {
 		return false
 	}
 	hash := crypto.Hasher(ephemeral.ephemeralToken)
-	if ok, expire := block.validator.GetEphemeralExpire(hash); ok && expire > block.Epoch {
+	if ok, expire := v.GetEphemeralExpire(hash); ok && expire > v.Epoch() {
 		return false
 	}
-	if block.SetNewEphemeralToken(hash, ephemeral.expiry) {
-		block.FeesCollected += ephemeral.authored.fee
+	if v.SetNewEphemeralToken(hash, ephemeral.expiry) {
+		v.AddFeeCollected(ephemeral.authored.fee)
 		return true
 	}
 	return false
@@ -288,8 +288,8 @@ func (ephemeral *CreateEphemeral) Kind() byte {
 
 func (ephemeral *CreateEphemeral) serializeBulk() []byte {
 	bytes := make([]byte, 0)
-	PutByteArray(ephemeral.ephemeralToken, &bytes)
-	PutUint64(ephemeral.expiry, &bytes)
+	util.PutByteArray(ephemeral.ephemeralToken, &bytes)
+	util.PutUint64(ephemeral.expiry, &bytes)
 	return bytes
 }
 
@@ -305,8 +305,8 @@ func ParseCreateEphemeral(data []byte) *CreateEphemeral {
 		authored: &authoredInstruction{},
 	}
 	position := ephemeral.authored.parseHead(data)
-	ephemeral.ephemeralToken, position = ParseByteArray(data, position)
-	ephemeral.expiry, position = ParseUint64(data, position)
+	ephemeral.ephemeralToken, position = util.ParseByteArray(data, position)
+	ephemeral.expiry, position = util.ParseUint64(data, position)
 	if ephemeral.authored.parseTail(data, position) {
 		return &ephemeral
 	}
@@ -325,17 +325,15 @@ func (a *SecureChannel) Epoch() uint64 {
 	return a.authored.epoch
 }
 
-func (secure *SecureChannel) Validate(block *Block) bool {
+func (secure *SecureChannel) Validate(v InstructionValidator) bool {
 	authorHash := crypto.Hasher(secure.authored.author)
-	if _, expire := block.validator.GetEphemeralExpire(authorHash); expire <= block.Epoch {
-		fmt.Println(".........1", expire)
+	if _, expire := v.GetEphemeralExpire(authorHash); expire <= v.Epoch() {
 		return false
 	}
 	if len(secure.tokenRange) >= crypto.Size {
-		fmt.Println(".........2")
 		return false
 	}
-	block.FeesCollected += secure.authored.fee
+	v.AddFeeCollected(secure.authored.fee)
 	return true
 }
 
@@ -349,10 +347,10 @@ func (secure *SecureChannel) Kind() byte {
 
 func (secure *SecureChannel) serializeBulk() []byte {
 	bytes := make([]byte, 0)
-	PutByteArray(secure.tokenRange, &bytes)
-	PutUint64(secure.nonce, &bytes)
-	PutByteArray(secure.encryptedNonce, &bytes)
-	PutByteArray(secure.content, &bytes)
+	util.PutByteArray(secure.tokenRange, &bytes)
+	util.PutUint64(secure.nonce, &bytes)
+	util.PutByteArray(secure.encryptedNonce, &bytes)
+	util.PutByteArray(secure.content, &bytes)
 	return bytes
 }
 
@@ -368,10 +366,10 @@ func ParseSecureChannel(data []byte) *SecureChannel {
 		authored: &authoredInstruction{},
 	}
 	position := secure.authored.parseHead(data)
-	secure.tokenRange, position = ParseByteArray(data, position)
-	secure.nonce, position = ParseUint64(data, position)
-	secure.encryptedNonce, position = ParseByteArray(data, position)
-	secure.content, position = ParseByteArray(data, position)
+	secure.tokenRange, position = util.ParseByteArray(data, position)
+	secure.nonce, position = util.ParseUint64(data, position)
+	secure.encryptedNonce, position = util.ParseByteArray(data, position)
+	secure.content, position = util.ParseByteArray(data, position)
 
 	if secure.authored.parseTail(data, position) {
 		return &secure

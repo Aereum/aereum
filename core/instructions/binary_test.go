@@ -17,12 +17,7 @@
 // Package message contains data types related to aereum network.
 package instructions
 
-import (
-	"reflect"
-	"testing"
-)
-
-func TestByteArray(t *testing.T) {
+/*func TestByteArray(t *testing.T) {
 	zero := make([]byte, 0)
 	bytes := make([]byte, 0)
 	PutByteArray(zero, &bytes)
@@ -59,3 +54,4 @@ func TestUint64(t *testing.T) {
 		t.Errorf("Wrong uint64 serialization")
 	}
 }
+*/

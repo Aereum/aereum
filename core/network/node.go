@@ -43,7 +43,7 @@ func NewNode(prvKey crypto.PrivateKey,
 	go func() {
 		for {
 			signedBlock := <-comm.Checkpoint
-			newBlockSignal <- signedBlock.Block.Epoch + 1
+			newBlockSignal <- signedBlock.Block.Epoch() + 1
 			attendees.comm <- signedBlock
 		}
 	}()

@@ -9,6 +9,7 @@ import (
 
 	"github.com/Aereum/aereum/core/crypto"
 	"github.com/Aereum/aereum/core/instructions"
+	"github.com/Aereum/aereum/core/util"
 
 	"github.com/Aereum/aereum/core/consensus"
 	"github.com/Aereum/aereum/core/consensus/authority"
@@ -29,11 +30,11 @@ func main() {
 		}
 		_, token = crypto.RandomAsymetricKey()
 		data := make([]byte, 0)
-		instructions.PutByteArray(token.ToBytes(), &data)
+		util.PutByteArray(token.ToBytes(), &data)
 		for n := 0; n < total; n++ {
 			_, authors := crypto.RandomAsymetricKey()
 			inst := instructions.NewSingleReciepientTransfer(token, authors.PublicKey().ToBytes(), "whatever", 10, 1, 10)
-			instructions.PutByteArray(inst.Serialize(), &data)
+			util.PutByteArray(inst.Serialize(), &data)
 		}
 		if n, err := file.Write(data); n != len(data) || err != nil {
 			file.Close()
@@ -51,7 +52,7 @@ func main() {
 	}
 
 	position := 0
-	bytes, position := instructions.ParseByteArray(data, position)
+	bytes, position := util.ParseByteArray(data, position)
 	token, err = crypto.PrivateKeyFromBytes(bytes)
 	//fmt.Println(token.PublicKey().ToBytes())
 	if err != nil {
@@ -59,7 +60,7 @@ func main() {
 	}
 	createMsg := make([][]byte, total)
 	for n := 0; n < len(createMsg); n++ {
-		createMsg[n], position = instructions.ParseByteArray(data, position)
+		createMsg[n], position = util.ParseByteArray(data, position)
 	}
 
 	chain := consensus.NewGenesisBlockChain(token)

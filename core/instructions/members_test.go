@@ -12,9 +12,9 @@ var (
 	_, attorney = crypto.RandomAsymetricKey()
 	_, wallet   = crypto.RandomAsymetricKey()
 	author      = &Author{
-		token:    &token,
-		attorney: &attorney,
-		wallet:   &wallet,
+		Token:    &token,
+		Attorney: &attorney,
+		Wallet:   &wallet,
 	}
 	jsonString = `{"teste":1}`
 )

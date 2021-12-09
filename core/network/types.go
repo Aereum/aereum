@@ -4,7 +4,7 @@ import (
 	"time"
 
 	"github.com/Aereum/aereum/core/crypto"
-	"github.com/Aereum/aereum/core/instructions"
+	"github.com/Aereum/aereum/core/util"
 )
 
 const (
@@ -63,9 +63,9 @@ func NewNetworkMessage(msg Serializer, token crypto.PrivateKey, confirm bool) *N
 
 func (msg *NetworkMessageTemplate) serializeWithoutSignatute() []byte {
 	output := []byte{0, msg.MessageType}
-	instructions.PutUint64(uint64(msg.Timestamp.Unix()), &output)
-	instructions.PutByteArray(msg.Nonce, &output)
-	instructions.PutByteArray(msg.Data.Serialize(), &output)
+	util.PutUint64(uint64(msg.Timestamp.Unix()), &output)
+	util.PutByteArray(msg.Nonce, &output)
+	util.PutByteArray(msg.Data.Serialize(), &output)
 	if msg.Confirmation {
 		output = append(output, 1)
 	} else {
@@ -76,7 +76,7 @@ func (msg *NetworkMessageTemplate) serializeWithoutSignatute() []byte {
 
 func (msg *NetworkMessageTemplate) Serialize() []byte {
 	output := msg.serializeWithoutSignatute()
-	instructions.PutByteArray(msg.Signature, &output)
+	util.PutByteArray(msg.Signature, &output)
 	return output
 }
 

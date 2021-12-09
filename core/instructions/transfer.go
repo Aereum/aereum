@@ -18,6 +18,7 @@ package instructions
 
 import (
 	"github.com/Aereum/aereum/core/crypto"
+	"github.com/Aereum/aereum/core/util"
 )
 
 type Recipient struct {
@@ -84,8 +85,8 @@ func (t *Transfer) Payments() *Payment {
 	return payment
 }
 
-func (t *Transfer) Validate(block *Block) bool {
-	block.FeesCollected += t.Fee
+func (t *Transfer) Validate(v InstructionValidator) bool {
+	v.AddFeeCollected(t.Fee)
 	return true
 }
 
@@ -99,25 +100,25 @@ func (a *Transfer) Epoch() uint64 {
 
 func (s *Transfer) serializeWithoutSignature() []byte {
 	bytes := []byte{0, iTransfer}
-	PutUint64(s.epoch, &bytes)
-	PutByteArray(s.From, &bytes)
-	PutUint16(uint16(len(s.To)), &bytes)
+	util.PutUint64(s.epoch, &bytes)
+	util.PutByteArray(s.From, &bytes)
+	util.PutUint16(uint16(len(s.To)), &bytes)
 	count := len(s.To)
 	if len(s.To) > 1<<16-1 {
 		count = 1 << 16
 	}
 	for n := 0; n < count; n++ {
-		PutByteArray(s.To[n].Token, &bytes)
-		PutUint64(s.To[n].Value, &bytes)
+		util.PutByteArray(s.To[n].Token, &bytes)
+		util.PutUint64(s.To[n].Value, &bytes)
 	}
-	PutString(s.Reason, &bytes)
-	PutUint64(s.Fee, &bytes)
+	util.PutString(s.Reason, &bytes)
+	util.PutUint64(s.Fee, &bytes)
 	return bytes
 }
 
 func (s *Transfer) Serialize() []byte {
 	bytes := s.serializeWithoutSignature()
-	PutByteArray(s.Signature, &bytes)
+	util.PutByteArray(s.Signature, &bytes)
 	return bytes
 }
 
@@ -127,19 +128,19 @@ func ParseTransfer(data []byte) *Transfer {
 	}
 	p := Transfer{}
 	position := 2
-	p.epoch, position = ParseUint64(data, position)
-	p.From, position = ParseByteArray(data, position)
+	p.epoch, position = util.ParseUint64(data, position)
+	p.From, position = util.ParseByteArray(data, position)
 	var count uint16
-	count, position = ParseUint16(data, position)
+	count, position = util.ParseUint16(data, position)
 	p.To = make([]Recipient, int(count))
 	for i := 0; i < int(count); i++ {
-		p.To[i].Token, position = ParseByteArray(data, position)
-		p.To[i].Value, position = ParseUint64(data, position)
+		p.To[i].Token, position = util.ParseByteArray(data, position)
+		p.To[i].Value, position = util.ParseUint64(data, position)
 	}
-	p.Reason, position = ParseString(data, position)
-	p.Fee, position = ParseUint64(data, position)
+	p.Reason, position = util.ParseString(data, position)
+	p.Fee, position = util.ParseUint64(data, position)
 	hash := crypto.Hasher(data[0:position])
-	p.Signature, _ = ParseByteArray(data, position)
+	p.Signature, _ = util.ParseByteArray(data, position)
 	if publicKey, err := crypto.PublicKeyFromBytes(p.From); err != nil {
 		return nil
 	} else {
@@ -163,8 +164,8 @@ func (d *Deposit) Payments() *Payment {
 	return NewPayment(crypto.Hasher(d.Token), d.Value)
 }
 
-func (t *Deposit) Validate(block *Block) bool {
-	block.FeesCollected += t.Fee
+func (t *Deposit) Validate(v InstructionValidator) bool {
+	v.AddFeeCollected(t.Fee)
 	return true
 }
 
@@ -178,16 +179,16 @@ func (a *Deposit) Epoch() uint64 {
 
 func (s *Deposit) serializeWithoutSignature() []byte {
 	bytes := []byte{0, iDeposit}
-	PutUint64(s.epoch, &bytes)
-	PutByteArray(s.Token, &bytes)
-	PutUint64(s.Value, &bytes)
-	PutUint64(s.Fee, &bytes)
+	util.PutUint64(s.epoch, &bytes)
+	util.PutByteArray(s.Token, &bytes)
+	util.PutUint64(s.Value, &bytes)
+	util.PutUint64(s.Fee, &bytes)
 	return bytes
 }
 
 func (s *Deposit) Serialize() []byte {
 	bytes := s.serializeWithoutSignature()
-	PutByteArray(s.Signature, &bytes)
+	util.PutByteArray(s.Signature, &bytes)
 	return bytes
 }
 
@@ -197,15 +198,15 @@ func ParseDeposit(data []byte) *Deposit {
 	}
 	p := Deposit{}
 	position := 2
-	p.epoch, position = ParseUint64(data, position)
-	p.Token, position = ParseByteArray(data, position)
+	p.epoch, position = util.ParseUint64(data, position)
+	p.Token, position = util.ParseByteArray(data, position)
 	if _, err := crypto.PublicKeyFromBytes(p.Token); err != nil {
 		return nil
 	}
-	p.Value, position = ParseUint64(data, position)
-	p.Fee, position = ParseUint64(data, position)
+	p.Value, position = util.ParseUint64(data, position)
+	p.Fee, position = util.ParseUint64(data, position)
 	msgToVerify := crypto.Hasher(data[0:position])
-	p.Signature, _ = ParseByteArray(data, position)
+	p.Signature, _ = util.ParseByteArray(data, position)
 	if publicKey, err := crypto.PublicKeyFromBytes(p.Token); err != nil {
 		return nil
 	} else {
@@ -232,8 +233,8 @@ func (w *Withdraw) Payments() *Payment {
 	}
 }
 
-func (t *Withdraw) Validate(block *Block) bool {
-	block.FeesCollected += t.Fee
+func (t *Withdraw) Validate(v InstructionValidator) bool {
+	v.AddFeeCollected(t.Fee)
 	return true
 }
 
@@ -247,16 +248,16 @@ func (a *Withdraw) Epoch() uint64 {
 
 func (s *Withdraw) serializeWithoutSignature() []byte {
 	bytes := []byte{0, iWithdraw}
-	PutUint64(s.epoch, &bytes)
-	PutByteArray(s.Token, &bytes)
-	PutUint64(s.Value, &bytes)
-	PutUint64(s.Fee, &bytes)
+	util.PutUint64(s.epoch, &bytes)
+	util.PutByteArray(s.Token, &bytes)
+	util.PutUint64(s.Value, &bytes)
+	util.PutUint64(s.Fee, &bytes)
 	return bytes
 }
 
 func (s *Withdraw) Serialize() []byte {
 	bytes := s.serializeWithoutSignature()
-	PutByteArray(s.Signature, &bytes)
+	util.PutByteArray(s.Signature, &bytes)
 	return bytes
 }
 
@@ -266,15 +267,15 @@ func ParseWithdraw(data []byte) *Withdraw {
 	}
 	p := Withdraw{}
 	position := 2
-	p.epoch, position = ParseUint64(data, position)
-	p.Token, position = ParseByteArray(data, position)
+	p.epoch, position = util.ParseUint64(data, position)
+	p.Token, position = util.ParseByteArray(data, position)
 	if _, err := crypto.PublicKeyFromBytes(p.Token); err != nil {
 		return nil
 	}
-	p.Value, position = ParseUint64(data, position)
-	p.Fee, position = ParseUint64(data, position)
+	p.Value, position = util.ParseUint64(data, position)
+	p.Fee, position = util.ParseUint64(data, position)
 	msgToVerify := crypto.Hasher(data[0:position])
-	p.Signature, _ = ParseByteArray(data, position)
+	p.Signature, _ = util.ParseByteArray(data, position)
 	if publicKey, err := crypto.PublicKeyFromBytes(p.Token); err != nil {
 		return nil
 	} else {

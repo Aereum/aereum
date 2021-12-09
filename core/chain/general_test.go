@@ -1,10 +1,10 @@
-package instructions
+package chain
 
 import (
-	"fmt"
 	"testing"
 
 	"github.com/Aereum/aereum/core/crypto"
+	"github.com/Aereum/aereum/core/instructions"
 )
 
 var (
@@ -20,14 +20,14 @@ func TestGeneral(t *testing.T) {
 		t.Error("wrong genesis")
 	}
 
-	validator := &Validator{State: state}
+	validator := &MutatingState{State: state}
 	_, blockFormationToken := crypto.RandomAsymetricKey()
 
 	// BLOCK 1
 
 	// Starting block
 	block := NewBlock(crypto.Hasher([]byte{}), 0, 1, blockFormationToken.PublicKey().ToBytes(), validator)
-	eve := &Author{token: &token}
+	eve := &instructions.Author{Token: &token}
 	eveBalance := 1e6
 	joinFee := 10
 	count := 0
@@ -35,7 +35,7 @@ func TestGeneral(t *testing.T) {
 	// First member crypto data
 	pubKey1, prvKey1 := crypto.RandomAsymetricKey()
 	_, prvWal1 := crypto.RandomAsymetricKey()
-	firstAuthor := &Author{token: &prvKey1, wallet: &prvWal1}
+	firstAuthor := &instructions.Author{Token: &prvKey1, Wallet: &prvWal1}
 	firstBalance := 0
 
 	// Join Network sent by eve (pq nao posso usar join network normal?)
@@ -55,10 +55,9 @@ func TestGeneral(t *testing.T) {
 		t.Error("state did not add new member caption")
 	}
 	if _, balance := state.Wallets.Balance(crypto.Hasher(token.PublicKey().ToBytes())); balance != uint64(eveBalance) {
-		fmt.Print(balance)
 		t.Error("state did not debit wallet", balance)
 	}
-	_, balanceFirstAuthor := state.Wallets.Balance(crypto.Hasher(firstAuthor.wallet.PublicKey().ToBytes()))
+	_, balanceFirstAuthor := state.Wallets.Balance(crypto.Hasher(firstAuthor.Wallet.PublicKey().ToBytes()))
 	if balanceFirstAuthor != uint64(0) {
 		t.Error("first author wallet must start with zero aero")
 	}
@@ -71,7 +70,7 @@ func TestGeneral(t *testing.T) {
 	block = NewBlock(crypto.Hasher([]byte{}), 1, 2, blockFormationToken.PublicKey().ToBytes(), validator)
 
 	// Transfer from eve to first member
-	transfer := NewSingleReciepientTransfer(*eve.token, firstAuthor.wallet.PublicKey().ToBytes(), "first transfer", 100, 2, uint64(joinFee))
+	transfer := instructions.NewSingleReciepientTransfer(*eve.Token, firstAuthor.Wallet.PublicKey().ToBytes(), "first transfer", 100, 2, uint64(joinFee))
 	if !block.Incorporate(transfer) {
 		t.Error("could not add transfer")
 	}
@@ -82,7 +81,7 @@ func TestGeneral(t *testing.T) {
 	// Join Network - Second member, sent by eve
 	pubKey2, prvKey2 := crypto.RandomAsymetricKey()
 	_, prvWal2 := crypto.RandomAsymetricKey()
-	secondAuthor := &Author{token: &prvKey2, wallet: &prvWal2}
+	secondAuthor := &instructions.Author{Token: &prvKey2, Wallet: &prvWal2}
 	secondBalance := 0
 	join2 := eve.NewJoinNetworkThirdParty(pubKey2.ToBytes(), "member2", jsonString1, 2, uint64(joinFee))
 	if block.Incorporate(join2) != true {
@@ -94,7 +93,7 @@ func TestGeneral(t *testing.T) {
 	// Join Network - Third member, sent by member1
 	pubKey3, prvKey3 := crypto.RandomAsymetricKey()
 	_, prvWal3 := crypto.RandomAsymetricKey()
-	thirdAuthor := &Author{token: &prvKey3, wallet: &prvWal3}
+	thirdAuthor := &instructions.Author{Token: &prvKey3, Wallet: &prvWal3}
 	thirdBalance := 0
 	join3 := eve.NewJoinNetworkThirdParty(pubKey3.ToBytes(), "member3", jsonString1, 2, uint64(joinFee))
 	if block.Incorporate(join3) != true {
@@ -126,10 +125,9 @@ func TestGeneral(t *testing.T) {
 		t.Error("state did not add third member caption")
 	}
 	if _, balance := state.Wallets.Balance(crypto.Hasher(token.PublicKey().ToBytes())); balance != uint64(eveBalance) {
-		fmt.Print(balance)
 		t.Error("state did not debit wallet", balance)
 	}
-	_, balanceFirstAuthor = state.Wallets.Balance(crypto.Hasher(firstAuthor.wallet.PublicKey().ToBytes()))
+	_, balanceFirstAuthor = state.Wallets.Balance(crypto.Hasher(firstAuthor.Wallet.PublicKey().ToBytes()))
 	if balanceFirstAuthor != uint64(firstBalance) {
 		t.Error("first author did not receive eve transfer")
 	}
@@ -142,7 +140,7 @@ func TestGeneral(t *testing.T) {
 	block = NewBlock(crypto.Hasher([]byte{}), 2, 3, blockFormationToken.PublicKey().ToBytes(), validator)
 
 	// Transfer from eve to second member
-	transfer = NewSingleReciepientTransfer(*eve.token, secondAuthor.wallet.PublicKey().ToBytes(), "second transfer", 100, 3, uint64(joinFee))
+	transfer = instructions.NewSingleReciepientTransfer(*eve.Token, secondAuthor.Wallet.PublicKey().ToBytes(), "second transfer", 100, 3, uint64(joinFee))
 	if !block.Incorporate(transfer) {
 		t.Error("could not add second transfer")
 	}
@@ -151,7 +149,7 @@ func TestGeneral(t *testing.T) {
 	count = count + 1
 
 	// Transfer from eve to third member
-	transfer = NewSingleReciepientTransfer(*eve.token, thirdAuthor.wallet.PublicKey().ToBytes(), "third transfer", 100, 3, uint64(joinFee))
+	transfer = instructions.NewSingleReciepientTransfer(*eve.Token, thirdAuthor.Wallet.PublicKey().ToBytes(), "third transfer", 100, 3, uint64(joinFee))
 	if !block.Incorporate(transfer) {
 		t.Error("could not add third transfer")
 	}
@@ -160,7 +158,7 @@ func TestGeneral(t *testing.T) {
 	count = count + 1
 
 	// Create audience
-	audienceTest := NewAudience()
+	audienceTest := instructions.NewAudience()
 	createAudience := firstAuthor.NewCreateAudience(audienceTest, 1, "first audience", 3, uint64(joinFee))
 	if !block.Incorporate(createAudience) {
 		t.Error("could not add create audience")
@@ -169,36 +167,35 @@ func TestGeneral(t *testing.T) {
 	firstBalance = firstBalance - joinFee
 
 	// Power of attorney sent by first author with third author as attorney
-	poa := firstAuthor.NewGrantPowerOfAttorney(thirdAuthor.token.PublicKey().ToBytes(), 3, uint64(joinFee))
+	poa := firstAuthor.NewGrantPowerOfAttorney(thirdAuthor.Token.PublicKey().ToBytes(), 3, uint64(joinFee))
 	if !block.Incorporate(poa) {
 		t.Error("could not add poa")
 	}
-	firstAuthor.attorney = thirdAuthor.token
+	firstAuthor.Attorney = thirdAuthor.Token
 	count = count + 1
 	firstBalance = firstBalance - joinFee
 
 	// Block 3 incorporation and balance checks
 	state.IncorporateBlock(block)
-	if !state.Audiences.Exists(crypto.Hasher(audienceTest.token.PublicKey().ToBytes())) {
+	if !state.Audiences.Exists(crypto.Hasher(audienceTest.Token.PublicKey().ToBytes())) {
 		t.Error("state did not create audience")
 	}
-	hashAttorney := crypto.Hasher(append(firstAuthor.token.PublicKey().ToBytes(), thirdAuthor.token.PublicKey().ToBytes()...))
+	hashAttorney := crypto.Hasher(append(firstAuthor.Token.PublicKey().ToBytes(), thirdAuthor.Token.PublicKey().ToBytes()...))
 	if !state.PowerOfAttorney.Exists(hashAttorney) {
 		t.Error("power of attorney was not granted")
 	}
 	if _, balance := state.Wallets.Balance(crypto.Hasher(token.PublicKey().ToBytes())); balance != uint64(eveBalance) {
-		fmt.Print(balance)
 		t.Error("state did not debit wallet", balance)
 	}
-	_, balanceFirstAuthor = state.Wallets.Balance(crypto.Hasher(firstAuthor.wallet.PublicKey().ToBytes()))
+	_, balanceFirstAuthor = state.Wallets.Balance(crypto.Hasher(firstAuthor.Wallet.PublicKey().ToBytes()))
 	if balanceFirstAuthor != uint64(firstBalance) {
 		t.Error("first author did not spent on instructions")
 	}
-	_, balanceSecondAuthor := state.Wallets.Balance(crypto.Hasher(secondAuthor.wallet.PublicKey().ToBytes()))
+	_, balanceSecondAuthor := state.Wallets.Balance(crypto.Hasher(secondAuthor.Wallet.PublicKey().ToBytes()))
 	if balanceSecondAuthor != uint64(secondBalance) {
 		t.Error("second author did not receive transfer")
 	}
-	_, balanceThirdAuthor := state.Wallets.Balance(crypto.Hasher(thirdAuthor.wallet.PublicKey().ToBytes()))
+	_, balanceThirdAuthor := state.Wallets.Balance(crypto.Hasher(thirdAuthor.Wallet.PublicKey().ToBytes()))
 	if balanceThirdAuthor != uint64(thirdBalance) {
 		t.Error("third author did not receive transfer")
 	}
@@ -211,7 +208,7 @@ func TestGeneral(t *testing.T) {
 	block = NewBlock(crypto.Hasher([]byte{}), 3, 4, blockFormationToken.PublicKey().ToBytes(), validator)
 
 	// Join audience sent by second member
-	joinAudience := secondAuthor.NewJoinAudience(audienceTest.token.ToBytes(), "first audience member", 4, uint64(joinFee))
+	joinAudience := secondAuthor.NewJoinAudience(audienceTest.Token.ToBytes(), "first audience member", 4, uint64(joinFee))
 	if !block.Incorporate(joinAudience) {
 		t.Error("could not send join audience instruction")
 	}
@@ -238,16 +235,15 @@ func TestGeneral(t *testing.T) {
 	state.IncorporateBlock(block)
 
 	// COMO CHECAR SPONSOR OFFER NO ESTADO (???)
-	_, balanceFirstAuthor = state.Wallets.Balance(crypto.Hasher(firstAuthor.wallet.PublicKey().ToBytes()))
+	_, balanceFirstAuthor = state.Wallets.Balance(crypto.Hasher(firstAuthor.Wallet.PublicKey().ToBytes()))
 	if balanceFirstAuthor != uint64(firstBalance) {
 		t.Error("first author did not spent on instructions")
 	}
-	_, balanceSecondAuthor = state.Wallets.Balance(crypto.Hasher(secondAuthor.wallet.PublicKey().ToBytes()))
-	fmt.Print(balanceSecondAuthor)
+	_, balanceSecondAuthor = state.Wallets.Balance(crypto.Hasher(secondAuthor.Wallet.PublicKey().ToBytes()))
 	if balanceSecondAuthor != uint64(secondBalance) {
 		t.Error("second author did not receive transfer")
 	}
-	_, balanceThirdAuthor = state.Wallets.Balance(crypto.Hasher(thirdAuthor.wallet.PublicKey().ToBytes()))
+	_, balanceThirdAuthor = state.Wallets.Balance(crypto.Hasher(thirdAuthor.Wallet.PublicKey().ToBytes()))
 	if balanceThirdAuthor != uint64(thirdBalance) {
 		t.Error("third author did not receive transfer")
 	}
@@ -260,7 +256,7 @@ func TestGeneral(t *testing.T) {
 	block = NewBlock(crypto.Hasher([]byte{}), 4, 5, blockFormationToken.PublicKey().ToBytes(), validator)
 
 	// Accept join audience
-	acceptJoin := firstAuthor.NewAcceptJoinAudience(audienceTest, secondAuthor.token.PublicKey(), 2, 5, uint64(joinFee))
+	acceptJoin := firstAuthor.NewAcceptJoinAudience(audienceTest, secondAuthor.Token.PublicKey(), 2, 5, uint64(joinFee))
 	if !block.Incorporate(acceptJoin) {
 		t.Error("could not accept join request to audience")
 	}
@@ -277,19 +273,19 @@ func TestGeneral(t *testing.T) {
 	count = count + 1
 
 	state.IncorporateBlock(block)
-	_, balanceFirstAuthor = state.Wallets.Balance(crypto.Hasher(firstAuthor.wallet.PublicKey().ToBytes()))
+	_, balanceFirstAuthor = state.Wallets.Balance(crypto.Hasher(firstAuthor.Wallet.PublicKey().ToBytes()))
 	if balanceFirstAuthor != uint64(firstBalance) {
 		t.Error("first author did not spend on instructions")
 	}
-	_, balanceSecondAuthor = state.Wallets.Balance(crypto.Hasher(secondAuthor.wallet.PublicKey().ToBytes()))
+	_, balanceSecondAuthor = state.Wallets.Balance(crypto.Hasher(secondAuthor.Wallet.PublicKey().ToBytes()))
 	if balanceSecondAuthor != uint64(secondBalance) {
 		t.Error("second author did not spend on instructions")
 	}
-	_, balanceThirdAuthor = state.Wallets.Balance(crypto.Hasher(thirdAuthor.wallet.PublicKey().ToBytes()))
+	_, balanceThirdAuthor = state.Wallets.Balance(crypto.Hasher(thirdAuthor.Wallet.PublicKey().ToBytes()))
 	if balanceThirdAuthor != uint64(thirdBalance) {
 		t.Error("third author did not spend on instructions")
 	}
-	_, balanceAudience := state.Wallets.Balance(crypto.Hasher(audienceTest.token.PublicKey().ToBytes()))
+	_, balanceAudience := state.Wallets.Balance(crypto.Hasher(audienceTest.Token.PublicKey().ToBytes()))
 	if balanceAudience != 20 {
 		t.Error("audience did not receive revenue from sponsor")
 	}
@@ -323,7 +319,7 @@ func TestGeneral(t *testing.T) {
 
 	// Create Ephemeral token by member 2
 	pubEph, prvEph := crypto.RandomAsymetricKey()
-	ephemeralAuthor := &Author{token: &prvEph, wallet: &token} // ephemeral token using eve wallet
+	ephemeralAuthor := &instructions.Author{Token: &prvEph, Wallet: &token} // ephemeral token using eve wallet
 	ephemeral := secondAuthor.NewCreateEphemeral(pubEph.ToBytes(), 20, 6, uint64(joinFee))
 	if !block.Incorporate(ephemeral) {
 		t.Error("could not accept create ephemeral token instruction")
@@ -332,15 +328,15 @@ func TestGeneral(t *testing.T) {
 	count = count + 1
 
 	state.IncorporateBlock(block)
-	_, balanceFirstAuthor = state.Wallets.Balance(crypto.Hasher(firstAuthor.wallet.PublicKey().ToBytes()))
+	_, balanceFirstAuthor = state.Wallets.Balance(crypto.Hasher(firstAuthor.Wallet.PublicKey().ToBytes()))
 	if balanceFirstAuthor != uint64(firstBalance) {
 		t.Error("first author did not spend on instructions")
 	}
-	_, balanceSecondAuthor = state.Wallets.Balance(crypto.Hasher(secondAuthor.wallet.PublicKey().ToBytes()))
+	_, balanceSecondAuthor = state.Wallets.Balance(crypto.Hasher(secondAuthor.Wallet.PublicKey().ToBytes()))
 	if balanceSecondAuthor != uint64(secondBalance) {
 		t.Error("second author did not spend on instructions")
 	}
-	_, balanceThirdAuthor = state.Wallets.Balance(crypto.Hasher(thirdAuthor.wallet.PublicKey().ToBytes()))
+	_, balanceThirdAuthor = state.Wallets.Balance(crypto.Hasher(thirdAuthor.Wallet.PublicKey().ToBytes()))
 	if balanceThirdAuthor != uint64(thirdBalance) {
 		t.Error("third author did not spend on instructions")
 	}
@@ -364,15 +360,15 @@ func TestGeneral(t *testing.T) {
 	count = count + 1
 
 	state.IncorporateBlock(block)
-	_, balanceFirstAuthor = state.Wallets.Balance(crypto.Hasher(firstAuthor.wallet.PublicKey().ToBytes()))
+	_, balanceFirstAuthor = state.Wallets.Balance(crypto.Hasher(firstAuthor.Wallet.PublicKey().ToBytes()))
 	if balanceFirstAuthor != uint64(firstBalance) {
 		t.Error("first author did not spend on instructions")
 	}
-	_, balanceSecondAuthor = state.Wallets.Balance(crypto.Hasher(secondAuthor.wallet.PublicKey().ToBytes()))
+	_, balanceSecondAuthor = state.Wallets.Balance(crypto.Hasher(secondAuthor.Wallet.PublicKey().ToBytes()))
 	if balanceSecondAuthor != uint64(secondBalance) {
 		t.Error("second author did not spend on instructions")
 	}
-	_, balanceThirdAuthor = state.Wallets.Balance(crypto.Hasher(thirdAuthor.wallet.PublicKey().ToBytes()))
+	_, balanceThirdAuthor = state.Wallets.Balance(crypto.Hasher(thirdAuthor.Wallet.PublicKey().ToBytes()))
 	if balanceThirdAuthor != uint64(thirdBalance) {
 		t.Error("third author did not spend on instructions")
 	}

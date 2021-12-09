@@ -2,6 +2,7 @@ package instructions
 
 import (
 	"github.com/Aereum/aereum/core/crypto"
+	"github.com/Aereum/aereum/core/util"
 )
 
 // Content creation instruction
@@ -29,15 +30,15 @@ func (a *Content) Epoch() uint64 {
 	return a.epoch
 }
 
-func (content *Content) Validate(block *Block) bool {
-	if content.epoch > block.Epoch {
+func (content *Content) Validate(v InstructionValidator) bool {
+	if content.epoch > v.Epoch() {
 		return false
 	}
-	if !block.validator.HasMember(crypto.Hasher(content.author)) {
+	if !v.HasMember(crypto.Hasher(content.author)) {
 		return false
 	}
 	audienceHash := crypto.Hasher(content.audience)
-	keys := block.validator.GetAudienceKeys(audienceHash)
+	keys := v.GetAudienceKeys(audienceHash)
 	if content.sponsored {
 		if content.encrypted {
 			return false
@@ -46,14 +47,15 @@ func (content *Content) Validate(block *Block) bool {
 			return false
 		}
 		hash := crypto.Hasher(append(content.author, content.audience...))
-		ok, contentHash := block.validator.HasGrantedSponser(hash)
+		ok, contentHash := v.HasGrantedSponser(hash)
 		if !ok {
 			return false
 		}
 		if !crypto.Hasher(content.content).Equal(contentHash) {
 			return false
 		}
-		return block.SetPublishSponsor(hash)
+		v.AddFeeCollected(content.fee)
+		return v.SetPublishSponsor(hash)
 	}
 	subKey, err := crypto.PublicKeyFromBytes(keys[0:crypto.PublicKeySize])
 	if err != nil {
@@ -73,7 +75,7 @@ func (content *Content) Validate(block *Block) bool {
 			return false
 		}
 	}
-	block.FeesCollected += content.fee
+	v.AddFeeCollected(content.fee)
 	return true
 }
 
@@ -93,43 +95,43 @@ func (content *Content) Kind() byte {
 
 func (content *Content) serializeSubBulk() []byte {
 	bytes := []byte{0, iContent}
-	PutUint64(content.epoch, &bytes)
-	PutUint64(content.published, &bytes)
-	PutByteArray(content.author, &bytes)
-	PutByteArray(content.audience, &bytes)
-	PutString(content.contentType, &bytes)
-	PutByteArray(content.content, &bytes)
-	PutByteArray(content.hash, &bytes)
-	PutBool(content.sponsored, &bytes)
-	PutBool(content.encrypted, &bytes)
+	util.PutUint64(content.epoch, &bytes)
+	util.PutUint64(content.published, &bytes)
+	util.PutByteArray(content.author, &bytes)
+	util.PutByteArray(content.audience, &bytes)
+	util.PutString(content.contentType, &bytes)
+	util.PutByteArray(content.content, &bytes)
+	util.PutByteArray(content.hash, &bytes)
+	util.PutBool(content.sponsored, &bytes)
+	util.PutBool(content.encrypted, &bytes)
 	return bytes
 }
 
 func (content *Content) serializeModBulk() []byte {
 	bytes := content.serializeSubBulk()
-	PutByteArray(content.subSignature, &bytes)
-	PutByteArray(content.moderator, &bytes)
+	util.PutByteArray(content.subSignature, &bytes)
+	util.PutByteArray(content.moderator, &bytes)
 	return bytes
 }
 
 func (content *Content) serializeSignBulk() []byte {
 	bytes := content.serializeModBulk()
-	PutByteArray(content.modSignature, &bytes)
-	PutByteArray(content.attorney, &bytes)
+	util.PutByteArray(content.modSignature, &bytes)
+	util.PutByteArray(content.attorney, &bytes)
 	return bytes
 }
 
 func (content *Content) serializeWalletBulk() []byte {
 	bytes := content.serializeSignBulk()
-	PutByteArray(content.signature, &bytes)
-	PutByteArray(content.wallet, &bytes)
-	PutUint64(content.fee, &bytes)
+	util.PutByteArray(content.signature, &bytes)
+	util.PutByteArray(content.wallet, &bytes)
+	util.PutUint64(content.fee, &bytes)
 	return bytes
 }
 
 func (content *Content) Serialize() []byte {
 	bytes := content.serializeWalletBulk()
-	PutByteArray(content.walletSignature, &bytes)
+	util.PutByteArray(content.walletSignature, &bytes)
 	return bytes
 }
 
@@ -139,22 +141,22 @@ func ParseContent(data []byte) *Content {
 	}
 	var content Content
 	position := 2
-	content.epoch, position = ParseUint64(data, position)
-	content.published, position = ParseUint64(data, position)
-	content.author, position = ParseByteArray(data, position)
-	content.audience, position = ParseByteArray(data, position)
-	content.contentType, position = ParseString(data, position)
-	content.content, position = ParseByteArray(data, position)
-	content.hash, position = ParseByteArray(data, position)
-	content.sponsored, position = ParseBool(data, position)
-	content.encrypted, position = ParseBool(data, position)
-	content.subSignature, position = ParseByteArray(data, position)
-	content.moderator, position = ParseByteArray(data, position)
-	content.modSignature, position = ParseByteArray(data, position)
+	content.epoch, position = util.ParseUint64(data, position)
+	content.published, position = util.ParseUint64(data, position)
+	content.author, position = util.ParseByteArray(data, position)
+	content.audience, position = util.ParseByteArray(data, position)
+	content.contentType, position = util.ParseString(data, position)
+	content.content, position = util.ParseByteArray(data, position)
+	content.hash, position = util.ParseByteArray(data, position)
+	content.sponsored, position = util.ParseBool(data, position)
+	content.encrypted, position = util.ParseBool(data, position)
+	content.subSignature, position = util.ParseByteArray(data, position)
+	content.moderator, position = util.ParseByteArray(data, position)
+	content.modSignature, position = util.ParseByteArray(data, position)
 	if len(content.moderator) == 0 && (content.epoch != content.published) {
 		return nil
 	}
-	content.attorney, position = ParseByteArray(data, position)
+	content.attorney, position = util.ParseByteArray(data, position)
 	hash := crypto.Hasher(data[0:position])
 	var pubKey crypto.PublicKey
 	var err error
@@ -168,14 +170,14 @@ func ParseContent(data []byte) *Content {
 	if err != nil {
 		return nil
 	}
-	content.signature, position = ParseByteArray(data, position)
+	content.signature, position = util.ParseByteArray(data, position)
 	if !pubKey.Verify(hash[:], content.signature) {
 		return nil
 	}
-	content.wallet, position = ParseByteArray(data, position)
-	content.fee, position = ParseUint64(data, position)
+	content.wallet, position = util.ParseByteArray(data, position)
+	content.fee, position = util.ParseUint64(data, position)
 	hash = crypto.Hasher(data[0:position])
-	content.walletSignature, _ = ParseByteArray(data, position)
+	content.walletSignature, _ = util.ParseByteArray(data, position)
 	if len(content.wallet) > 0 {
 		pubKey, err = crypto.PublicKeyFromBytes(content.wallet)
 		if err != nil {
@@ -199,9 +201,9 @@ func (a *React) Epoch() uint64 {
 	return a.authored.epoch
 }
 
-func (react *React) Validate(block *Block) bool {
-	if block.validator.HasMember(react.authored.authorHash()) {
-		block.FeesCollected += react.authored.fee
+func (react *React) Validate(v InstructionValidator) bool {
+	if v.HasMember(react.authored.authorHash()) {
+		v.AddFeeCollected(react.authored.fee)
 		return true
 	}
 	return false
@@ -217,8 +219,8 @@ func (react *React) Kind() byte {
 
 func (react *React) serializeBulk() []byte {
 	bytes := make([]byte, 0)
-	PutByteArray(react.hash, &bytes)
-	PutByte(react.reaction, &bytes)
+	util.PutByteArray(react.hash, &bytes)
+	util.PutByte(react.reaction, &bytes)
 	return bytes
 }
 
@@ -234,8 +236,8 @@ func ParseReact(data []byte) *React {
 		authored: &authoredInstruction{},
 	}
 	position := react.authored.parseHead(data)
-	react.hash, position = ParseByteArray(data, position)
-	react.reaction, position = ParseByte(data, position)
+	react.hash, position = util.ParseByteArray(data, position)
+	react.reaction, position = util.ParseByte(data, position)
 	if react.authored.parseTail(data, position) {
 		return &react
 	}

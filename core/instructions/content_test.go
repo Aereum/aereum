@@ -3,6 +3,8 @@ package instructions
 import (
 	"reflect"
 	"testing"
+
+	"github.com/Aereum/aereum/core/util"
 )
 
 func TestContent(t *testing.T) {
@@ -20,7 +22,7 @@ func TestContent(t *testing.T) {
 
 func TestReact(t *testing.T) {
 	byte_message := make([]byte, 0)
-	PutString("this should be a hash", &byte_message)
+	util.PutString("this should be a hash", &byte_message)
 	reaction := author.NewReact([]byte{1, 2, 3}, 2, 10, 2000)
 	reaction2 := ParseReact(reaction.Serialize())
 	if reaction2 == nil {

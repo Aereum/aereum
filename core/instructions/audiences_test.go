@@ -24,7 +24,7 @@ func TestCreateteAudience(t *testing.T) {
 }
 
 func TestJoinAudience(t *testing.T) {
-	join := author.NewJoinAudience(audienceTest.token.PublicKey().ToBytes(), "teste", 10, 2000)
+	join := author.NewJoinAudience(audienceTest.Token.PublicKey().ToBytes(), "teste", 10, 2000)
 	join2 := ParseJoinAudience(join.Serialize())
 	if join2 == nil {
 		t.Error("could not parse JoinAudience")
@@ -36,7 +36,7 @@ func TestJoinAudience(t *testing.T) {
 }
 
 func TestAcceptJoinAudience(t *testing.T) {
-	accept := author.NewAcceptJoinAudience(audienceTest, author.token.PublicKey(), 2, 10, 2000)
+	accept := author.NewAcceptJoinAudience(audienceTest, author.Token.PublicKey(), 2, 10, 2000)
 	accept2 := ParseAcceptJoinAudience(accept.Serialize())
 	if accept2 == nil {
 		t.Error("could not parse AcceptJoinAudience")

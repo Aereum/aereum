@@ -1,14 +1,31 @@
-package instructions
+// Copyright 2021 The Aereum Authors
+// This file is part of the aereum library.
+//
+// The aereum library is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Lesser General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// The aereum library is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// GNU Lesser General Public License for more details.
+//
+// You should have received a copy of the GNU Lesser General Public License
+// along with the aereum library. If not, see <http://www.gnu.org/licenses/>.
+package chain
 
 import (
 	"fmt"
 	"time"
 
 	"github.com/Aereum/aereum/core/crypto"
+	"github.com/Aereum/aereum/core/instructions"
+	"github.com/Aereum/aereum/core/util"
 )
 
 type Block struct {
-	Epoch         uint64
+	epoch         uint64
 	Parent        crypto.Hash
 	CheckPoint    uint64
 	Publisher     []byte
@@ -17,14 +34,14 @@ type Block struct {
 	Hash          crypto.Hash
 	FeesCollected uint64
 	Signature     []byte
-	validator     *Validator
-	mutations     *Mutation
+	validator     *MutatingState
+	mutations     *mutation
 }
 
-func NewBlock(parent crypto.Hash, checkpoint, epoch uint64, publisher []byte, validator *Validator) *Block {
+func NewBlock(parent crypto.Hash, checkpoint, epoch uint64, publisher []byte, validator *MutatingState) *Block {
 	return &Block{
 		Parent:       parent,
-		Epoch:        epoch,
+		epoch:        epoch,
 		CheckPoint:   checkpoint,
 		Publisher:    publisher,
 		Instructions: make([][]byte, 0),
@@ -33,12 +50,9 @@ func NewBlock(parent crypto.Hash, checkpoint, epoch uint64, publisher []byte, va
 	}
 }
 
-func (b *Block) Incorporate(instruction Instruction) bool {
+func (b *Block) Incorporate(instruction instructions.Instruction) bool {
 	payments := instruction.Payments()
 	if !b.CanPay(payments) {
-		if instruction.Kind() == iContent {
-			fmt.Println("--------------------")
-		}
 		return false
 	}
 	if !instruction.Validate(b) {
@@ -49,9 +63,9 @@ func (b *Block) Incorporate(instruction Instruction) bool {
 	return true
 }
 
-func (b *Block) CanPay(payments *Payment) bool {
+func (b *Block) CanPay(payments *instructions.Payment) bool {
 	for _, debit := range payments.Debit {
-		existingBalance := b.validator.Balance(debit.Account)
+		existingBalance := b.validator.balance(debit.Account)
 		delta := b.mutations.DeltaBalance(debit.Account)
 		if int(existingBalance) < int(debit.FungibleTokens)+delta {
 			return false
@@ -60,7 +74,7 @@ func (b *Block) CanPay(payments *Payment) bool {
 	return true
 }
 
-func (b *Block) TransferPayments(payments *Payment) {
+func (b *Block) TransferPayments(payments *instructions.Payment) {
 	for _, debit := range payments.Debit {
 		if delta, ok := b.mutations.DeltaWallets[debit.Account]; ok {
 			b.mutations.DeltaWallets[debit.Account] = delta - int(debit.FungibleTokens)
@@ -94,7 +108,7 @@ func (b *Block) SetNewRevokePower(hash crypto.Hash) bool {
 	return setNewHash(hash, b.mutations.RevokePower)
 }
 
-func (b *Block) SetNewUseSonOffer(hash crypto.Hash) bool {
+func (b *Block) SetNewUseSpnOffer(hash crypto.Hash) bool {
 	return setNewHash(hash, b.mutations.UseSpnOffer)
 }
 
@@ -146,6 +160,46 @@ func (b *Block) UpdateAudience(hash crypto.Hash, keys []byte) bool {
 	return true
 }
 
+func (b *Block) PowerOfAttorney(hash crypto.Hash) bool {
+	return b.validator.powerOfAttorney(hash)
+}
+
+func (b *Block) SponsorshipOffer(hash crypto.Hash) uint64 {
+	return b.validator.sponsorshipOffer(hash)
+}
+
+func (b *Block) HasMember(hash crypto.Hash) bool {
+	return b.validator.hasMember(hash)
+}
+
+func (b *Block) HasCaption(hash crypto.Hash) bool {
+	return b.validator.hasCaption(hash)
+}
+
+func (b *Block) HasGrantedSponser(hash crypto.Hash) (bool, crypto.Hash) {
+	return b.validator.hasGrantedSponser(hash)
+}
+
+func (b *Block) GetAudienceKeys(hash crypto.Hash) []byte {
+	return b.validator.getAudienceKeys(hash)
+}
+
+func (b *Block) GetEphemeralExpire(hash crypto.Hash) (bool, uint64) {
+	return b.validator.getEphemeralExpire(hash)
+}
+
+func (b *Block) Balance(hash crypto.Hash) uint64 {
+	return b.validator.balance(hash)
+}
+
+func (b *Block) AddFeeCollected(value uint64) {
+	b.FeesCollected += value
+}
+
+func (b *Block) Epoch() uint64 {
+	return b.epoch
+}
+
 func (b *Block) Sign(token crypto.PrivateKey) {
 	hashed := crypto.Hasher(b.serializeWithoutSignature())
 	b.Signature, _ = token.Sign(hashed[:])
@@ -153,37 +207,37 @@ func (b *Block) Sign(token crypto.PrivateKey) {
 
 func (b *Block) Serialize() []byte {
 	bytes := b.serializeWithoutSignature()
-	PutByteArray(b.Signature, &bytes)
+	util.PutByteArray(b.Signature, &bytes)
 	return bytes
 }
 
 func (b *Block) serializeWithoutSignature() []byte {
 	bytes := make([]byte, 0)
-	PutUint64(b.Epoch, &bytes)
-	PutByteArray(b.Parent[:], &bytes)
-	PutByteArray(b.Publisher[:], &bytes)
-	PutTime(b.PublishedAt, &bytes)
-	PutUint16(uint16(len(b.Instructions)), &bytes)
+	util.PutUint64(b.epoch, &bytes)
+	util.PutByteArray(b.Parent[:], &bytes)
+	util.PutByteArray(b.Publisher[:], &bytes)
+	util.PutTime(b.PublishedAt, &bytes)
+	util.PutUint16(uint16(len(b.Instructions)), &bytes)
 	for _, instruction := range b.Instructions {
-		PutByteArray(instruction, &bytes)
+		util.PutByteArray(instruction, &bytes)
 	}
-	PutByteArray(b.Hash[:], &bytes)
-	PutUint64(b.FeesCollected, &bytes)
+	util.PutByteArray(b.Hash[:], &bytes)
+	util.PutUint64(b.FeesCollected, &bytes)
 	return bytes
 }
 
 func ParseBlock(data []byte) *Block {
 	position := 0
 	block := Block{}
-	block.Epoch, position = ParseUint64(data, position)
-	block.Parent, position = ParseHash(data, position)
-	block.Publisher, position = ParseByteArray(data, position)
-	block.PublishedAt, position = ParseTime(data, position)
-	block.Instructions, position = ParseByteArrayArray(data, position)
-	block.Hash, position = ParseHash(data, position)
-	block.FeesCollected, position = ParseUint64(data, position)
+	block.epoch, position = util.ParseUint64(data, position)
+	block.Parent, position = util.ParseHash(data, position)
+	block.Publisher, position = util.ParseByteArray(data, position)
+	block.PublishedAt, position = util.ParseTime(data, position)
+	block.Instructions, position = util.ParseByteArrayArray(data, position)
+	block.Hash, position = util.ParseHash(data, position)
+	block.FeesCollected, position = util.ParseUint64(data, position)
 	hashed := crypto.Hasher(data[0:position])
-	block.Signature, _ = ParseByteArray(data, position)
+	block.Signature, _ = util.ParseByteArray(data, position)
 	pubkey, err := crypto.PublicKeyFromBytes(block.Publisher)
 	if err != nil {
 		return nil
@@ -196,7 +250,7 @@ func ParseBlock(data []byte) *Block {
 	return &block
 }
 
-func (b *Block) SetValidator(validator *Validator) {
+func (b *Block) SetValidator(validator *MutatingState) {
 	b.validator = validator
 }
 
@@ -204,6 +258,19 @@ func GetBlockEpoch(data []byte) uint64 {
 	if len(data) < 8 {
 		return 0
 	}
-	epoch, _ := ParseUint64(data, 0)
+	epoch, _ := util.ParseUint64(data, 0)
 	return epoch
+}
+
+func (b *Block) JSONSimple() string {
+	bulk := &util.JSONBuilder{}
+	bulk.PutUint64("epoch", b.epoch)
+	bulk.PutHex("parent", b.Parent[:])
+	bulk.PutHex("publisher", b.Publisher)
+	bulk.PutTime("publishedAt", b.PublishedAt)
+	bulk.PutUint64("instructionsCount", uint64(len(b.Instructions)))
+	bulk.PutHex("hash", b.Parent[:])
+	bulk.PutUint64("feesCollectes", b.FeesCollected)
+	bulk.PutBase64("signature", b.Signature)
+	return bulk.ToString()
 }
