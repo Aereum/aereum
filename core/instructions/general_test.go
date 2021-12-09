@@ -144,7 +144,7 @@ func TestGeneral(t *testing.T) {
 	block = NewBlock(crypto.Hasher([]byte{}), 2, 3, blockFormationToken.PublicKey().ToBytes(), validator)
 
 	// Transfer from eve to second member
-	transfer = NewSingleReciepientTransfer(*eve.token, secondAuthor.token.PublicKey().ToBytes(), "second transfer", 100, 3, uint64(joinFee))
+	transfer = NewSingleReciepientTransfer(*eve.token, secondAuthor.wallet.PublicKey().ToBytes(), "second transfer", 100, 3, uint64(joinFee))
 	if !block.Incorporate(transfer) {
 		t.Error("could not add second transfer")
 	}
@@ -153,7 +153,7 @@ func TestGeneral(t *testing.T) {
 	count = count + 1
 
 	// Transfer from eve to third member
-	transfer = NewSingleReciepientTransfer(*eve.token, thirdAuthor.token.PublicKey().ToBytes(), "third transfer", 100, 3, uint64(joinFee))
+	transfer = NewSingleReciepientTransfer(*eve.token, thirdAuthor.wallet.PublicKey().ToBytes(), "third transfer", 100, 3, uint64(joinFee))
 	if !block.Incorporate(transfer) {
 		t.Error("could not add third transfer")
 	}
@@ -196,11 +196,11 @@ func TestGeneral(t *testing.T) {
 	if balanceFirstAuthor != uint64(firstBalance) {
 		t.Error("first author did not spent on instructions")
 	}
-	_, balanceSecondAuthor := state.Wallets.Balance(crypto.Hasher(secondAuthor.token.PublicKey().ToBytes()))
+	_, balanceSecondAuthor := state.Wallets.Balance(crypto.Hasher(secondAuthor.wallet.PublicKey().ToBytes()))
 	if balanceSecondAuthor != uint64(secondBalance) {
 		t.Error("second author did not receive transfer")
 	}
-	_, balanceThirdAuthor := state.Wallets.Balance(crypto.Hasher(thirdAuthor.token.PublicKey().ToBytes()))
+	_, balanceThirdAuthor := state.Wallets.Balance(crypto.Hasher(thirdAuthor.wallet.PublicKey().ToBytes()))
 	if balanceThirdAuthor != uint64(thirdBalance) {
 		t.Error("third author did not receive transfer")
 	}
