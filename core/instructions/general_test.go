@@ -321,10 +321,12 @@ func TestGeneral(t *testing.T) {
 	firstBalance = firstBalance - joinFee
 	count = count + 1
 
-	// Secure Channel by member 2
-	secure := secondAuthor.NewSecureChannel([]byte("teste"), uint64(1), []byte("encryptedNonce"), []byte("content"), 6, uint64(joinFee))
-	if !block.Incorporate(secure) {
-		t.Error("could not accept secure channel instruction")
+	// Create Ephemeral token by member 2
+	pubEph, prvEph := crypto.RandomAsymetricKey()
+	ephemeralAuthor := &Author{token: &prvEph, wallet: &token} // ephemeral token using eve wallet
+	ephemeral := secondAuthor.NewCreateEphemeral(pubEph.ToBytes(), 20, 6, uint64(joinFee))
+	if !block.Incorporate(ephemeral) {
+		t.Error("could not accept create ephemeral token instruction")
 	}
 	secondBalance = secondBalance - joinFee
 	count = count + 1
@@ -347,4 +349,32 @@ func TestGeneral(t *testing.T) {
 		t.Error("block formator has not received fee for processed instructions")
 	}
 
+	// BLOCK 7
+	block = NewBlock(crypto.Hasher([]byte{}), 6, 7, blockFormationToken.PublicKey().ToBytes(), validator)
+
+	// Secure Channel by member 2
+	secure := ephemeralAuthor.NewSecureChannel([]byte("teste"), uint64(1), []byte("encryptedNonce"), []byte("content"), 7, uint64(joinFee))
+	if !block.Incorporate(secure) {
+		t.Error("could not accept secure channel instruction")
+	}
+	eveBalance = eveBalance - float64(joinFee)
+	count = count + 1
+
+	state.IncorporateBlock(block)
+	_, balanceFirstAuthor = state.Wallets.Balance(crypto.Hasher(firstAuthor.wallet.PublicKey().ToBytes()))
+	if balanceFirstAuthor != uint64(firstBalance) {
+		t.Error("first author did not spend on instructions")
+	}
+	_, balanceSecondAuthor = state.Wallets.Balance(crypto.Hasher(secondAuthor.wallet.PublicKey().ToBytes()))
+	if balanceSecondAuthor != uint64(secondBalance) {
+		t.Error("second author did not spend on instructions")
+	}
+	_, balanceThirdAuthor = state.Wallets.Balance(crypto.Hasher(thirdAuthor.wallet.PublicKey().ToBytes()))
+	if balanceThirdAuthor != uint64(thirdBalance) {
+		t.Error("third author did not spend on instructions")
+	}
+	_, balanceBlockFormator = state.Wallets.Balance(crypto.Hasher(blockFormationToken.PublicKey().ToBytes()))
+	if balanceBlockFormator != uint64(count*joinFee) {
+		t.Error("block formator has not received fee for processed instructions")
+	}
 }
