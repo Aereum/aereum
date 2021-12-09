@@ -2,6 +2,7 @@ package instructions
 
 import (
 	"bytes"
+	"fmt"
 
 	"github.com/Aereum/aereum/core/crypto"
 )
@@ -114,6 +115,7 @@ func (audience *CreateAudience) Validate(block *Block) bool {
 	if block.validator.GetAudienceKeys(audienceHash) != nil {
 		return false
 	}
+	fmt.Println("================>", len(audience.submission))
 	keys := append(audience.submission, audience.moderation...)
 	block.FeesCollected += audience.authored.fee
 	return block.SetNewAudience(audienceHash, keys)

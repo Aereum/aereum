@@ -223,7 +223,6 @@ func TestGeneral(t *testing.T) {
 
 	// Content
 	content := firstAuthor.NewContent(audienceTest, "text", []byte("first content"), true, true, 4, uint64(joinFee))
-	block.Incorporate(content)
 	if !block.Incorporate(content) {
 		t.Error("could not publish content to audience")
 	}
