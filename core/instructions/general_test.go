@@ -28,8 +28,8 @@ func TestGeneral(t *testing.T) {
 	// Starting block
 	block := NewBlock(crypto.Hasher([]byte{}), 0, 1, blockFormationToken.PublicKey().ToBytes(), validator)
 	eve := &Author{token: &token}
+	eveBalance := 1e6
 	joinFee := 10
-	eveSpent := 0
 	count := 0
 
 	// First member crypto data
@@ -43,7 +43,7 @@ func TestGeneral(t *testing.T) {
 	if block.Incorporate(join) != true {
 		t.Error("could not add new member")
 	}
-	eveSpent = eveSpent + joinFee
+	eveBalance = eveBalance - float64(joinFee)
 	count = count + 1
 
 	// Block 1 incorporation and balance checks
@@ -54,7 +54,7 @@ func TestGeneral(t *testing.T) {
 	if !state.Captions.Exists(crypto.Hasher([]byte("member1"))) {
 		t.Error("state did not add new member caption")
 	}
-	if _, balance := state.Wallets.Balance(crypto.Hasher(token.PublicKey().ToBytes())); balance != 1e6-uint64(eveSpent) {
+	if _, balance := state.Wallets.Balance(crypto.Hasher(token.PublicKey().ToBytes())); balance != uint64(eveBalance) {
 		fmt.Print(balance)
 		t.Error("state did not debit wallet", balance)
 	}
@@ -76,7 +76,7 @@ func TestGeneral(t *testing.T) {
 		t.Error("could not add transfer")
 	}
 	firstBalance = firstBalance + 100
-	eveSpent = eveSpent + 100 + joinFee
+	eveBalance = eveBalance - 100 - float64(joinFee)
 	count = count + 1
 
 	// Join Network - Second member, sent by eve
@@ -85,11 +85,10 @@ func TestGeneral(t *testing.T) {
 	secondAuthor := &Author{token: &prvKey2, wallet: &prvWal2}
 	secondBalance := 0
 	join2 := eve.NewJoinNetworkThirdParty(pubKey2.ToBytes(), "member2", jsonString1, 2, uint64(joinFee))
-	// join2 := eve.NewJoinNetwork("member2", jsonString1, 2, uint64(joinFee))
 	if block.Incorporate(join2) != true {
 		t.Error("could not add member2")
 	}
-	eveSpent = eveSpent + joinFee
+	eveBalance = eveBalance - float64(joinFee)
 	count = count + 1
 
 	// Join Network - Third member, sent by member1
@@ -98,11 +97,10 @@ func TestGeneral(t *testing.T) {
 	thirdAuthor := &Author{token: &prvKey3, wallet: &prvWal3}
 	thirdBalance := 0
 	join3 := eve.NewJoinNetworkThirdParty(pubKey3.ToBytes(), "member3", jsonString1, 2, uint64(joinFee))
-	// join3 := firstAuthor.NewJoinNetwork("member3", jsonString1, 2, uint64(joinFee))
 	if block.Incorporate(join3) != true {
 		t.Error("could not add member3")
 	}
-	eveSpent = eveSpent + joinFee
+	eveBalance = eveBalance - float64(joinFee)
 	count = count + 1
 
 	// First author update info
@@ -110,7 +108,7 @@ func TestGeneral(t *testing.T) {
 	if !block.Incorporate(update) {
 		t.Error("could not add update")
 	}
-	eveSpent = eveSpent + joinFee
+	eveBalance = eveBalance - float64(joinFee)
 	count = count + 1
 
 	// Block 2 incorporation and balance checks
@@ -127,7 +125,7 @@ func TestGeneral(t *testing.T) {
 	if !state.Captions.Exists(crypto.Hasher([]byte("member3"))) {
 		t.Error("state did not add third member caption")
 	}
-	if _, balance := state.Wallets.Balance(crypto.Hasher(token.PublicKey().ToBytes())); balance != 1e6-uint64(eveSpent) {
+	if _, balance := state.Wallets.Balance(crypto.Hasher(token.PublicKey().ToBytes())); balance != uint64(eveBalance) {
 		fmt.Print(balance)
 		t.Error("state did not debit wallet", balance)
 	}
@@ -149,7 +147,7 @@ func TestGeneral(t *testing.T) {
 		t.Error("could not add second transfer")
 	}
 	secondBalance = secondBalance + 100
-	eveSpent = eveSpent + 100 + joinFee
+	eveBalance = eveBalance - 100 - float64(joinFee)
 	count = count + 1
 
 	// Transfer from eve to third member
@@ -158,7 +156,7 @@ func TestGeneral(t *testing.T) {
 		t.Error("could not add third transfer")
 	}
 	thirdBalance = thirdBalance + 100
-	eveSpent = eveSpent + 100 + joinFee
+	eveBalance = eveBalance - 100 - float64(joinFee)
 	count = count + 1
 
 	// Create audience
@@ -186,9 +184,9 @@ func TestGeneral(t *testing.T) {
 	}
 	hashAttorney := crypto.Hasher(append(firstAuthor.token.PublicKey().ToBytes(), thirdAuthor.token.PublicKey().ToBytes()...))
 	if !state.PowerOfAttorney.Exists(hashAttorney) {
-		t.Error("power of attorney was not granted") // acho que ainda preciso checar se bate com o pubkey3
+		t.Error("power of attorney was not granted")
 	}
-	if _, balance := state.Wallets.Balance(crypto.Hasher(token.PublicKey().ToBytes())); balance != 1e6-uint64(eveSpent) {
+	if _, balance := state.Wallets.Balance(crypto.Hasher(token.PublicKey().ToBytes())); balance != uint64(eveBalance) {
 		fmt.Print(balance)
 		t.Error("state did not debit wallet", balance)
 	}
@@ -240,17 +238,15 @@ func TestGeneral(t *testing.T) {
 
 	// Block 4 incorporation and balance checks
 	state.IncorporateBlock(block)
-	// if !state.Audiences.(crypto.Hasher(audienceTest.token.ToBytes())) { // Nao sei como checar se o join request da audience chegou
+
+	// COMO CHECAR SE CHEGOU JOIN AUDIENCE
+	// if !state.Audiences.(crypto.Hasher(audienceTest.token.ToBytes())) {
 	// 	t.Error("state did not create audience")
 	// }
 	// COMO CHECAR SPONSOR OFFER
-	// if !state.SponsorOffers.Exists(crypto.Hasher(sponsorOffer.Serialize())) {
-	// 	t.Error("sponsor offer was not incorporated") // acho que ainda preciso checar se bate com o pubkey3
+	// if !state.SponsorOffers.Exists() {
+	// 	t.Error("sponsor offer was not incorporated")
 	// }
-	if _, balance := state.Wallets.Balance(crypto.Hasher(token.PublicKey().ToBytes())); balance != 1e6-uint64(eveSpent) {
-		fmt.Print(balance)
-		t.Error("state did not debit wallet", balance)
-	}
 	_, balanceFirstAuthor = state.Wallets.Balance(crypto.Hasher(firstAuthor.token.PublicKey().ToBytes()))
 	if balanceFirstAuthor != uint64(firstBalance) {
 		t.Error("first author did not spent on instructions")
@@ -280,6 +276,7 @@ func TestGeneral(t *testing.T) {
 	firstBalance = firstBalance - joinFee // attorney esta enviando em nome de member1, porem quem paga eh member1
 	count = count + 1
 
+	// Accept sponsor offer
 	sponsordAccept := thirdAuthor.NewSponsorshipAcceptance(audienceTest, sponsorOffer, 5, uint64(joinFee))
 	block.Incorporate(sponsordAccept)
 	if !block.Incorporate(sponsordAccept) {
@@ -289,10 +286,6 @@ func TestGeneral(t *testing.T) {
 	count = count + 1
 
 	state.IncorporateBlock(block)
-	if _, balance := state.Wallets.Balance(crypto.Hasher(token.PublicKey().ToBytes())); balance != 1e6-uint64(eveSpent) {
-		fmt.Print(balance)
-		t.Error("state did not debit wallet", balance)
-	}
 	_, balanceFirstAuthor = state.Wallets.Balance(crypto.Hasher(firstAuthor.token.PublicKey().ToBytes()))
 	if balanceFirstAuthor != uint64(firstBalance) {
 		t.Error("first author did not spent on instructions")
