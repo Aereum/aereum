@@ -39,6 +39,7 @@ func NewProofOfAtuhority(chain *consensus.BlockChain, token crypto.PrivateKey) *
 			nextBlock := time.Now().Add(consensus.IntervalToNewEpoch(epoch, chain.GenesisTime))
 			//fmt.Println(nextBlock)
 			newBlock := <-consensus.BlockBuilder(chain.GetLastCheckpoint(), epoch, token, nextBlock, pool)
+			newBlock.Sign(token)
 			chain.CurrentState.IncorporateBlock(newBlock)
 			comm.Checkpoint <- &consensus.SignedBlock{Block: newBlock, Signatures: make([]consensus.Signature, 0)}
 			epoch += 1

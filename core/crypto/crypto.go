@@ -17,7 +17,7 @@ const (
 	Size          = sha256.Size
 	CipherKeySize = 32
 	CipherSize    = NonceSize + CipherKeySize
-	PublicKeySize = 42
+	PublicKeySize = 76
 )
 
 var ZeroHash Hash = Hasher([]byte{})
@@ -121,11 +121,16 @@ func (p PublicKey) Verify(msg []byte, signature []byte) bool {
 }
 
 func (p PublicKey) ToBytes() []byte {
-	return x509.MarshalPKCS1PublicKey(p.key)
+	bytes := make([]byte, PublicKeySize)
+	marshal := x509.MarshalPKCS1PublicKey(p.key)
+	bytes[0] = byte(len(marshal))
+	copy(bytes[1:len(marshal)+1], marshal)
+	return bytes
 }
 
 func PublicKeyFromBytes(bytes []byte) (PublicKey, error) {
-	key, err := x509.ParsePKCS1PublicKey(bytes)
+	length := bytes[0]
+	key, err := x509.ParsePKCS1PublicKey(bytes[1 : length+1])
 	if err != nil {
 		return PublicKey{}, err
 	}

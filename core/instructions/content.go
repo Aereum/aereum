@@ -59,7 +59,7 @@ func (content *Content) Validate(block *Block) bool {
 	if err != nil {
 		return false
 	}
-	hash := crypto.Hasher(content.serializeSubBulk())
+	hash := crypto.Hasher(content.serializeSubBulk()[10:])
 	if !subKey.Verify(hash[:], content.subSignature) {
 		return false
 	}
