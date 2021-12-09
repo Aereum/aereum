@@ -263,35 +263,38 @@ func TestGeneral(t *testing.T) {
 	block = NewBlock(crypto.Hasher([]byte{}), 4, 5, blockFormationToken.PublicKey().ToBytes(), validator)
 
 	// Accept join audience
-	acceptJoin := thirdAuthor.NewAcceptJoinAudience(audienceTest, secondAuthor.token.PublicKey(), 2, 2, uint64(joinFee))
+	acceptJoin := firstAuthor.NewAcceptJoinAudience(audienceTest, secondAuthor.token.PublicKey(), 2, 5, uint64(joinFee))
 	if !block.Incorporate(acceptJoin) {
 		t.Error("could not accept join request to audience")
 	}
-	// firstBalance = firstBalance - joinFee // attorney esta enviando em nome de member1, porem quem paga eh member1
-	thirdBalance = thirdBalance - joinFee
+	firstBalance = firstBalance - joinFee
 	count = count + 1
 
 	// Accept sponsor offer
-	sponsordAccept := thirdAuthor.NewSponsorshipAcceptance(audienceTest, sponsorOffer, 5, uint64(joinFee))
+	sponsordAccept := firstAuthor.NewSponsorshipAcceptance(audienceTest, sponsorOffer, 5, uint64(joinFee))
 	if !block.Incorporate(sponsordAccept) {
 		t.Error("could not accept sponsorship acceptance")
 	}
-	// firstBalance = firstBalance - joinFee
-	thirdBalance = thirdBalance - joinFee
+	firstBalance = firstBalance - joinFee
+	thirdBalance = thirdBalance - 20
 	count = count + 1
 
 	state.IncorporateBlock(block)
-	_, balanceFirstAuthor = state.Wallets.Balance(crypto.Hasher(firstAuthor.token.PublicKey().ToBytes()))
+	_, balanceFirstAuthor = state.Wallets.Balance(crypto.Hasher(firstAuthor.wallet.PublicKey().ToBytes()))
 	if balanceFirstAuthor != uint64(firstBalance) {
 		t.Error("first author did not spent on instructions")
 	}
-	_, balanceSecondAuthor = state.Wallets.Balance(crypto.Hasher(secondAuthor.token.PublicKey().ToBytes()))
+	_, balanceSecondAuthor = state.Wallets.Balance(crypto.Hasher(secondAuthor.wallet.PublicKey().ToBytes()))
 	if balanceSecondAuthor != uint64(secondBalance) {
 		t.Error("second author did not receive transfer")
 	}
-	_, balanceThirdAuthor = state.Wallets.Balance(crypto.Hasher(thirdAuthor.token.PublicKey().ToBytes()))
+	_, balanceThirdAuthor = state.Wallets.Balance(crypto.Hasher(thirdAuthor.wallet.PublicKey().ToBytes()))
 	if balanceThirdAuthor != uint64(thirdBalance) {
 		t.Error("third author did not receive transfer")
+	}
+	_, balanceAudience := state.Wallets.Balance(crypto.Hasher(audienceTest.token.PublicKey().ToBytes()))
+	if balanceAudience != 20 {
+		t.Error("audience did not receive revenue from sponsor")
 	}
 	_, balanceBlockFormator = state.Wallets.Balance(crypto.Hasher(blockFormationToken.PublicKey().ToBytes()))
 	if balanceBlockFormator != uint64(count*joinFee) {
