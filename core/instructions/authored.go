@@ -304,7 +304,7 @@ func (a *Author) NewJoinAudience(audience []byte, presentation string, epoch, fe
 func (a *Author) NewAcceptJoinAudience(audience *Audience, member crypto.PublicKey, level byte, epoch, fee uint64) *AcceptJoinAudience {
 	accept := AcceptJoinAudience{
 		authored: a.NewAuthored(epoch, fee),
-		audience: audience.token.ToBytes(),
+		audience: audience.token.PublicKey().ToBytes(),
 		member:   member.ToBytes(),
 		read:     []byte{},
 		submit:   []byte{},
@@ -509,7 +509,7 @@ func (a *Author) NewSponsorshipOffer(audience *Audience, contentType string, con
 	}
 	sponsorOffer := SponsorshipOffer{
 		authored:    a.NewAuthored(epoch, fee),
-		audience:    audience.token.ToBytes(),
+		audience:    audience.token.PublicKey().ToBytes(),
 		contentType: contentType,
 		content:     content,
 		expiry:      expiry,
@@ -529,8 +529,13 @@ func (a *Author) NewSponsorshipAcceptance(audience *Audience, offer *Sponsorship
 	sponsorAcceptance := SponsorshipAcceptance{
 		authored:     a.NewAuthored(epoch, fee),
 		offer:        offer,
-		audience:     audience.token.ToBytes(),
+		audience:     audience.token.PublicKey().ToBytes(),
 		modSignature: []byte{},
+	}
+	var err error
+	sponsorAcceptance.modSignature, err = audience.moderation.Sign(sponsorAcceptance.serializeModBulk())
+	if err != nil {
+		return nil
 	}
 	bulk := sponsorAcceptance.serializeBulk()
 	if a.sign(sponsorAcceptance.authored, bulk, iSponsorshipAcceptance) {

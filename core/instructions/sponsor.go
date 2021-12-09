@@ -106,7 +106,6 @@ func (accept *SponsorshipAcceptance) Validate(block *Block) bool {
 
 	// NAO ENCONTREI A FUNCAO E NAO CONSEGUI MONTAR A FUNCAO
 	// block.validator.setNewHash(accept.offer.content)
-
 	if !block.validator.HasMember(accept.authored.authorHash()) {
 		return false
 	}
@@ -115,19 +114,19 @@ func (accept *SponsorshipAcceptance) Validate(block *Block) bool {
 	if keys == nil {
 		return false
 	}
-	if accept.offer.expiry >= block.Epoch {
+	if accept.offer.expiry < block.Epoch {
 		return false
 	}
 	offerHash := crypto.Hasher(accept.offer.Serialize())
-	if block.validator.SponsorshipOffer(offerHash) != 0 {
+	if block.validator.SponsorshipOffer(offerHash) == 0 {
 		return false
 	}
-	hash := crypto.Hasher(accept.serializeModBulk())
-	modKey, err := crypto.PublicKeyFromBytes(keys[0:crypto.PublicKeySize])
+	//hash := crypto.Hasher(accept.serializeModBulk())
+	modKey, err := crypto.PublicKeyFromBytes(keys[crypto.PublicKeySize : 2*crypto.PublicKeySize])
 	if err != nil {
 		return false
 	}
-	if !modKey.Verify(hash[:], accept.modSignature) {
+	if !modKey.Verify(accept.serializeModBulk(), accept.modSignature) {
 		return false
 	}
 	if block.SetNewUseSonOffer(offerHash) {

@@ -1,7 +1,6 @@
 package instructions
 
 import (
-	"bytes"
 	"fmt"
 
 	"github.com/Aereum/aereum/core/crypto"
@@ -246,19 +245,19 @@ func (accept *AcceptJoinAudience) Validate(block *Block) bool {
 	if keys == nil {
 		return false
 	}
-	modPublic, err := crypto.PublicKeyFromBytes(keys[0:crypto.PublicKeySize])
+	modPublic, err := crypto.PublicKeyFromBytes(keys[crypto.PublicKeySize : 2*crypto.PublicKeySize])
 	if err != nil {
 		return false
 	}
-	hashed := crypto.Hasher(accept.serializeModBulk())
-	if !modPublic.Verify(hashed[:], accept.modSignature) {
+	if !modPublic.Verify(accept.serializeModBulk(), accept.modSignature) {
 		return false
 	}
-	if bytes.Equal(keys[0:crypto.Size], hashed[:]) {
-		block.FeesCollected += accept.authored.fee
-		return true
-	}
-	return false
+	//hashed := crypto.Hasher(accept.Serialize())
+	//if bytes.Equal(keys[0:crypto.Size], hashed[:]) {
+	block.FeesCollected += accept.authored.fee
+	return true
+	//}
+	//return false
 }
 
 func (accept *AcceptJoinAudience) Payments() *Payment {

@@ -228,8 +228,7 @@ func TestGeneral(t *testing.T) {
 	count = count + 1
 
 	// Sponsorship Offer
-	sponsorOffer := thirdAuthor.NewSponsorshipOffer(audienceTest, "txt", []byte("sponsor"), 2, 20, 4, uint64(joinFee))
-	block.Incorporate(sponsorOffer)
+	sponsorOffer := thirdAuthor.NewSponsorshipOffer(audienceTest, "txt", []byte("sponsor"), 20, 20, 4, uint64(joinFee))
 	if !block.Incorporate(sponsorOffer) {
 		t.Error("could not publish sponsor offer to audience")
 	}
@@ -247,15 +246,15 @@ func TestGeneral(t *testing.T) {
 	// if !state.SponsorOffers.Exists() {
 	// 	t.Error("sponsor offer was not incorporated")
 	// }
-	_, balanceFirstAuthor = state.Wallets.Balance(crypto.Hasher(firstAuthor.token.PublicKey().ToBytes()))
+	_, balanceFirstAuthor = state.Wallets.Balance(crypto.Hasher(firstAuthor.wallet.PublicKey().ToBytes()))
 	if balanceFirstAuthor != uint64(firstBalance) {
 		t.Error("first author did not spent on instructions")
 	}
-	_, balanceSecondAuthor = state.Wallets.Balance(crypto.Hasher(secondAuthor.token.PublicKey().ToBytes()))
+	_, balanceSecondAuthor = state.Wallets.Balance(crypto.Hasher(secondAuthor.wallet.PublicKey().ToBytes()))
 	if balanceSecondAuthor != uint64(secondBalance) {
 		t.Error("second author did not receive transfer")
 	}
-	_, balanceThirdAuthor = state.Wallets.Balance(crypto.Hasher(thirdAuthor.token.PublicKey().ToBytes()))
+	_, balanceThirdAuthor = state.Wallets.Balance(crypto.Hasher(thirdAuthor.wallet.PublicKey().ToBytes()))
 	if balanceThirdAuthor != uint64(thirdBalance) {
 		t.Error("third author did not receive transfer")
 	}
@@ -269,7 +268,6 @@ func TestGeneral(t *testing.T) {
 
 	// Accept join audience
 	acceptJoin := thirdAuthor.NewAcceptJoinAudience(audienceTest, secondAuthor.token.PublicKey(), 2, 2, uint64(joinFee))
-	block.Incorporate(acceptJoin)
 	if !block.Incorporate(acceptJoin) {
 		t.Error("could not accept join request to audience")
 	}
@@ -278,9 +276,8 @@ func TestGeneral(t *testing.T) {
 
 	// Accept sponsor offer
 	sponsordAccept := thirdAuthor.NewSponsorshipAcceptance(audienceTest, sponsorOffer, 5, uint64(joinFee))
-	block.Incorporate(sponsordAccept)
 	if !block.Incorporate(sponsordAccept) {
-		t.Error("could not accept join request to audience")
+		t.Error("could not accept sponsorship acceptance")
 	}
 	firstBalance = firstBalance - joinFee
 	count = count + 1
