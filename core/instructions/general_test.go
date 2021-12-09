@@ -348,6 +348,9 @@ func TestGeneral(t *testing.T) {
 	if balanceBlockFormator != uint64(count*joinFee) {
 		t.Error("block formator has not received fee for processed instructions")
 	}
+	if epoch := state.EphemeralTokens.Exists(crypto.Hasher(pubEph.ToBytes())); epoch != 20 {
+		t.Error("ephemeral token not incorporated")
+	}
 
 	// BLOCK 7
 	block = NewBlock(crypto.Hasher([]byte{}), 6, 7, blockFormationToken.PublicKey().ToBytes(), validator)

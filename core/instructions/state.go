@@ -105,6 +105,10 @@ func (s *State) IncorporateBlock(b *Block) {
 	for hash, keys := range b.mutations.UpdAudiences {
 		s.Audiences.SetKeys(hash, keys)
 	}
+	for hash, expire := range b.mutations.NewEphemeral {
+		s.EphemeralTokens.Insert(hash, expire)
+		//s.EphemeralExpire[expire]
+	}
 	s.Wallets.Credit(crypto.Hasher(b.Publisher), b.FeesCollected)
 	fmt.Println(len(b.Instructions), b.FeesCollected)
 }

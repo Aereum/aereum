@@ -2,6 +2,7 @@ package instructions
 
 import (
 	"encoding/json"
+	"fmt"
 
 	"github.com/Aereum/aereum/core/crypto"
 )
@@ -327,9 +328,11 @@ func (a *SecureChannel) Epoch() uint64 {
 func (secure *SecureChannel) Validate(block *Block) bool {
 	authorHash := crypto.Hasher(secure.authored.author)
 	if _, expire := block.validator.GetEphemeralExpire(authorHash); expire <= block.Epoch {
+		fmt.Println(".........1", expire)
 		return false
 	}
 	if len(secure.tokenRange) >= crypto.Size {
+		fmt.Println(".........2")
 		return false
 	}
 	block.FeesCollected += secure.authored.fee
