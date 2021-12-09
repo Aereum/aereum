@@ -4,17 +4,16 @@ import (
 	"fmt"
 	"log"
 
+	"github.com/Aereum/aereum/core/chain"
 	"github.com/Aereum/aereum/core/crypto"
-	"github.com/Aereum/aereum/core/instructions"
 	"github.com/Aereum/aereum/core/network"
 )
 
 var beatKey = []byte{
-	48, 72, 2, 65, 0, 179, 59, 167, 214, 225, 1, 89, 231, 2, 23, 190,
-	49, 1, 161, 85, 93, 45, 21, 46, 182, 248, 160, 129, 237, 169, 176,
-	15, 99, 212, 242, 150, 204, 103, 186, 151, 44, 53, 48, 209, 179,
-	93, 157, 143, 231, 71, 251, 185, 128, 178, 222, 249, 133, 230, 211,
-	76, 3, 216, 218, 124, 239, 243, 80, 133, 245, 2, 3, 1, 0, 1}
+	74, 48, 72, 2, 65, 0, 164, 30, 27, 3, 105, 65, 113, 154, 203, 211, 234, 109, 171, 152, 46, 129,
+	203, 144, 185, 161, 238, 20, 228, 245, 157, 246, 3, 135, 197, 187, 142, 105, 252, 15, 218,
+	189, 71, 232, 55, 12, 179, 108, 217, 216, 202, 195, 114, 6, 177, 198, 223, 142, 200, 93, 165,
+	134, 159, 215, 171, 117, 231, 52, 99, 3, 2, 3, 1, 0, 1, 0}
 
 func main() {
 	_, token := crypto.RandomAsymetricKey()
@@ -32,7 +31,7 @@ func main() {
 		if err != nil {
 			log.Fatal("connection error")
 		}
-		block := instructions.ParseBlock(data)
+		block := chain.ParseBlock(data)
 		if block != nil {
 			fmt.Println(block.JSONSimple())
 		} else {

@@ -23,7 +23,7 @@ import (
 	"os"
 )
 
-const bufferIOBlockSize = 4096
+//const bufferIOBlockSize = 4096
 
 var errOverflow = errors.New("outside store")
 

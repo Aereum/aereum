@@ -54,13 +54,17 @@ func main() {
 	position := 0
 	bytes, position := util.ParseByteArray(data, position)
 	token, err = crypto.PrivateKeyFromBytes(bytes)
-	//fmt.Println(token.PublicKey().ToBytes())
+	fmt.Println(token.PublicKey().ToBytes())
 	if err != nil {
 		log.Fatal(err)
 	}
 	createMsg := make([][]byte, total)
 	for n := 0; n < len(createMsg); n++ {
 		createMsg[n], position = util.ParseByteArray(data, position)
+		if inst := instructions.ParseTransfer(createMsg[n]); inst == nil {
+			fmt.Print(createMsg[n])
+			return
+		}
 	}
 
 	chain := consensus.NewGenesisBlockChain(token)
@@ -76,7 +80,6 @@ func main() {
 			panic(err)
 		}
 	}
-	//ww := time.NewTicker(4 * time.Second)
 	for n := 0; n < total; n++ {
 		time.Sleep(10 * time.Millisecond)
 		if err := conns[n%10].WriteMessage(createMsg[n]); err != nil {
@@ -84,5 +87,4 @@ func main() {
 			break
 		}
 	}
-	//<-ww.C
 }
