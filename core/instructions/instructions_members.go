@@ -22,7 +22,7 @@ func (join *JoinNetwork) Validate(v InstructionValidator) bool {
 	if v.HasCaption(captionHash) {
 		return false
 	}
-	authorHash := crypto.Hasher([]byte(join.authored.author))
+	authorHash := crypto.Hasher(join.authored.author[:])
 	if v.HasMember(authorHash) {
 		return false
 	}
@@ -146,7 +146,7 @@ func (grant *GrantPowerOfAttorney) Validate(v InstructionValidator) bool {
 	if !v.HasMember(crypto.Hasher(grant.attorney)) {
 		return false
 	}
-	hash := crypto.Hasher(append(grant.authored.author, grant.attorney...))
+	hash := crypto.Hasher(append(grant.authored.author[:], grant.attorney...))
 	if v.PowerOfAttorney(hash) {
 		return false
 	}
@@ -206,7 +206,7 @@ func (revoke *RevokePowerOfAttorney) Validate(v InstructionValidator) bool {
 	if !v.HasMember(crypto.Hasher(revoke.attorney)) {
 		return false
 	}
-	hash := crypto.Hasher(append(revoke.authored.author, revoke.attorney...))
+	hash := crypto.Hasher(append(revoke.authored.author[:], revoke.attorney...))
 	if !v.PowerOfAttorney(hash) {
 		return false
 	}
@@ -326,7 +326,7 @@ func (a *SecureChannel) Epoch() uint64 {
 }
 
 func (secure *SecureChannel) Validate(v InstructionValidator) bool {
-	authorHash := crypto.Hasher(secure.authored.author)
+	authorHash := crypto.Hasher(secure.authored.author[:])
 	if _, expire := v.GetEphemeralExpire(authorHash); expire <= v.Epoch() {
 		return false
 	}

@@ -6,6 +6,14 @@ import (
 	"github.com/Aereum/aereum/core/crypto"
 )
 
+func PutToken(token crypto.Token, data *[]byte) {
+	*data = append(*data, token[:]...)
+}
+
+func PutSignature(sign crypto.Signature, data *[]byte) {
+	*data = append(*data, sign[:]...)
+}
+
 func PutByteArray(b []byte, data *[]byte) {
 	if len(b) == 0 {
 		*data = append(*data, 0, 0)
@@ -58,6 +66,24 @@ func PutBool(b bool, data *[]byte) {
 
 func PutByte(b byte, data *[]byte) {
 	*data = append(*data, b)
+}
+
+func ParseToken(data []byte, position int) (crypto.Token, int) {
+	var token crypto.Token
+	if position+crypto.TokenSize > len(data) {
+		return token, position
+	}
+	copy(token[:], data[position:position+crypto.TokenSize])
+	return token, position + crypto.TokenSize
+}
+
+func ParseSignature(data []byte, position int) (crypto.Signature, int) {
+	var sign crypto.Signature
+	if position+crypto.SignatureSize > len(data) {
+		return sign, position
+	}
+	copy(sign[0:crypto.SignatureSize], data[position:position+crypto.SignatureSize])
+	return sign, position + crypto.SignatureSize
 }
 
 func ParseByteArrayArray(data []byte, position int) ([][]byte, int) {

@@ -47,10 +47,13 @@ type Audience struct {
 	hs *HashStore
 }
 
-func (w *Audience) GetKeys(hash crypto.Hash) (bool, []byte) {
+func (w *Audience) GetKeys(hash crypto.Hash) (bool, crypto.Token, crypto.Token, byte) {
 	response := make(chan QueryResult)
 	ok, keys := w.hs.Query(Query{hash: hash, param: []byte{}, response: response})
-	return ok, keys
+	var moderate, submit crypto.Token
+	copy(moderate[:], keys[0:crypto.TokenSize])
+	copy(submit[:], keys[crypto.TokenSize:2*crypto.TokenSize])
+	return ok, moderate, submit, keys[2*crypto.TokenSize]
 }
 
 func (w *Audience) Exists(hash crypto.Hash) bool {
@@ -59,7 +62,11 @@ func (w *Audience) Exists(hash crypto.Hash) bool {
 	return ok
 }
 
-func (w *Audience) SetKeys(hash crypto.Hash, keys []byte) bool {
+func (w *Audience) SetKeys(hash crypto.Hash, moderate, submit crypto.Token, flag byte) bool {
+	keys := make([]byte, 2*crypto.TokenSize+1)
+	copy(keys[0:crypto.TokenSize], moderate[:])
+	copy(keys[crypto.TokenSize:2*crypto.TokenSize], submit[:])
+	keys[crypto.TokenSize] = flag
 	response := make(chan QueryResult)
 	ok, _ := w.hs.Query(Query{hash: hash, param: keys, response: response})
 	return ok
@@ -72,7 +79,7 @@ func (w *Audience) Close() bool {
 }
 
 func NewMemoryAudienceStore(epoch uint64, bitsForBucket int64) *Audience {
-	itemsize := int64(32 + 3*crypto.PublicKeySize)
+	itemsize := int64(32 + 2*crypto.PublicKeySize + 1)
 	nbytes := 56 + int64(1<<bitsForBucket)*(itemsize*6+8)
 	bytestore := NewMemoryStore(nbytes)
 	bucketstore := NewBucketStore(itemsize, 6, bytestore)

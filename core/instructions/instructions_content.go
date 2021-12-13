@@ -9,21 +9,21 @@ import (
 type Content struct {
 	epoch           uint64
 	published       uint64
-	author          []byte
-	audience        []byte
+	author          crypto.Token
+	audience        crypto.Token
 	contentType     string
 	content         []byte
 	hash            []byte
 	sponsored       bool
 	encrypted       bool
-	subSignature    []byte
-	moderator       []byte
-	modSignature    []byte
-	attorney        []byte
-	signature       []byte
-	wallet          []byte
+	subSignature    crypto.Signature
+	moderator       crypto.Token
+	modSignature    crypto.Signature
+	attorney        crypto.Token
+	signature       crypto.Signature
+	wallet          crypto.Token
 	fee             uint64
-	walletSignature []byte
+	walletSignature crypto.Signature
 }
 
 func (a *Content) Epoch() uint64 {
@@ -34,11 +34,14 @@ func (content *Content) Validate(v InstructionValidator) bool {
 	if content.epoch > v.Epoch() {
 		return false
 	}
-	if !v.HasMember(crypto.Hasher(content.author)) {
+	if !v.HasMember(crypto.HashToken(content.author)) {
 		return false
 	}
-	audienceHash := crypto.Hasher(content.audience)
-	keys := v.GetAudienceKeys(audienceHash)
+	audienceHash := crypto.HashToken(content.audience)
+	ok, moderate, submit, _ := v.GetAudienceKeys(audienceHash)
+	if !ok {
+		return false
+	}
 	if content.sponsored {
 		if content.encrypted {
 			return false
@@ -46,7 +49,7 @@ func (content *Content) Validate(v InstructionValidator) bool {
 		if len(content.subSignature) != 0 || len(content.modSignature) != 0 {
 			return false
 		}
-		hash := crypto.Hasher(append(content.author, content.audience...))
+		hash := crypto.Hasher(append(content.author[:], content.audience[:]...))
 		ok, contentHash := v.HasGrantedSponser(hash)
 		if !ok {
 			return false
@@ -57,21 +60,11 @@ func (content *Content) Validate(v InstructionValidator) bool {
 		v.AddFeeCollected(content.fee)
 		return v.SetPublishSponsor(hash)
 	}
-	subKey, err := crypto.PublicKeyFromBytes(keys[0:crypto.PublicKeySize])
-	if err != nil {
+	if !submit.Verify(content.serializeSubBulk()[10:], content.subSignature) {
 		return false
 	}
-	hash := crypto.Hasher(content.serializeSubBulk()[10:])
-	if !subKey.Verify(hash[:], content.subSignature) {
-		return false
-	}
-	if len(content.moderator) != 0 {
-		modKey, err := crypto.PublicKeyFromBytes(keys[crypto.PublicKeySize:])
-		if err != nil {
-			return false
-		}
-		hash := crypto.Hasher(content.serializeModBulk())
-		if !modKey.Verify(hash[:], content.modSignature) {
+	if content.moderator != crypto.ZeroToken {
+		if !moderate.Verify(content.serializeModBulk(), content.modSignature) {
 			return false
 		}
 	}
@@ -81,12 +74,12 @@ func (content *Content) Validate(v InstructionValidator) bool {
 
 func (a *Content) Payments() *Payment {
 	if len(a.wallet) > 0 {
-		return NewPayment(crypto.Hasher(a.wallet), a.fee)
+		return NewPayment(crypto.HashToken(a.wallet), a.fee)
 	}
 	if len(a.attorney) > 0 {
-		return NewPayment(crypto.Hasher(a.attorney), a.fee)
+		return NewPayment(crypto.HashToken(a.attorney), a.fee)
 	}
-	return NewPayment(crypto.Hasher(a.author), a.fee)
+	return NewPayment(crypto.HashToken(a.author), a.fee)
 }
 
 func (content *Content) Kind() byte {
@@ -97,8 +90,8 @@ func (content *Content) serializeSubBulk() []byte {
 	bytes := []byte{0, iContent}
 	util.PutUint64(content.epoch, &bytes)
 	util.PutUint64(content.published, &bytes)
-	util.PutByteArray(content.author, &bytes)
-	util.PutByteArray(content.audience, &bytes)
+	util.PutToken(content.author, &bytes)
+	util.PutToken(content.audience, &bytes)
 	util.PutString(content.contentType, &bytes)
 	util.PutByteArray(content.content, &bytes)
 	util.PutByteArray(content.hash, &bytes)
@@ -109,29 +102,29 @@ func (content *Content) serializeSubBulk() []byte {
 
 func (content *Content) serializeModBulk() []byte {
 	bytes := content.serializeSubBulk()
-	util.PutByteArray(content.subSignature, &bytes)
-	util.PutByteArray(content.moderator, &bytes)
+	util.PutSignature(content.subSignature, &bytes)
+	util.PutToken(content.moderator, &bytes)
 	return bytes
 }
 
 func (content *Content) serializeSignBulk() []byte {
 	bytes := content.serializeModBulk()
-	util.PutByteArray(content.modSignature, &bytes)
-	util.PutByteArray(content.attorney, &bytes)
+	util.PutSignature(content.modSignature, &bytes)
+	util.PutToken(content.attorney, &bytes)
 	return bytes
 }
 
 func (content *Content) serializeWalletBulk() []byte {
 	bytes := content.serializeSignBulk()
-	util.PutByteArray(content.signature, &bytes)
-	util.PutByteArray(content.wallet, &bytes)
+	util.PutSignature(content.signature, &bytes)
+	util.PutToken(content.wallet, &bytes)
 	util.PutUint64(content.fee, &bytes)
 	return bytes
 }
 
 func (content *Content) Serialize() []byte {
 	bytes := content.serializeWalletBulk()
-	util.PutByteArray(content.walletSignature, &bytes)
+	util.PutSignature(content.walletSignature, &bytes)
 	return bytes
 }
 
@@ -143,48 +136,39 @@ func ParseContent(data []byte) *Content {
 	position := 2
 	content.epoch, position = util.ParseUint64(data, position)
 	content.published, position = util.ParseUint64(data, position)
-	content.author, position = util.ParseByteArray(data, position)
-	content.audience, position = util.ParseByteArray(data, position)
+	content.author, position = util.ParseToken(data, position)
+	content.audience, position = util.ParseToken(data, position)
 	content.contentType, position = util.ParseString(data, position)
 	content.content, position = util.ParseByteArray(data, position)
 	content.hash, position = util.ParseByteArray(data, position)
 	content.sponsored, position = util.ParseBool(data, position)
 	content.encrypted, position = util.ParseBool(data, position)
-	content.subSignature, position = util.ParseByteArray(data, position)
-	content.moderator, position = util.ParseByteArray(data, position)
-	content.modSignature, position = util.ParseByteArray(data, position)
+	content.subSignature, position = util.ParseSignature(data, position)
+	content.moderator, position = util.ParseToken(data, position)
+	content.modSignature, position = util.ParseSignature(data, position)
 	if len(content.moderator) == 0 && (content.epoch != content.published) {
 		return nil
 	}
-	content.attorney, position = util.ParseByteArray(data, position)
-	hash := crypto.Hasher(data[0:position])
-	var pubKey crypto.PublicKey
-	var err error
+	content.attorney, position = util.ParseToken(data, position)
+	msg := data[0:position]
+	token := content.author
 	if len(content.attorney) > 0 {
-		pubKey, err = crypto.PublicKeyFromBytes(content.attorney)
+		token = content.attorney
 	} else if len(content.moderator) > 0 {
-		pubKey, err = crypto.PublicKeyFromBytes(content.moderator)
-	} else {
-		pubKey, err = crypto.PublicKeyFromBytes(content.author)
+		token = content.moderator
 	}
-	if err != nil {
+	content.signature, position = util.ParseSignature(data, position)
+	if !token.Verify(msg, content.signature) {
 		return nil
 	}
-	content.signature, position = util.ParseByteArray(data, position)
-	if !pubKey.Verify(hash[:], content.signature) {
-		return nil
-	}
-	content.wallet, position = util.ParseByteArray(data, position)
+	content.wallet, position = util.ParseToken(data, position)
 	content.fee, position = util.ParseUint64(data, position)
-	hash = crypto.Hasher(data[0:position])
-	content.walletSignature, _ = util.ParseByteArray(data, position)
-	if len(content.wallet) > 0 {
-		pubKey, err = crypto.PublicKeyFromBytes(content.wallet)
-		if err != nil {
-			return nil
-		}
+	msg = data[0:position]
+	content.walletSignature, _ = util.ParseSignature(data, position)
+	if content.wallet != crypto.ZeroToken {
+		token = content.wallet
 	}
-	if !pubKey.Verify(hash[:], content.walletSignature) {
+	if !token.Verify(msg, content.walletSignature) {
 		return nil
 	}
 	return &content

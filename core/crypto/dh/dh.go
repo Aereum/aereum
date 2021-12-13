@@ -30,6 +30,7 @@ package dh
 // the SHA256 hash on the agreed key is used as a key for an AES 256 Cipher.
 
 import (
+	"fmt"
 	"math/rand"
 
 	"github.com/Aereum/aereum/core/crypto"
@@ -42,7 +43,33 @@ type Party struct {
 	agreedKey []byte
 }
 
-func NewAlice() *Party {
+func NewEphemeralKey() (crypto.Token, crypto.Token) {
+	var prvToken, pubToken crypto.Token
+	prv := make([]byte, crypto.PublicKeySize)
+	rand.Read(prv)
+	pub, err := curve25519.X25519(prv, curve25519.Basepoint)
+	if err == nil {
+		copy(prvToken[:], prv)
+		copy(pubToken[:], pub)
+	}
+	return prvToken, pubToken
+}
+
+func ConsensusKey(local crypto.Token, remote crypto.Token) []byte {
+	agreedKey, err := curve25519.X25519(local[:], remote[:])
+	if err != nil {
+		fmt.Println("------------------", err)
+		return nil
+	}
+	hashed := crypto.Hasher(agreedKey)
+	return hashed[:]
+}
+
+func ConsensusCipher(local crypto.Token, remote crypto.Token) crypto.Cipher {
+	return crypto.CipherFromKey(ConsensusKey(local, remote))
+}
+
+func NewEphemeralRequest() *Party {
 	rnd := make([]byte, 32)
 	rand.Read(rnd)
 	rndX, err := curve25519.X25519(rnd, curve25519.Basepoint)
@@ -52,7 +79,7 @@ func NewAlice() *Party {
 	return &Party{key: rnd, keyX: rndX}
 }
 
-func NewBob(aliceKeyX []byte) *Party {
+func NewEphemeralResponse(aliceKeyX []byte) *Party {
 	rnd := make([]byte, 32)
 	rand.Read(rnd)
 	rndX, err := curve25519.X25519(rnd, curve25519.Basepoint)
@@ -66,7 +93,7 @@ func NewBob(aliceKeyX []byte) *Party {
 	return &Party{key: rnd, keyX: rndX, agreedKey: agreedKey}
 }
 
-func (p *Party) Incorporate(otherKeyX []byte) bool {
+func (p *Party) IncorporateResponse(otherKeyX []byte) bool {
 	agreedKey, err := curve25519.X25519(p.key, otherKeyX)
 	if err != nil {
 		return false

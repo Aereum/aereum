@@ -1,45 +1,31 @@
 package instructions
 
 import (
-	"bytes"
-
 	"github.com/Aereum/aereum/core/crypto"
+	"github.com/Aereum/aereum/core/crypto/dh"
 	"github.com/Aereum/aereum/core/util"
 )
 
 type Author struct {
-	Token    *crypto.PrivateKey
-	Wallet   *crypto.PrivateKey
-	Attorney *crypto.PrivateKey
-}
-
-func NewAuthor(token, wallet, attorney *crypto.PrivateKey) *Author {
-	author := &Author{
-		Token:    token,
-		Wallet:   wallet,
-		Attorney: attorney,
-	}
-	return author
+	PrivateKey crypto.PrivateKey
+	Wallet     crypto.PrivateKey
+	Attorney   crypto.PrivateKey
 }
 
 func (a *Author) NewAuthored(epoch, fee uint64) *authoredInstruction {
-	if a.Token == nil {
+	if a.PrivateKey == crypto.ZeroPrivateKey {
 		return nil
 	}
 	authored := authoredInstruction{
-		epoch:           epoch,
-		author:          a.Token.PublicKey().ToBytes(),
-		wallet:          []byte{},
-		fee:             fee,
-		attorney:        []byte{},
-		signature:       []byte{},
-		walletSignature: []byte{},
+		epoch:  epoch,
+		author: a.PrivateKey.PublicKey(),
+		fee:    fee,
 	}
-	if a.Wallet != nil {
-		authored.wallet = a.Wallet.PublicKey().ToBytes()
+	if a.Wallet != crypto.ZeroPrivateKey {
+		authored.wallet = a.Wallet.PublicKey()
 	}
-	if a.Attorney != nil {
-		authored.attorney = a.Attorney.PublicKey().ToBytes()
+	if a.Attorney != crypto.ZeroPrivateKey {
+		authored.attorney = a.Attorney.PublicKey()
 	}
 	return &authored
 }
@@ -57,23 +43,21 @@ func (a *Author) NewJoinNetwork(caption string, details string, epoch, fee uint6
 	return nil
 }
 
-func (a *Author) NewJoinNetworkThirdParty(token []byte, caption string, details string, epoch, fee uint64) *JoinNetwork {
+func (a *Author) NewJoinNetworkThirdParty(token crypto.Token, caption string, details string, epoch, fee uint64) *JoinNetwork {
 	authored := authoredInstruction{
-		epoch:    epoch,
-		author:   token,
-		fee:      fee,
-		attorney: []byte{},
-		wallet:   []byte{},
+		epoch:  epoch,
+		author: token,
+		fee:    fee,
 	}
-	if a.Attorney != nil {
-		authored.attorney = a.Attorney.PublicKey().ToBytes()
+	if a.Attorney != crypto.ZeroPrivateKey {
+		authored.attorney = a.Attorney.PublicKey()
 	}
-	if a.Wallet != nil {
-		authored.wallet = a.Wallet.PublicKey().ToBytes()
-	} else if a.Attorney != nil {
-		authored.wallet = a.Attorney.PublicKey().ToBytes()
+	if a.Wallet != crypto.ZeroPrivateKey {
+		authored.wallet = a.Wallet.PublicKey()
+	} else if a.Attorney != crypto.ZeroPrivateKey {
+		authored.wallet = a.Attorney.PublicKey()
 	} else {
-		authored.wallet = a.Token.PublicKey().ToBytes()
+		authored.wallet = a.PrivateKey.PublicKey()
 	}
 	join := JoinNetwork{
 		authored: &authored,
@@ -153,15 +137,12 @@ func (a *Author) NewSecureChannel(tokenRange []byte, nonce uint64, encryptedNonc
 
 func (a *Author) NewCreateAudience(audience *Audience, flag byte, description string, epoch, fee uint64) *CreateAudience {
 	newAudience := CreateAudience{
-		authored:      a.NewAuthored(epoch, fee),
-		audience:      audience.Token.PublicKey().ToBytes(),
-		submission:    audience.Submission.PublicKey().ToBytes(),
-		moderation:    audience.Moderation.PublicKey().ToBytes(),
-		audienceKey:   audience.SealedToken(),
-		submissionKey: audience.SealedSubmission(),
-		moderationKey: audience.SealedModeration(),
-		flag:          flag,
-		description:   description,
+		authored:    a.NewAuthored(epoch, fee),
+		audience:    audience.PrivateKey.PublicKey(),
+		submission:  audience.Submission.PublicKey(),
+		moderation:  audience.Moderation.PublicKey(),
+		flag:        flag,
+		description: description,
 	}
 	bulk := newAudience.serializeBulk()
 	if a.sign(newAudience.authored, bulk, iCreateAudience) {
@@ -170,7 +151,7 @@ func (a *Author) NewCreateAudience(audience *Audience, flag byte, description st
 	return nil
 }
 
-func (a *Author) NewJoinAudience(audience []byte, presentation string, epoch, fee uint64) *JoinAudience {
+func (a *Author) NewJoinAudience(audience crypto.Token, presentation string, epoch, fee uint64) *JoinAudience {
 	join := JoinAudience{
 		authored:     a.NewAuthored(epoch, fee),
 		audience:     audience,
@@ -183,31 +164,27 @@ func (a *Author) NewJoinAudience(audience []byte, presentation string, epoch, fe
 	return nil
 }
 
-func (a *Author) NewAcceptJoinAudience(audience *Audience, member crypto.PublicKey, level byte, epoch, fee uint64) *AcceptJoinAudience {
+func (a *Author) NewAcceptJoinAudience(audience *Audience, member, key crypto.Token, level byte, epoch, fee uint64) *AcceptJoinAudience {
 	accept := AcceptJoinAudience{
 		authored: a.NewAuthored(epoch, fee),
-		audience: audience.Token.PublicKey().ToBytes(),
-		member:   member.ToBytes(),
+		audience: audience.PrivateKey.PublicKey(),
+		member:   member,
 		read:     []byte{},
 		submit:   []byte{},
 		moderate: []byte{},
 	}
-	accept.read, _ = member.Encrypt(audience.AudienceKeyCipher)
+	pub, prv := dh.NewEphemeralKey()
+	cipher := dh.ConsensusCipher(prv, key)
+	accept.read = cipher.Seal(audience.CipherKey)
 	if level > 0 {
-		accept.submit, _ = member.Encrypt(audience.SubmitKeyCipher)
+		accept.submit = cipher.Seal(audience.Submission[:32])
 	}
 	if level > 1 {
-		accept.moderate, _ = member.Encrypt(audience.ModerateKeyCipher)
-
+		accept.moderate = cipher.Seal(audience.Moderation[:32])
 	}
+	accept.key = pub
 	modbulk := accept.serializeModBulk()
-	var sign []byte
-	var err error
-	sign, err = audience.Moderation.Sign(modbulk)
-	if err != nil {
-		return nil
-	}
-	accept.modSignature = sign
+	accept.modSignature = audience.Moderation.Sign(modbulk)
 	bulk := accept.serializeBulk()
 	if a.sign(accept.authored, bulk, iAcceptJoinRequest) {
 		return &accept
@@ -215,28 +192,34 @@ func (a *Author) NewAcceptJoinAudience(audience *Audience, member crypto.PublicK
 	return nil
 }
 
-func (a *Author) NewUpdateAudience(audience *Audience, readers, submiters, moderators []crypto.PublicKey, flag byte, description string, epoch, fee uint64) *UpdateAudience {
+func (a *Author) NewUpdateAudience(audience *Audience, readers, submiters, moderators map[crypto.Token]crypto.Token, flag byte, description string, epoch, fee uint64) *UpdateAudience {
 	update := UpdateAudience{
-		authored:      a.NewAuthored(epoch, fee),
-		audience:      audience.Token.PublicKey().ToBytes(),
-		submission:    audience.Submission.PublicKey().ToBytes(),
-		moderation:    audience.Moderation.PublicKey().ToBytes(),
-		submissionKey: audience.SealedSubmission(),
-		moderationKey: audience.SealedModeration(),
-		flag:          flag,
-		description:   description,
-		readMembers:   audience.ReadTokenCiphers(readers),
-		subMembers:    audience.SubmitTokenCiphers(submiters),
-		modMembers:    audience.ModerateTokenCiphers(moderators),
+		authored:   a.NewAuthored(epoch, fee),
+		audience:   audience.PrivateKey.PublicKey(),
+		submission: audience.Submission.PublicKey(),
+		moderation: audience.Moderation.PublicKey(),
+
+		flag:        flag,
+		description: description,
+		readMembers: make(TokenCiphers, 0),
+		subMembers:  make(TokenCiphers, 0),
+		modMembers:  make(TokenCiphers, 0),
 	}
-	audBulk := update.serializeAudBulk()
-	var sign []byte
-	var err error
-	sign, err = audience.Token.Sign(audBulk)
-	if err != nil {
-		return nil
+	prv, pub := dh.NewEphemeralKey()
+	update.key = pub
+	for token, key := range readers {
+		cipher := dh.ConsensusCipher(prv, key)
+		update.readMembers = append(update.readMembers, TokenCipher{token: token, cipher: cipher.Seal(audience.CipherKey)})
 	}
-	update.audSignature = sign
+	for token, key := range submiters {
+		cipher := dh.ConsensusCipher(prv, key)
+		update.subMembers = append(update.subMembers, TokenCipher{token: token, cipher: cipher.Seal(audience.Submission[:32])})
+	}
+	for token, key := range moderators {
+		cipher := dh.ConsensusCipher(prv, key)
+		update.modMembers = append(update.modMembers, TokenCipher{token: token, cipher: cipher.Seal(audience.Moderation[:32])})
+	}
+	update.audSignature = audience.PrivateKey.Sign(update.serializeAudBulk())
 	bulk := update.serializeBulk()
 	if a.sign(update.authored, bulk, iUpdateAudience) {
 		return &update
@@ -245,10 +228,10 @@ func (a *Author) NewUpdateAudience(audience *Audience, readers, submiters, moder
 }
 
 func (a *Author) ModerateContent(audience *Audience, content *Content, epoch, fee uint64) *Content {
-	if audience == nil || audience.Moderation == nil {
+	if audience == nil || audience.Moderation == crypto.ZeroPrivateKey {
 		return nil
 	}
-	if !bytes.Equal(audience.Token.ToBytes(), content.audience) {
+	if audience.PrivateKey.PublicKey() != content.audience {
 		return nil
 	}
 	newContent := &Content{
@@ -261,38 +244,24 @@ func (a *Author) ModerateContent(audience *Audience, content *Content, epoch, fe
 		sponsored:    content.sponsored,
 		encrypted:    content.encrypted,
 		subSignature: content.subSignature,
-		moderator:    a.Token.ToBytes(),
-		attorney:     []byte{},
-		wallet:       []byte{},
+		moderator:    audience.PrivateKey.PublicKey(),
+		attorney:     a.Attorney.PublicKey(),
+		wallet:       a.Wallet.PublicKey(),
 		fee:          fee,
 	}
-	hash := crypto.Hasher(newContent.serializeModBulk())
-	var err error
-	newContent.modSignature, err = audience.Moderation.Sign(hash[:])
-	if err != nil {
-		return nil
-	}
-	if a.Attorney != nil {
-		newContent.attorney = a.Attorney.ToBytes()
-		hash = crypto.Hasher(newContent.serializeSignBulk())
-		newContent.signature, err = a.Attorney.Sign(hash[:])
+	msg := newContent.serializeModBulk()
+	newContent.modSignature = audience.Moderation.Sign(msg)
+	if a.Attorney != crypto.ZeroPrivateKey {
+		newContent.attorney = a.Attorney.PublicKey()
+		newContent.signature = a.Attorney.Sign(newContent.serializeSignBulk())
 	} else {
-		hash = crypto.Hasher(newContent.serializeSignBulk())
-		newContent.signature, err = a.Token.Sign(hash[:])
+		newContent.signature = a.PrivateKey.Sign(newContent.serializeSignBulk())
 	}
-	if err != nil {
-		return nil
-	}
-	if a.Wallet != nil {
-		newContent.wallet = a.Wallet.ToBytes()
-		hash = crypto.Hasher(newContent.serializeWalletBulk())
-		newContent.walletSignature, err = a.Attorney.Sign(hash[:])
+	if a.Wallet != crypto.ZeroPrivateKey {
+		newContent.wallet = a.Wallet.PublicKey()
+		newContent.walletSignature = a.Attorney.Sign(newContent.serializeWalletBulk())
 	} else {
-		hash = crypto.Hasher(newContent.serializeWalletBulk())
-		newContent.walletSignature, err = a.Token.Sign(hash[:])
-	}
-	if err != nil {
-		return nil
+		newContent.walletSignature = a.PrivateKey.Sign(newContent.serializeWalletBulk())
 	}
 	return newContent
 }
@@ -302,28 +271,20 @@ func (a *Author) NewContent(audience *Audience, contentType string, message []by
 		return nil
 	}
 	content := &Content{
-		epoch:        epoch,
-		published:    epoch,
-		author:       a.Token.PublicKey().ToBytes(),
-		audience:     audience.Token.PublicKey().ToBytes(),
-		contentType:  contentType,
-		hash:         []byte{},
-		sponsored:    false,
-		encrypted:    encrypted,
-		attorney:     []byte{},
-		moderator:    []byte{},
-		modSignature: []byte{},
-		wallet:       []byte{},
-		fee:          fee,
-	}
-	if a.Attorney != nil {
-		content.attorney = a.Attorney.PublicKey().ToBytes()
-	}
-	if a.Wallet != nil {
-		content.wallet = a.Wallet.PublicKey().ToBytes()
+		epoch:       epoch,
+		published:   epoch,
+		author:      a.PrivateKey.PublicKey(),
+		audience:    audience.PrivateKey.PublicKey(),
+		contentType: contentType,
+		hash:        []byte{},
+		sponsored:   false,
+		encrypted:   encrypted,
+		attorney:    a.Attorney.PublicKey(),
+		wallet:      a.Wallet.PublicKey(),
+		fee:         fee,
 	}
 	if encrypted {
-		cipher := crypto.CipherFromKey(audience.AudienceKeyCipher)
+		cipher := crypto.CipherFromKey(audience.CipherKey)
 		content.content = cipher.Seal(message)
 	} else {
 		content.content = message
@@ -333,42 +294,22 @@ func (a *Author) NewContent(audience *Audience, contentType string, message []by
 		content.hash = hashed[:]
 	}
 	subBulk := content.serializeSubBulk()
-	hashed := crypto.Hasher(subBulk[10:])
-	var sign []byte
-	var err error
-	sign, err = audience.Submission.Sign(hashed[:])
-	if err != nil {
-		return nil
+	content.subSignature = audience.Submission.Sign(subBulk[10:])
+	util.PutSignature(content.subSignature, &subBulk)
+	if audience.Moderation != crypto.ZeroPrivateKey {
+		content.moderator = a.PrivateKey.PublicKey()
+		content.modSignature = audience.Moderation.Sign(content.serializeModBulk())
 	}
-	content.subSignature = sign
-	util.PutByteArray(content.subSignature, &subBulk)
-	if audience.Moderation != nil {
-		content.moderator = a.Token.PublicKey().ToBytes()
-		hashed = crypto.Hasher(content.serializeModBulk())
-		content.modSignature, err = audience.Moderation.Sign(hashed[:])
-		if err != nil {
-			return nil
-		}
-	}
-	hashed = crypto.Hasher(content.serializeSignBulk())
-	if a.Attorney != nil {
-		content.signature, err = a.Attorney.Sign(hashed[:])
+	if a.Attorney != crypto.ZeroPrivateKey {
+		content.signature = a.Attorney.Sign(content.serializeSignBulk())
 	} else {
-		content.signature, err = a.Token.Sign(hashed[:])
+		content.signature = a.PrivateKey.Sign(content.serializeSignBulk())
 	}
-	if err != nil {
-		return nil
-	}
-	hashed = crypto.Hasher(content.serializeWalletBulk())
-	if a.Wallet != nil {
-		sign, err = a.Wallet.Sign(hashed[:])
+	if a.Wallet != crypto.ZeroPrivateKey {
+		content.walletSignature = a.Wallet.Sign(content.serializeWalletBulk())
 	} else {
-		sign, err = a.Token.Sign(hashed[:])
+		content.walletSignature = a.PrivateKey.Sign(content.serializeWalletBulk())
 	}
-	if err != nil {
-		return nil
-	}
-	content.walletSignature = sign
 	return content
 }
 
@@ -391,7 +332,7 @@ func (a *Author) NewSponsorshipOffer(audience *Audience, contentType string, con
 	}
 	sponsorOffer := SponsorshipOffer{
 		authored:    a.NewAuthored(epoch, fee),
-		audience:    audience.Token.PublicKey().ToBytes(),
+		audience:    audience.PrivateKey.PublicKey(),
 		contentType: contentType,
 		content:     content,
 		expiry:      expiry,
@@ -409,16 +350,11 @@ func (a *Author) NewSponsorshipAcceptance(audience *Audience, offer *Sponsorship
 		return nil
 	}
 	sponsorAcceptance := SponsorshipAcceptance{
-		authored:     a.NewAuthored(epoch, fee),
-		offer:        offer,
-		audience:     audience.Token.PublicKey().ToBytes(),
-		modSignature: []byte{},
+		authored: a.NewAuthored(epoch, fee),
+		offer:    offer,
+		audience: audience.PrivateKey.PublicKey(),
 	}
-	var err error
-	sponsorAcceptance.modSignature, err = audience.Moderation.Sign(sponsorAcceptance.serializeModBulk())
-	if err != nil {
-		return nil
-	}
+	sponsorAcceptance.modSignature = audience.Moderation.Sign(sponsorAcceptance.serializeModBulk())
 	bulk := sponsorAcceptance.serializeBulk()
 	if a.sign(sponsorAcceptance.authored, bulk, iSponsorshipAcceptance) {
 		return &sponsorAcceptance
@@ -428,24 +364,18 @@ func (a *Author) NewSponsorshipAcceptance(audience *Audience, offer *Sponsorship
 
 func (a *Author) sign(authored *authoredInstruction, bulk []byte, insType byte) bool {
 	bytes := authored.serializeWithoutSignature(insType, bulk)
-	hash := crypto.Hasher(bytes)
-	var err error
-	if a.Attorney != nil {
-		authored.signature, err = a.Attorney.Sign(hash[:])
+	if a.Attorney != crypto.ZeroPrivateKey {
+		authored.signature = a.Attorney.Sign(bytes)
 	} else {
-		authored.signature, err = a.Token.Sign(hash[:])
+		authored.signature = a.PrivateKey.Sign(bytes)
 	}
-	if err != nil {
-		return false
-	}
-	util.PutByteArray(authored.signature, &bytes)
-	hash = crypto.Hasher(bytes)
-	if a.Wallet != nil {
-		authored.walletSignature, err = a.Wallet.Sign(hash[:])
-	} else if a.Attorney != nil {
-		authored.walletSignature, err = a.Attorney.Sign(hash[:])
+	util.PutSignature(authored.signature, &bytes)
+	if a.Wallet != crypto.ZeroPrivateKey {
+		authored.walletSignature = a.Wallet.Sign(bytes)
+	} else if a.Attorney != crypto.ZeroPrivateKey {
+		authored.walletSignature = a.Attorney.Sign(bytes)
 	} else {
-		authored.walletSignature, err = a.Token.Sign(hash[:])
+		authored.walletSignature = a.PrivateKey.Sign(bytes)
 	}
-	return err == nil
+	return true
 }

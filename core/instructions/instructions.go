@@ -34,15 +34,15 @@ type InstructionValidator interface {
 	SetPublishSponsor(hash crypto.Hash) bool
 	SetNewEphemeralToken(hash crypto.Hash, expire uint64) bool
 	SetNewMember(tokenHash crypto.Hash, captionHashe crypto.Hash) bool
-	SetNewAudience(hash crypto.Hash, keys []byte) bool
-	UpdateAudience(hash crypto.Hash, keys []byte) bool
+	SetNewAudience(hash crypto.Hash, moderate, submit crypto.Token, flag byte) bool
+	UpdateAudience(hash crypto.Hash, moderate, submit crypto.Token, flag byte) bool
 	Balance(hash crypto.Hash) uint64
 	PowerOfAttorney(hash crypto.Hash) bool
 	SponsorshipOffer(hash crypto.Hash) uint64
 	HasMember(hash crypto.Hash) bool
 	HasCaption(hash crypto.Hash) bool
 	HasGrantedSponser(hash crypto.Hash) (bool, crypto.Hash)
-	GetAudienceKeys(hash crypto.Hash) []byte
+	GetAudienceKeys(hash crypto.Hash) (bool, crypto.Token, crypto.Token, byte)
 	GetEphemeralExpire(hash crypto.Hash) (bool, uint64)
 	AddFeeCollected(uint64)
 	Epoch() uint64

@@ -27,7 +27,7 @@ func TestGeneral(t *testing.T) {
 
 	// Starting block
 	block := NewBlock(crypto.Hasher([]byte{}), 0, 1, blockFormationToken.PublicKey().ToBytes(), validator)
-	eve := &instructions.Author{Token: &token}
+	eve := &instructions.Author{PrivateKey: &token}
 	eveBalance := 1e6
 	joinFee := 10
 	count := 0
@@ -35,7 +35,7 @@ func TestGeneral(t *testing.T) {
 	// First member crypto data
 	pubKey1, prvKey1 := crypto.RandomAsymetricKey()
 	_, prvWal1 := crypto.RandomAsymetricKey()
-	firstAuthor := &instructions.Author{Token: &prvKey1, Wallet: &prvWal1}
+	firstAuthor := &instructions.Author{PrivateKey: &prvKey1, Wallet: &prvWal1}
 	firstBalance := 0
 
 	// Join Network sent by eve (pq nao posso usar join network normal?)
@@ -70,7 +70,7 @@ func TestGeneral(t *testing.T) {
 	block = NewBlock(crypto.Hasher([]byte{}), 1, 2, blockFormationToken.PublicKey().ToBytes(), validator)
 
 	// Transfer from eve to first member
-	transfer := instructions.NewSingleReciepientTransfer(*eve.Token, firstAuthor.Wallet.PublicKey().ToBytes(), "first transfer", 100, 2, uint64(joinFee))
+	transfer := instructions.NewSingleReciepientTransfer(*eve.PrivateKey, firstAuthor.Wallet.PublicKey().ToBytes(), "first transfer", 100, 2, uint64(joinFee))
 	if !block.Incorporate(transfer) {
 		t.Error("could not add transfer")
 	}
@@ -81,7 +81,7 @@ func TestGeneral(t *testing.T) {
 	// Join Network - Second member, sent by eve
 	pubKey2, prvKey2 := crypto.RandomAsymetricKey()
 	_, prvWal2 := crypto.RandomAsymetricKey()
-	secondAuthor := &instructions.Author{Token: &prvKey2, Wallet: &prvWal2}
+	secondAuthor := &instructions.Author{PrivateKey: &prvKey2, Wallet: &prvWal2}
 	secondBalance := 0
 	join2 := eve.NewJoinNetworkThirdParty(pubKey2.ToBytes(), "member2", jsonString1, 2, uint64(joinFee))
 	if block.Incorporate(join2) != true {
@@ -93,7 +93,7 @@ func TestGeneral(t *testing.T) {
 	// Join Network - Third member, sent by member1
 	pubKey3, prvKey3 := crypto.RandomAsymetricKey()
 	_, prvWal3 := crypto.RandomAsymetricKey()
-	thirdAuthor := &instructions.Author{Token: &prvKey3, Wallet: &prvWal3}
+	thirdAuthor := &instructions.Author{PrivateKey: &prvKey3, Wallet: &prvWal3}
 	thirdBalance := 0
 	join3 := eve.NewJoinNetworkThirdParty(pubKey3.ToBytes(), "member3", jsonString1, 2, uint64(joinFee))
 	if block.Incorporate(join3) != true {
@@ -140,7 +140,7 @@ func TestGeneral(t *testing.T) {
 	block = NewBlock(crypto.Hasher([]byte{}), 2, 3, blockFormationToken.PublicKey().ToBytes(), validator)
 
 	// Transfer from eve to second member
-	transfer = instructions.NewSingleReciepientTransfer(*eve.Token, secondAuthor.Wallet.PublicKey().ToBytes(), "second transfer", 100, 3, uint64(joinFee))
+	transfer = instructions.NewSingleReciepientTransfer(*eve.PrivateKey, secondAuthor.Wallet.PublicKey().ToBytes(), "second transfer", 100, 3, uint64(joinFee))
 	if !block.Incorporate(transfer) {
 		t.Error("could not add second transfer")
 	}
@@ -149,7 +149,7 @@ func TestGeneral(t *testing.T) {
 	count = count + 1
 
 	// Transfer from eve to third member
-	transfer = instructions.NewSingleReciepientTransfer(*eve.Token, thirdAuthor.Wallet.PublicKey().ToBytes(), "third transfer", 100, 3, uint64(joinFee))
+	transfer = instructions.NewSingleReciepientTransfer(*eve.PrivateKey, thirdAuthor.Wallet.PublicKey().ToBytes(), "third transfer", 100, 3, uint64(joinFee))
 	if !block.Incorporate(transfer) {
 		t.Error("could not add third transfer")
 	}
@@ -167,20 +167,20 @@ func TestGeneral(t *testing.T) {
 	firstBalance = firstBalance - joinFee
 
 	// Power of attorney sent by first author with third author as attorney
-	poa := firstAuthor.NewGrantPowerOfAttorney(thirdAuthor.Token.PublicKey().ToBytes(), 3, uint64(joinFee))
+	poa := firstAuthor.NewGrantPowerOfAttorney(thirdAuthor.PrivateKey.PublicKey().ToBytes(), 3, uint64(joinFee))
 	if !block.Incorporate(poa) {
 		t.Error("could not add poa")
 	}
-	firstAuthor.Attorney = thirdAuthor.Token
+	firstAuthor.Attorney = thirdAuthor.PrivateKey
 	count = count + 1
 	firstBalance = firstBalance - joinFee
 
 	// Block 3 incorporation and balance checks
 	state.IncorporateBlock(block)
-	if !state.Audiences.Exists(crypto.Hasher(audienceTest.Token.PublicKey().ToBytes())) {
+	if !state.Audiences.Exists(crypto.Hasher(audienceTest.PrivateKey.PublicKey().ToBytes())) {
 		t.Error("state did not create audience")
 	}
-	hashAttorney := crypto.Hasher(append(firstAuthor.Token.PublicKey().ToBytes(), thirdAuthor.Token.PublicKey().ToBytes()...))
+	hashAttorney := crypto.Hasher(append(firstAuthor.PrivateKey.PublicKey().ToBytes(), thirdAuthor.PrivateKey.PublicKey().ToBytes()...))
 	if !state.PowerOfAttorney.Exists(hashAttorney) {
 		t.Error("power of attorney was not granted")
 	}
@@ -208,7 +208,7 @@ func TestGeneral(t *testing.T) {
 	block = NewBlock(crypto.Hasher([]byte{}), 3, 4, blockFormationToken.PublicKey().ToBytes(), validator)
 
 	// Join audience sent by second member
-	joinAudience := secondAuthor.NewJoinAudience(audienceTest.Token.ToBytes(), "first audience member", 4, uint64(joinFee))
+	joinAudience := secondAuthor.NewJoinAudience(audienceTest.PrivateKey.ToBytes(), "first audience member", 4, uint64(joinFee))
 	if !block.Incorporate(joinAudience) {
 		t.Error("could not send join audience instruction")
 	}
@@ -256,7 +256,7 @@ func TestGeneral(t *testing.T) {
 	block = NewBlock(crypto.Hasher([]byte{}), 4, 5, blockFormationToken.PublicKey().ToBytes(), validator)
 
 	// Accept join audience
-	acceptJoin := firstAuthor.NewAcceptJoinAudience(audienceTest, secondAuthor.Token.PublicKey(), 2, 5, uint64(joinFee))
+	acceptJoin := firstAuthor.NewAcceptJoinAudience(audienceTest, secondAuthor.PrivateKey.PublicKey(), 2, 5, uint64(joinFee))
 	if !block.Incorporate(acceptJoin) {
 		t.Error("could not accept join request to audience")
 	}
@@ -285,7 +285,7 @@ func TestGeneral(t *testing.T) {
 	if balanceThirdAuthor != uint64(thirdBalance) {
 		t.Error("third author did not spend on instructions")
 	}
-	_, balanceAudience := state.Wallets.Balance(crypto.Hasher(audienceTest.Token.PublicKey().ToBytes()))
+	_, balanceAudience := state.Wallets.Balance(crypto.Hasher(audienceTest.PrivateKey.PublicKey().ToBytes()))
 	if balanceAudience != 20 {
 		t.Error("audience did not receive revenue from sponsor")
 	}
@@ -319,7 +319,7 @@ func TestGeneral(t *testing.T) {
 
 	// Create Ephemeral token by member 2
 	pubEph, prvEph := crypto.RandomAsymetricKey()
-	ephemeralAuthor := &instructions.Author{Token: &prvEph, Wallet: &token} // ephemeral token using eve wallet
+	ephemeralAuthor := &instructions.Author{PrivateKey: &prvEph, Wallet: &token} // ephemeral token using eve wallet
 	ephemeral := secondAuthor.NewCreateEphemeral(pubEph.ToBytes(), 20, 6, uint64(joinFee))
 	if !block.Incorporate(ephemeral) {
 		t.Error("could not accept create ephemeral token instruction")

@@ -12,26 +12,26 @@ type BulkSerializer interface {
 
 type authoredInstruction struct {
 	epoch           uint64
-	author          []byte
-	wallet          []byte
+	author          crypto.Token
+	wallet          crypto.Token
 	fee             uint64
-	attorney        []byte
-	signature       []byte
-	walletSignature []byte
+	attorney        crypto.Token
+	signature       crypto.Signature
+	walletSignature crypto.Signature
 }
 
 func (a *authoredInstruction) authorHash() crypto.Hash {
-	return crypto.Hasher(a.author)
+	return crypto.Hasher(a.author[:])
 }
 
 func (a *authoredInstruction) payments() *Payment {
 	if len(a.wallet) > 0 {
-		return NewPayment(crypto.Hasher(a.wallet), a.fee)
+		return NewPayment(crypto.Hasher(a.wallet[:]), a.fee)
 	}
 	if len(a.attorney) > 0 {
-		return NewPayment(crypto.Hasher(a.attorney), a.fee)
+		return NewPayment(crypto.Hasher(a.attorney[:]), a.fee)
 	}
-	return NewPayment(crypto.Hasher(a.author), a.fee)
+	return NewPayment(crypto.Hasher(a.author[:]), a.fee)
 }
 
 func (a *authoredInstruction) Clone() *authoredInstruction {
@@ -39,67 +39,60 @@ func (a *authoredInstruction) Clone() *authoredInstruction {
 		epoch: a.epoch,
 		fee:   a.fee,
 	}
-	copy(clone.author, a.author)
-	copy(clone.wallet, a.wallet)
-	copy(clone.attorney, a.attorney)
+	clone.author = a.author
+	clone.wallet = a.wallet
+	clone.attorney = a.attorney
 	return clone
 }
 
 func (a *authoredInstruction) serializeWithoutSignature(instType byte, bulk []byte) []byte {
 	bytes := []byte{0, instType}
 	util.PutUint64(a.epoch, &bytes)
-	util.PutByteArray(a.author, &bytes)
+	util.PutToken(a.author, &bytes)
 	bytes = append(bytes, bulk...)
-	util.PutByteArray(a.wallet, &bytes)
+	util.PutToken(a.wallet, &bytes)
 	util.PutUint64(a.fee, &bytes)
-	util.PutByteArray(a.attorney, &bytes)
+	util.PutToken(a.attorney, &bytes)
 	return bytes
 }
 
 func (a *authoredInstruction) serialize(instType byte, bulk []byte) []byte {
 	bytes := a.serializeWithoutSignature(instType, bulk)
-	util.PutByteArray(a.signature, &bytes)
-	util.PutByteArray(a.walletSignature, &bytes)
+	util.PutSignature(a.signature, &bytes)
+	util.PutSignature(a.walletSignature, &bytes)
 	return bytes
 }
 
 func (a *authoredInstruction) parseHead(data []byte) int {
 	position := 2
 	a.epoch, position = util.ParseUint64(data, position)
-	a.author, position = util.ParseByteArray(data, position)
+	a.author, position = util.ParseToken(data, position)
 	return position
 }
 
 func (a *authoredInstruction) parseTail(data []byte, position int) bool {
-	a.wallet, position = util.ParseByteArray(data, position)
+	a.wallet, position = util.ParseToken(data, position)
 	a.fee, position = util.ParseUint64(data, position)
-	a.attorney, position = util.ParseByteArray(data, position)
-	hash := crypto.Hasher(data[0:position])
-	var author, wallet crypto.PublicKey
-	var err error
-	if len(a.attorney) > 0 {
-		author, err = crypto.PublicKeyFromBytes(a.attorney)
+	a.attorney, position = util.ParseToken(data, position)
+	var token, wallet crypto.Token
+	if a.attorney != crypto.ZeroToken {
+		token = a.attorney
 	} else {
-		author, err = crypto.PublicKeyFromBytes(a.author)
+		token = a.author
 	}
-	if err != nil {
+	msg := data[0:position]
+	a.signature, position = util.ParseSignature(data, position)
+	if !token.Verify(msg, a.signature) {
 		return false
 	}
-	a.signature, position = util.ParseByteArray(data, position)
-	if !author.Verify(hash[:], a.signature) {
-		return false
-	}
-	if len(a.wallet) > 0 {
-		wallet, err = crypto.PublicKeyFromBytes(a.wallet)
-		if err != nil {
-			return false
-		}
-		hash = crypto.Hasher(data[0:position])
-		a.walletSignature, position = util.ParseByteArray(data, position)
+	if a.wallet != crypto.ZeroToken {
+		wallet = a.wallet
+		msg = data[0:position]
+		a.walletSignature, position = util.ParseSignature(data, position)
 		if position != len(data) {
 			return false
 		}
-		return wallet.Verify(hash[:], a.walletSignature)
+		return wallet.Verify(msg, a.walletSignature)
 	} else {
 		return position == len(data)
 	}
@@ -108,18 +101,18 @@ func (a *authoredInstruction) parseTail(data []byte, position int) bool {
 func NewAuthored(epoch, fee uint64, author crypto.PrivateKey, wallet *crypto.PrivateKey, attorney *crypto.PrivateKey) *authoredInstruction {
 	authored := &authoredInstruction{
 		epoch:  epoch,
-		author: author.PublicKey().ToBytes(),
+		author: author.PublicKey(),
 		fee:    fee,
 	}
 	if wallet != nil {
-		authored.wallet = (*wallet).PublicKey().ToBytes()
+		authored.wallet = (*wallet).PublicKey()
 	} else {
-		authored.wallet = []byte{}
+		authored.wallet = crypto.ZeroToken
 	}
 	if attorney != nil {
-		authored.attorney = (*wallet).PublicKey().ToBytes()
+		authored.attorney = (*wallet).PublicKey()
 	} else {
-		authored.attorney = []byte{}
+		authored.attorney = crypto.ZeroToken
 	}
 	return authored
 }

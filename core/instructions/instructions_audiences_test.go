@@ -1,10 +1,12 @@
 package instructions
 
 import (
+	"fmt"
 	"reflect"
 	"testing"
 
 	"github.com/Aereum/aereum/core/crypto"
+	"github.com/Aereum/aereum/core/crypto/dh"
 )
 
 var (
@@ -24,7 +26,7 @@ func TestCreateteAudience(t *testing.T) {
 }
 
 func TestJoinAudience(t *testing.T) {
-	join := author.NewJoinAudience(audienceTest.Token.PublicKey().ToBytes(), "teste", 10, 2000)
+	join := author.NewJoinAudience(audienceTest.PrivateKey.PublicKey(), "teste", 10, 2000)
 	join2 := ParseJoinAudience(join.Serialize())
 	if join2 == nil {
 		t.Error("could not parse JoinAudience")
@@ -36,7 +38,8 @@ func TestJoinAudience(t *testing.T) {
 }
 
 func TestAcceptJoinAudience(t *testing.T) {
-	accept := author.NewAcceptJoinAudience(audienceTest, author.Token.PublicKey(), 2, 10, 2000)
+	key, _ := dh.NewEphemeralKey()
+	accept := author.NewAcceptJoinAudience(audienceTest, author.PrivateKey.PublicKey(), key, 2, 10, 2000)
 	accept2 := ParseAcceptJoinAudience(accept.Serialize())
 	if accept2 == nil {
 		t.Error("could not parse AcceptJoinAudience")
@@ -48,11 +51,14 @@ func TestAcceptJoinAudience(t *testing.T) {
 }
 
 func TestUpdateAudience(t *testing.T) {
-	readers := make([]crypto.PublicKey, 3)
+	readers := make(map[crypto.Token]crypto.Token, 3)
 	for n := 0; n < 3; n++ {
-		readers[n], _ = crypto.RandomAsymetricKey()
+		token, _ := crypto.RandomAsymetricKey()
+		key, _ := dh.NewEphemeralKey()
+		readers[token] = key
 	}
 	update := author.NewUpdateAudience(audienceTest, readers, readers, readers, 2, "teste", 10, 2000)
+	fmt.Printf("%+v", *update)
 	update2 := ParseUpdateAudience(update.Serialize())
 	// fmt.Printf(string(update2.audience))
 	if update2 == nil {

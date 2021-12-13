@@ -6,9 +6,9 @@ import (
 )
 
 func TestDH(t *testing.T) {
-	alice := NewAlice()
-	bob := NewBob(alice.keyX)
-	if !alice.Incorporate(bob.keyX) {
+	alice := NewEphemeralRequest()
+	bob := NewEphemeralResponse(alice.keyX)
+	if !alice.IncorporateResponse(bob.keyX) {
 		t.Error("dh scheme not working")
 	}
 	if !bytes.Equal(alice.agreedKey, bob.agreedKey) {

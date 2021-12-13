@@ -12,7 +12,7 @@ func TestTransfer(t *testing.T) {
 	_, from := crypto.RandomAsymetricKey()
 	to, _ := crypto.RandomAsymetricKey()
 
-	message := NewSingleReciepientTransfer(from, to.ToBytes(), "whatever", 10, 10, 10)
+	message := NewSingleReciepientTransfer(from, to, "whatever", 10, 10, 10)
 	copy := ParseTransfer(message.Serialize())
 	if copy == nil {
 		t.Error("Could not Transfer.")
