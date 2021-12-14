@@ -21,6 +21,7 @@ import (
 
 	"github.com/Aereum/aereum/core/crypto"
 	"github.com/Aereum/aereum/core/instructions"
+	"github.com/Aereum/aereum/core/store"
 	"github.com/Aereum/aereum/core/util"
 )
 
@@ -28,17 +29,17 @@ type Block struct {
 	epoch         uint64
 	Parent        crypto.Hash
 	CheckPoint    uint64
-	Publisher     []byte
+	Publisher     crypto.Token
 	PublishedAt   time.Time
 	Instructions  [][]byte
 	Hash          crypto.Hash
 	FeesCollected uint64
-	Signature     []byte
+	Signature     crypto.Signature
 	validator     *MutatingState
 	mutations     *mutation
 }
 
-func NewBlock(parent crypto.Hash, checkpoint, epoch uint64, publisher []byte, validator *MutatingState) *Block {
+func NewBlock(parent crypto.Hash, checkpoint, epoch uint64, publisher crypto.Token, validator *MutatingState) *Block {
 	return &Block{
 		Parent:       parent,
 		epoch:        epoch,
@@ -144,19 +145,19 @@ func (b *Block) SetNewMember(tokenHash crypto.Hash, captionHash crypto.Hash) boo
 	return true
 }
 
-func (b *Block) SetNewAudience(hash crypto.Hash, keys []byte) bool {
-	if _, ok := b.mutations.NewAudiences[hash]; ok {
+func (b *Block) SetNewAudience(hash crypto.Hash, stage store.StageKeys) bool {
+	if _, ok := b.mutations.NewStages[hash]; ok {
 		return false
 	}
-	b.mutations.NewAudiences[hash] = keys
+	b.mutations.NewStages[hash] = stage
 	return true
 }
 
-func (b *Block) UpdateAudience(hash crypto.Hash, keys []byte) bool {
-	if _, ok := b.mutations.UpdAudiences[hash]; ok {
+func (b *Block) UpdateAudience(hash crypto.Hash, stage store.StageKeys) bool {
+	if _, ok := b.mutations.StageUpdate[hash]; ok {
 		return false
 	}
-	b.mutations.UpdAudiences[hash] = keys
+	b.mutations.StageUpdate[hash] = stage
 	return true
 }
 
@@ -180,7 +181,7 @@ func (b *Block) HasGrantedSponser(hash crypto.Hash) (bool, crypto.Hash) {
 	return b.validator.hasGrantedSponser(hash)
 }
 
-func (b *Block) GetAudienceKeys(hash crypto.Hash) []byte {
+func (b *Block) GetAudienceKeys(hash crypto.Hash) *store.StageKeys {
 	return b.validator.getAudienceKeys(hash)
 }
 
@@ -201,13 +202,12 @@ func (b *Block) Epoch() uint64 {
 }
 
 func (b *Block) Sign(token crypto.PrivateKey) {
-	hashed := crypto.Hasher(b.serializeWithoutSignature())
-	b.Signature, _ = token.Sign(hashed[:])
+	b.Signature = token.Sign(b.serializeWithoutSignature())
 }
 
 func (b *Block) Serialize() []byte {
 	bytes := b.serializeWithoutSignature()
-	util.PutByteArray(b.Signature, &bytes)
+	util.PutSignature(b.Signature, &bytes)
 	return bytes
 }
 
@@ -231,18 +231,14 @@ func ParseBlock(data []byte) *Block {
 	block := Block{}
 	block.epoch, position = util.ParseUint64(data, position)
 	block.Parent, position = util.ParseHash(data, position)
-	block.Publisher, position = util.ParseByteArray(data, position)
+	block.Publisher, position = util.ParseToken(data, position)
 	block.PublishedAt, position = util.ParseTime(data, position)
 	block.Instructions, position = util.ParseByteArrayArray(data, position)
 	block.Hash, position = util.ParseHash(data, position)
 	block.FeesCollected, position = util.ParseUint64(data, position)
-	hashed := crypto.Hasher(data[0:position])
-	block.Signature, _ = util.ParseByteArray(data, position)
-	pubkey, err := crypto.PublicKeyFromBytes(block.Publisher)
-	if err != nil {
-		return nil
-	}
-	if !pubkey.Verify(hashed[:], block.Signature) {
+	msg := data[0:position]
+	block.Signature, _ = util.ParseSignature(data, position)
+	if !block.Publisher.Verify(msg, block.Signature) {
 		fmt.Println("wrong signature")
 		return nil
 	}
@@ -266,11 +262,11 @@ func (b *Block) JSONSimple() string {
 	bulk := &util.JSONBuilder{}
 	bulk.PutUint64("epoch", b.epoch)
 	bulk.PutHex("parent", b.Parent[:])
-	bulk.PutHex("publisher", b.Publisher)
+	bulk.PutHex("publisher", b.Publisher[:])
 	bulk.PutTime("publishedAt", b.PublishedAt)
 	bulk.PutUint64("instructionsCount", uint64(len(b.Instructions)))
 	bulk.PutHex("hash", b.Parent[:])
 	bulk.PutUint64("feesCollectes", b.FeesCollected)
-	bulk.PutBase64("signature", b.Signature)
+	bulk.PutBase64("signature", b.Signature[:])
 	return bulk.ToString()
 }

@@ -9,11 +9,11 @@ import (
 func TestHashVault(t *testing.T) {
 	vault := NewHashVault("teste", 0, 8)
 	hash := crypto.Hasher([]byte{1, 2, 3, 4})
-	vault.Insert(hash)
-	if !vault.Exists(hash) {
+	vault.InsertHash(hash)
+	if !vault.ExistsHash(hash) {
 		t.Errorf("vault insert/exists not working")
 	}
-	if !vault.Remove(hash) || vault.Exists(hash) {
+	if !vault.RemoveHash(hash) || vault.ExistsHash(hash) {
 		t.Errorf("vault remove not working")
 	}
 

@@ -13,7 +13,7 @@ type AttendeeNetwork struct {
 	comm      chan *consensus.SignedBlock
 }
 
-func NewAttendeeClient(address string, prv crypto.PrivateKey, rmt crypto.PublicKey) (*SecureConnection, error) {
+func NewAttendeeClient(address string, prv crypto.PrivateKey, rmt crypto.Token) (*SecureConnection, error) {
 	conn, err := net.Dial("tcp", address)
 	if err != nil {
 		return nil, err

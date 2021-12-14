@@ -10,12 +10,12 @@ import (
 )
 
 var (
-	audienceTest *Audience = NewAudience()
+	audienceTest *Stage = NewStage(0, "teste")
 )
 
 func TestCreateteAudience(t *testing.T) {
 	audience := author.NewCreateAudience(audienceTest, 1, "teste", 10, 2000)
-	audience2 := ParseCreateAudience(audience.Serialize())
+	audience2 := ParseCreateStage(audience.Serialize())
 	if audience2 == nil {
 		t.Error("could not parse CreateAudience")
 		return
@@ -27,7 +27,7 @@ func TestCreateteAudience(t *testing.T) {
 
 func TestJoinAudience(t *testing.T) {
 	join := author.NewJoinAudience(audienceTest.PrivateKey.PublicKey(), "teste", 10, 2000)
-	join2 := ParseJoinAudience(join.Serialize())
+	join2 := ParseJoinStage(join.Serialize())
 	if join2 == nil {
 		t.Error("could not parse JoinAudience")
 		return
@@ -40,7 +40,7 @@ func TestJoinAudience(t *testing.T) {
 func TestAcceptJoinAudience(t *testing.T) {
 	key, _ := dh.NewEphemeralKey()
 	accept := author.NewAcceptJoinAudience(audienceTest, author.PrivateKey.PublicKey(), key, 2, 10, 2000)
-	accept2 := ParseAcceptJoinAudience(accept.Serialize())
+	accept2 := ParseAcceptJoinStage(accept.Serialize())
 	if accept2 == nil {
 		t.Error("could not parse AcceptJoinAudience")
 		return
@@ -59,7 +59,7 @@ func TestUpdateAudience(t *testing.T) {
 	}
 	update := author.NewUpdateAudience(audienceTest, readers, readers, readers, 2, "teste", 10, 2000)
 	fmt.Printf("%+v", *update)
-	update2 := ParseUpdateAudience(update.Serialize())
+	update2 := ParseUpdateStage(update.Serialize())
 	// fmt.Printf(string(update2.audience))
 	if update2 == nil {
 		t.Error("could not parse UpdateAudience")

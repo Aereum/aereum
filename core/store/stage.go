@@ -4,7 +4,14 @@ import (
 	"github.com/Aereum/aereum/core/crypto"
 )
 
-func GetOrSetAudience(found bool, hash crypto.Hash, b *Bucket, item int64, param []byte) OperationResult {
+type StageKeys struct {
+	Moderate crypto.Token
+	Submit   crypto.Token
+	Stage    crypto.Token
+	Flag     byte
+}
+
+func GetOrSetStage(found bool, hash crypto.Hash, b *Bucket, item int64, param []byte) OperationResult {
 	get := false
 	if len(param) == 0 {
 		get = true
@@ -43,48 +50,54 @@ func GetOrSetAudience(found bool, hash crypto.Hash, b *Bucket, item int64, param
 	}
 }
 
-type Audience struct {
+type Stage struct {
 	hs *HashStore
 }
 
-func (w *Audience) GetKeys(hash crypto.Hash) (bool, crypto.Token, crypto.Token, byte) {
+func (w *Stage) GetKeys(hash crypto.Hash) *StageKeys {
 	response := make(chan QueryResult)
 	ok, keys := w.hs.Query(Query{hash: hash, param: []byte{}, response: response})
-	var moderate, submit crypto.Token
-	copy(moderate[:], keys[0:crypto.TokenSize])
-	copy(submit[:], keys[crypto.TokenSize:2*crypto.TokenSize])
-	return ok, moderate, submit, keys[2*crypto.TokenSize]
+	if !ok {
+		return nil
+	}
+	stage := StageKeys{}
+	copy(stage.Moderate[:], keys[0:crypto.TokenSize])
+	copy(stage.Submit[:], keys[crypto.TokenSize:2*crypto.TokenSize])
+	copy(stage.Stage[:], keys[2*crypto.TokenSize:3*crypto.TokenSize])
+	stage.Flag = keys[3*crypto.TokenSize]
+	return &stage
 }
 
-func (w *Audience) Exists(hash crypto.Hash) bool {
+func (w *Stage) Exists(hash crypto.Hash) bool {
 	response := make(chan QueryResult)
 	ok, _ := w.hs.Query(Query{hash: hash, param: []byte{}, response: response})
 	return ok
 }
 
-func (w *Audience) SetKeys(hash crypto.Hash, moderate, submit crypto.Token, flag byte) bool {
+func (w *Stage) SetKeys(hash crypto.Hash, stage *StageKeys) bool {
 	keys := make([]byte, 2*crypto.TokenSize+1)
-	copy(keys[0:crypto.TokenSize], moderate[:])
-	copy(keys[crypto.TokenSize:2*crypto.TokenSize], submit[:])
-	keys[crypto.TokenSize] = flag
+	copy(keys[0:crypto.TokenSize], stage.Moderate[:])
+	copy(keys[crypto.TokenSize:2*crypto.TokenSize], stage.Submit[:])
+	copy(keys[2*crypto.TokenSize:3*crypto.TokenSize], stage.Stage[:])
+	keys[3*crypto.TokenSize] = stage.Flag
 	response := make(chan QueryResult)
 	ok, _ := w.hs.Query(Query{hash: hash, param: keys, response: response})
 	return ok
 }
 
-func (w *Audience) Close() bool {
+func (w *Stage) Close() bool {
 	ok := make(chan bool)
 	w.hs.stop <- ok
 	return <-ok
 }
 
-func NewMemoryAudienceStore(epoch uint64, bitsForBucket int64) *Audience {
-	itemsize := int64(32 + 2*crypto.PublicKeySize + 1)
+func NewMemoryAudienceStore(epoch uint64, bitsForBucket int64) *Stage {
+	itemsize := int64(crypto.Size + 3*crypto.TokenSize + 1)
 	nbytes := 56 + int64(1<<bitsForBucket)*(itemsize*6+8)
 	bytestore := NewMemoryStore(nbytes)
 	bucketstore := NewBucketStore(itemsize, 6, bytestore)
-	w := &Audience{
-		hs: NewHashStore("audience", bucketstore, int(bitsForBucket), GetOrSetAudience),
+	w := &Stage{
+		hs: NewHashStore("audience", bucketstore, int(bitsForBucket), GetOrSetStage),
 	}
 	w.hs.Start()
 	return w

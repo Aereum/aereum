@@ -8,7 +8,7 @@ import (
 // 	Content creation instruction
 type SponsorshipOffer struct {
 	authored    *authoredInstruction
-	audience    crypto.Token
+	stage       crypto.Token
 	contentType string
 	content     []byte
 	expiry      uint64
@@ -23,9 +23,9 @@ func (sponsored *SponsorshipOffer) Validate(v InstructionValidator) bool {
 	if !v.HasMember(sponsored.authored.authorHash()) {
 		return false
 	}
-	audienceHash := crypto.HashToken(sponsored.audience)
-	ok, _, _, _ := v.GetAudienceKeys(audienceHash)
-	if !ok {
+	stageHash := crypto.HashToken(sponsored.stage)
+	stageKeys := v.GetAudienceKeys(stageHash)
+	if stageKeys == nil {
 		return false
 	}
 	if sponsored.expiry <= v.Epoch() {
@@ -60,7 +60,7 @@ func (sponsored *SponsorshipOffer) Kind() byte {
 
 func (sponsored *SponsorshipOffer) serializeBulk() []byte {
 	bytes := make([]byte, 0)
-	util.PutToken(sponsored.audience, &bytes)
+	util.PutToken(sponsored.stage, &bytes)
 	util.PutString(sponsored.contentType, &bytes)
 	util.PutByteArray(sponsored.content, &bytes)
 	util.PutUint64(sponsored.expiry, &bytes)
@@ -80,7 +80,7 @@ func ParseSponsorshipOffer(data []byte) *SponsorshipOffer {
 		authored: &authoredInstruction{},
 	}
 	position := sponsored.authored.parseHead(data)
-	sponsored.audience, position = util.ParseToken(data, position)
+	sponsored.stage, position = util.ParseToken(data, position)
 	sponsored.contentType, position = util.ParseString(data, position)
 	sponsored.content, position = util.ParseByteArray(data, position)
 	sponsored.expiry, position = util.ParseUint64(data, position)
@@ -94,7 +94,7 @@ func ParseSponsorshipOffer(data []byte) *SponsorshipOffer {
 // Reaction instruction
 type SponsorshipAcceptance struct {
 	authored     *authoredInstruction
-	audience     crypto.Token
+	stage        crypto.Token
 	offer        *SponsorshipOffer
 	modSignature crypto.Signature
 }
@@ -110,9 +110,9 @@ func (accept *SponsorshipAcceptance) Validate(v InstructionValidator) bool {
 	if !v.HasMember(accept.authored.authorHash()) {
 		return false
 	}
-	audienceHash := crypto.HashToken(accept.audience)
-	ok, moderate, _, _ := v.GetAudienceKeys(audienceHash)
-	if !ok {
+	stageHash := crypto.HashToken(accept.stage)
+	stageKeys := v.GetAudienceKeys(stageHash)
+	if stageKeys == nil {
 		return false
 	}
 	if accept.offer.expiry < v.Epoch() {
@@ -123,7 +123,7 @@ func (accept *SponsorshipAcceptance) Validate(v InstructionValidator) bool {
 		return false
 	}
 	//hash := crypto.Hasher(accept.serializeModBulk())
-	if !moderate.Verify(accept.serializeModBulk(), accept.modSignature) {
+	if !stageKeys.Moderate.Verify(accept.serializeModBulk(), accept.modSignature) {
 		return false
 	}
 	if v.SetNewUseSpnOffer(offerHash) {
@@ -135,7 +135,7 @@ func (accept *SponsorshipAcceptance) Validate(v InstructionValidator) bool {
 
 func (accept *SponsorshipAcceptance) Payments() *Payment {
 	payments := accept.authored.payments()
-	payments.NewCredit(crypto.HashToken(accept.audience), accept.offer.revenue)
+	payments.NewCredit(crypto.HashToken(accept.stage), accept.offer.revenue)
 	if accept.offer.authored.wallet != crypto.ZeroToken {
 		payments.NewDebit(crypto.HashToken(accept.offer.authored.wallet), accept.offer.revenue)
 	} else if accept.offer.authored.attorney != crypto.ZeroToken {
@@ -152,7 +152,7 @@ func (accept *SponsorshipAcceptance) Kind() byte {
 
 func (accept *SponsorshipAcceptance) serializeModBulk() []byte {
 	bytes := make([]byte, 0)
-	util.PutToken(accept.audience, &bytes)
+	util.PutToken(accept.stage, &bytes)
 	util.PutByteArray(accept.offer.Serialize(), &bytes)
 	return bytes
 }
@@ -175,7 +175,7 @@ func ParseSponsorshipAcceptance(data []byte) *SponsorshipAcceptance {
 		authored: &authoredInstruction{},
 	}
 	position := accept.authored.parseHead(data)
-	accept.audience, position = util.ParseToken(data, position)
+	accept.stage, position = util.ParseToken(data, position)
 	var offerBytes []byte
 	offerBytes, position = util.ParseByteArray(data, position)
 	accept.offer = ParseSponsorshipOffer(offerBytes)

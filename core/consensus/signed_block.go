@@ -10,8 +10,8 @@ import (
 
 type Signature struct {
 	Hash      crypto.Hash
-	Token     []byte
-	Signature []byte
+	Token     crypto.Token
+	Signature crypto.Signature
 }
 
 type SignedBlock struct {
@@ -64,7 +64,7 @@ type instructionCache struct {
 }
 
 func BlockBuilder(checkpoint *Checkpoint, epoch uint64, token crypto.PrivateKey, finish time.Time, pool *InstructionPool) chan *chain.Block {
-	block := chain.NewBlock(checkpoint.CheckpointHash, checkpoint.CheckpointEpoch, epoch, token.PublicKey().ToBytes(), checkpoint.Validator)
+	block := chain.NewBlock(checkpoint.CheckpointHash, checkpoint.CheckpointEpoch, epoch, token.PublicKey(), checkpoint.Validator)
 	stop := time.NewTicker(time.Until(finish))
 	communication := make(chan processInstruction)
 	finished := make(chan *chain.Block)

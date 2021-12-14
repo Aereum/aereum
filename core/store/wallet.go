@@ -82,7 +82,7 @@ type Wallet struct {
 	hs *HashStore
 }
 
-func (w *Wallet) Credit(hash crypto.Hash, value uint64) bool {
+func (w *Wallet) CreditHash(hash crypto.Hash, value uint64) bool {
 	response := make(chan QueryResult)
 	param := make([]byte, 9)
 	binary.LittleEndian.PutUint64(param[1:], value)
@@ -90,7 +90,12 @@ func (w *Wallet) Credit(hash crypto.Hash, value uint64) bool {
 	return ok
 }
 
-func (w *Wallet) Balance(hash crypto.Hash) (bool, uint64) {
+func (w *Wallet) Credit(token crypto.Token, value uint64) bool {
+	hash := crypto.HashToken(token)
+	return w.CreditHash(hash, value)
+}
+
+func (w *Wallet) BalanceHash(hash crypto.Hash) (bool, uint64) {
 	response := make(chan QueryResult)
 	param := make([]byte, 9)
 	ok, data := w.hs.Query(Query{hash: hash, param: param, response: response})
@@ -100,13 +105,23 @@ func (w *Wallet) Balance(hash crypto.Hash) (bool, uint64) {
 	return false, 0
 }
 
-func (w *Wallet) Debit(hash crypto.Hash, value uint64) bool {
+func (w *Wallet) Balance(token crypto.Token) (bool, uint64) {
+	hash := crypto.HashToken(token)
+	return w.BalanceHash(hash)
+}
+
+func (w *Wallet) DebitHash(hash crypto.Hash, value uint64) bool {
 	response := make(chan QueryResult)
 	param := make([]byte, 9)
 	param[0] = 1
 	binary.LittleEndian.PutUint64(param[1:], value)
 	ok, _ := w.hs.Query(Query{hash: hash, param: param, response: response})
 	return ok
+}
+
+func (w *Wallet) Debit(token crypto.Token, value uint64) bool {
+	hash := crypto.HashToken(token)
+	return w.DebitHash(hash, value)
 }
 
 func (w *Wallet) Close() bool {

@@ -7,6 +7,7 @@ import (
 
 	"github.com/Aereum/aereum/core/consensus"
 	"github.com/Aereum/aereum/core/crypto"
+	"github.com/Aereum/aereum/core/crypto/dh"
 )
 
 var errCouldNotSecure = errors.New("could not secure communication")
@@ -63,24 +64,21 @@ func writehsSigned(conn net.Conn, msg []byte, prv crypto.PrivateKey) error {
 	if len(msg) > 256 {
 		return errors.New("msg too large to send")
 	}
-	signature, err := prv.Sign(msg)
-	if err != nil {
-		panic(err)
-	}
+	signature := prv.Sign(msg)
 	if err := writehs(conn, msg); err != nil {
 		return err
 	}
-	if err := writehs(conn, signature); err != nil {
+	if err := writehs(conn, signature[:]); err != nil {
 		return err
 	}
 	return nil
 }
 
-func prependLength(msg []byte) []byte {
-	return append([]byte{byte(len(msg))}, msg...)
-}
+//func prependLength(msg []byte) []byte {
+//	return append([]byte{byte(len(msg))}, msg...)
+//}
 
-func prependRead(msg []byte) ([]byte, []byte) {
+/*func prependRead(msg []byte) ([]byte, []byte) {
 	if len(msg) < 1 {
 		return nil, nil
 	}
@@ -89,47 +87,49 @@ func prependRead(msg []byte) ([]byte, []byte) {
 		return nil, nil
 	}
 	return msg[1 : length+1], msg[length+1:]
-}
+}*/
 
-func PerformClientHandShake(conn net.Conn, prvKey crypto.PrivateKey, remotePub crypto.PublicKey) (*SecureConnection, error) {
-	// send public key and ephemeral public key
-	// 	subtle.ConstantTimeCompare()
-	PubKeyBytes := prvKey.PublicKey().ToBytes()
-	msg := prependLength(PubKeyBytes)
-	key := crypto.NewCipherKey()
-	keyEncrypted, err := remotePub.Encrypt(key)
-	if err != nil {
-		return nil, err
-	}
-	msg = append(msg, prependLength(keyEncrypted)...)
-	writehsSigned(conn, msg, prvKey)
+func PerformClientHandShake(conn net.Conn, prvKey crypto.PrivateKey, remotePub crypto.Token) (*SecureConnection, error) {
+	// send public key and ephemeral public key for diffie hellman
+	pubKey := prvKey.PublicKey()
+	ephPrv, ephPub := dh.NewEphemeralKey()
+	msg := append(pubKey[:], ephPub[:]...)
+	writehs(conn, msg)
 
-	// receive server public key
+	// receive from server copy of the sent public key and another pub ephemeral key
+	// signed
 	resp, err := readhs(conn)
 	if err != nil {
 		return nil, err
 	}
-	keyBackEncrypted, resp := prependRead(resp)
-	keyBack, err := prvKey.Decrypt(keyBackEncrypted)
-	if err != nil || subtle.ConstantTimeCompare(key, keyBack) != 1 {
-		return nil, errCouldNotSecure
+	// test if the copy matches with subtle
+	if subtle.ConstantTimeCompare(resp[0:crypto.TokenSize], ephPub[:]) != 1 {
+		return nil, errors.New("client: copy of ephemeral key does not match")
 	}
-	remoteKeyEncrypted, resp := prependRead(resp)
-	if remoteKeyEncrypted == nil {
-		return nil, errCouldNotSecure
-	}
-	remoteKey, err := prvKey.Decrypt(remoteKeyEncrypted)
+	// read and check signature
+	respSign, err := readhs(conn)
 	if err != nil {
-		return nil, errCouldNotSecure
+		return nil, err
 	}
-	if len(resp) != 0 {
-		return nil, errCouldNotSecure
+	if len(respSign) != crypto.SignatureSize {
+		return nil, errors.New("client: signature size does not match")
 	}
+	var sign crypto.Signature
+	copy(sign[:], respSign)
+	if !remotePub.Verify(resp, sign) {
+		return nil, errors.New("client: signature does not match")
+	}
+	// calculate diffie hellman shared secret
+	var remoteEphToken crypto.Token
+	copy(remoteEphToken[:], resp[crypto.TokenSize:])
+	cipherKey := dh.ConsensusKey(ephPrv, remoteEphToken)
+	// sent received ephemeral key signed to prove identity
+	writehsSigned(conn, remoteEphToken[:], prvKey)
 	return &SecureConnection{
-		hash:         crypto.Hasher(remotePub.ToBytes()),
+		hash:         crypto.HashToken(remotePub),
 		conn:         conn,
-		cipher:       crypto.CipherNonceFromKey(key),
-		cipherRemote: crypto.CipherNonceFromKey(remoteKey),
+		cipher:       crypto.CipherNonceFromKey(cipherKey),
+		cipherRemote: crypto.CipherNonceFromKey(cipherKey),
 	}, nil
 }
 
@@ -138,53 +138,55 @@ func PerformServerHandShake(conn net.Conn, prvKey crypto.PrivateKey, validator c
 	if err != nil {
 		return nil, err
 	}
-	remoteKeyBytes, resp := prependRead(resp)
-	if remoteKeyBytes == nil {
-		return nil, errCouldNotSecure
+	if len(resp) != 2*crypto.TokenSize {
+		return nil, errors.New("server: public key + ephemeral key of wrong size")
 	}
 	// check if public key is a member: TODO check if is a validator
 	ok := make(chan bool)
-	validator <- consensus.ValidatedConnection{Token: crypto.Hasher(remoteKeyBytes), Ok: ok}
+	var remoteToken crypto.Token
+	copy(remoteToken[:], resp[:crypto.TokenSize])
+	validator <- consensus.ValidatedConnection{Token: crypto.HashToken(remoteToken), Ok: ok}
 	if !<-ok {
 		conn.Close()
-		return nil, errors.New("not a valid public key")
+		return nil, errors.New("server: not a valid public key in the network")
 	}
-
-	remoteKey, err := crypto.PublicKeyFromBytes(remoteKeyBytes)
+	var remoteEphToken crypto.Token
+	copy(remoteEphToken[:], resp[crypto.TokenSize:])
+	ephPrv, ephPub := dh.NewEphemeralKey()
+	cipherKey := dh.ConsensusKey(ephPrv, remoteEphToken)
+	msg := append(remoteEphToken[:], ephPub[:]...)
+	if err := writehsSigned(conn, msg, prvKey); err != nil {
+		return nil, err
+	}
+	// receive a copy of the sent key signed
+	resp, err = readhs(conn)
 	if err != nil {
 		return nil, err
 	}
-	remoteCipherKeyEncrypted, resp := prependRead(resp)
-	if remoteCipherKeyEncrypted == nil {
-		return nil, errCouldNotSecure
+	// test if the copy matches with subtle
+	if len(resp) != crypto.TokenSize {
+		return nil, errors.New("server: invalid token size")
 	}
-	if len(resp) != 0 {
-		return nil, errCouldNotSecure
+	if subtle.ConstantTimeCompare(resp, ephPub[:]) != 1 {
+		return nil, errors.New("server: copy of ephemeral key does not match")
 	}
-	remoteCipherKey, err := prvKey.Decrypt(remoteCipherKeyEncrypted)
+	// read and check signature
+	respSign, err := readhs(conn)
 	if err != nil {
 		return nil, err
 	}
-	remoteCipherKeyBackEncrypted, err := remoteKey.Encrypt(remoteCipherKey)
-	if err != nil {
-		return nil, err
+	if len(respSign) != crypto.SignatureSize {
+		return nil, errors.New("server: wrong signature size")
 	}
-	key := crypto.NewCipherKey()
-	keyEncrypted, err := remoteKey.Encrypt(key)
-	if err != nil {
-		return nil, err
+	var sign crypto.Signature
+	copy(sign[:], respSign)
+	if !remoteToken.Verify(resp, sign) {
+		return nil, errors.New("server: signature does not match")
 	}
-	msgToSend := prependLength(remoteCipherKeyBackEncrypted)
-	msgToSend = append(msgToSend, prependLength(keyEncrypted)...)
-	_, err = readhs(conn)
-	if err != nil {
-		return nil, err
-	}
-	writehs(conn, msgToSend)
 	return &SecureConnection{
-		hash:         crypto.Hasher(remoteKeyBytes),
+		hash:         crypto.HashToken(remoteToken),
 		conn:         conn,
-		cipher:       crypto.CipherNonceFromKey(key),
-		cipherRemote: crypto.CipherNonceFromKey(remoteCipherKey),
+		cipher:       crypto.CipherNonceFromKey(cipherKey),
+		cipherRemote: crypto.CipherNonceFromKey(cipherKey),
 	}, nil
 }

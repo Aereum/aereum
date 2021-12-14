@@ -132,7 +132,7 @@ func ParseUpdateInfo(data []byte) *UpdateInfo {
 
 type GrantPowerOfAttorney struct {
 	authored *authoredInstruction
-	attorney []byte
+	attorney crypto.Token
 }
 
 func (a *GrantPowerOfAttorney) Epoch() uint64 {
@@ -143,10 +143,10 @@ func (grant *GrantPowerOfAttorney) Validate(v InstructionValidator) bool {
 	if !v.HasMember(grant.authored.authorHash()) {
 		return false
 	}
-	if !v.HasMember(crypto.Hasher(grant.attorney)) {
+	if !v.HasMember(crypto.HashToken(grant.attorney)) {
 		return false
 	}
-	hash := crypto.Hasher(append(grant.authored.author[:], grant.attorney...))
+	hash := crypto.Hasher(append(grant.authored.author[:], grant.attorney[:]...))
 	if v.PowerOfAttorney(hash) {
 		return false
 	}
@@ -167,7 +167,7 @@ func (grant *GrantPowerOfAttorney) Kind() byte {
 
 func (grant *GrantPowerOfAttorney) serializeBulk() []byte {
 	bytes := make([]byte, 0)
-	util.PutByteArray(grant.attorney, &bytes)
+	util.PutToken(grant.attorney, &bytes)
 	return bytes
 }
 
@@ -183,7 +183,7 @@ func ParseGrantPowerOfAttorney(data []byte) *GrantPowerOfAttorney {
 		authored: &authoredInstruction{},
 	}
 	position := grant.authored.parseHead(data)
-	grant.attorney, position = util.ParseByteArray(data, position)
+	grant.attorney, position = util.ParseToken(data, position)
 	if grant.authored.parseTail(data, position) {
 		return &grant
 	}
@@ -192,7 +192,7 @@ func ParseGrantPowerOfAttorney(data []byte) *GrantPowerOfAttorney {
 
 type RevokePowerOfAttorney struct {
 	authored *authoredInstruction
-	attorney []byte
+	attorney crypto.Token
 }
 
 func (a *RevokePowerOfAttorney) Epoch() uint64 {
@@ -203,10 +203,10 @@ func (revoke *RevokePowerOfAttorney) Validate(v InstructionValidator) bool {
 	if !v.HasMember(revoke.authored.authorHash()) {
 		return false
 	}
-	if !v.HasMember(crypto.Hasher(revoke.attorney)) {
+	if !v.HasMember(crypto.HashToken(revoke.attorney)) {
 		return false
 	}
-	hash := crypto.Hasher(append(revoke.authored.author[:], revoke.attorney...))
+	hash := crypto.Hasher(append(revoke.authored.author[:], revoke.attorney[:]...))
 	if !v.PowerOfAttorney(hash) {
 		return false
 	}
@@ -227,7 +227,7 @@ func (revoke *RevokePowerOfAttorney) Kind() byte {
 
 func (revoke *RevokePowerOfAttorney) serializeBulk() []byte {
 	bytes := make([]byte, 0)
-	util.PutByteArray(revoke.attorney, &bytes)
+	util.PutToken(revoke.attorney, &bytes)
 	return bytes
 }
 
@@ -243,7 +243,7 @@ func ParseRevokePowerOfAttorney(data []byte) *RevokePowerOfAttorney {
 		authored: &authoredInstruction{},
 	}
 	position := revoke.authored.parseHead(data)
-	revoke.attorney, position = util.ParseByteArray(data, position)
+	revoke.attorney, position = util.ParseToken(data, position)
 	if revoke.authored.parseTail(data, position) {
 		return &revoke
 	}
@@ -252,7 +252,7 @@ func ParseRevokePowerOfAttorney(data []byte) *RevokePowerOfAttorney {
 
 type CreateEphemeral struct {
 	authored       *authoredInstruction
-	ephemeralToken []byte
+	ephemeralToken crypto.Token
 	expiry         uint64
 }
 
@@ -267,7 +267,7 @@ func (ephemeral *CreateEphemeral) Validate(v InstructionValidator) bool {
 	if ephemeral.expiry <= v.Epoch() {
 		return false
 	}
-	hash := crypto.Hasher(ephemeral.ephemeralToken)
+	hash := crypto.HashToken(ephemeral.ephemeralToken)
 	if ok, expire := v.GetEphemeralExpire(hash); ok && expire > v.Epoch() {
 		return false
 	}
@@ -288,7 +288,7 @@ func (ephemeral *CreateEphemeral) Kind() byte {
 
 func (ephemeral *CreateEphemeral) serializeBulk() []byte {
 	bytes := make([]byte, 0)
-	util.PutByteArray(ephemeral.ephemeralToken, &bytes)
+	util.PutToken(ephemeral.ephemeralToken, &bytes)
 	util.PutUint64(ephemeral.expiry, &bytes)
 	return bytes
 }
@@ -305,7 +305,7 @@ func ParseCreateEphemeral(data []byte) *CreateEphemeral {
 		authored: &authoredInstruction{},
 	}
 	position := ephemeral.authored.parseHead(data)
-	ephemeral.ephemeralToken, position = util.ParseByteArray(data, position)
+	ephemeral.ephemeralToken, position = util.ParseToken(data, position)
 	ephemeral.expiry, position = util.ParseUint64(data, position)
 	if ephemeral.authored.parseTail(data, position) {
 		return &ephemeral

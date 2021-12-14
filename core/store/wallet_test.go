@@ -28,17 +28,17 @@ import (
 func TestWallet(t *testing.T) {
 	var w = NewMemoryWalletStore(0, 6)
 	hash := crypto.Hash{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}
-	w.Credit(hash, 10)
-	if ok, balance := w.Balance(hash); !ok || balance != 10 {
+	w.CreditHash(hash, 10)
+	if ok, balance := w.BalanceHash(hash); !ok || balance != 10 {
 		t.Errorf("wrong balance %v, %v\n", ok, balance)
 	}
-	if ok := w.Debit(hash, 5); !ok {
+	if ok := w.DebitHash(hash, 5); !ok {
 		t.Errorf("cannot debit a valid account\n")
 	}
-	if ok, balance := w.Balance(hash); !ok || balance != 5 {
+	if ok, balance := w.BalanceHash(hash); !ok || balance != 5 {
 		t.Errorf("wrong balance after debit %v, %v\n", ok, balance)
 	}
-	if ok := w.Debit(hash, 6); ok {
+	if ok := w.DebitHash(hash, 6); ok {
 		t.Errorf("could debit an account withou sufficient balance\n")
 	}
 }
@@ -58,10 +58,10 @@ func TestWalletDoubling(t *testing.T) {
 		} else {
 			maptest[hash] = 10
 		}
-		w.Credit(hash, 10)
+		w.CreditHash(hash, 10)
 	}
 	for hash, balance := range maptest {
-		if ok, b := w.Balance(hash); !ok || b != balance {
+		if ok, b := w.BalanceHash(hash); !ok || b != balance {
 			t.Fatalf("wrong balance after duplication: %v, %v, %v\n", ok, b, balance)
 		}
 	}

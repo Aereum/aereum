@@ -26,7 +26,7 @@ type MsgValidator struct {
 type MsgValidatorChan chan *MsgValidator
 
 func NewNode(prvKey crypto.PrivateKey,
-	trusted map[crypto.PublicKey]string,
+	trusted map[crypto.Token]string,
 	comm *consensus.Communication,
 	epoch uint64,
 ) {

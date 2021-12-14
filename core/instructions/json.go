@@ -76,18 +76,18 @@ func (j *UpdateInfo) JSON() string {
 
 func (j *GrantPowerOfAttorney) JSON() string {
 	bulk := &util.JSONBuilder{}
-	bulk.PutHex("details", j.attorney)
+	bulk.PutHex("details", j.attorney[:])
 	return j.authored.JSON(iGrantPowerOfAttorney, bulk)
 }
 
 func (j *RevokePowerOfAttorney) JSON() string {
 	bulk := &util.JSONBuilder{}
-	bulk.PutHex("details", j.attorney)
+	bulk.PutHex("details", j.attorney[:])
 	return j.authored.JSON(iRevokePowerOfAttorney, bulk)
 }
 func (j *CreateEphemeral) JSON() string {
 	bulk := &util.JSONBuilder{}
-	bulk.PutHex("ephemeralToken", j.ephemeralToken)
+	bulk.PutHex("ephemeralToken", j.ephemeralToken[:])
 	bulk.PutUint64("expiry", j.expiry)
 	return j.authored.JSON(iCreateEphemeral, bulk)
 }
@@ -101,7 +101,7 @@ func (j *SecureChannel) JSON() string {
 	return j.authored.JSON(iSecureChannel, bulk)
 }
 
-func (j *CreateAudience) JSON() string {
+func (j *CreateStage) JSON() string {
 	bulk := &util.JSONBuilder{}
 	bulk.PutHex("audience", j.audience[:])
 	bulk.PutHex("submission", j.submission[:])
@@ -111,16 +111,16 @@ func (j *CreateAudience) JSON() string {
 	return j.authored.JSON(iCreateAudience, bulk)
 }
 
-func (j *JoinAudience) JSON() string {
+func (j *JoinStage) JSON() string {
 	bulk := &util.JSONBuilder{}
 	bulk.PutHex("audience", j.audience[:])
 	bulk.PutString("presentation", j.presentation)
 	return j.authored.JSON(iJoinAudience, bulk)
 }
 
-func (j *AcceptJoinAudience) JSON() string {
+func (j *AcceptJoinStage) JSON() string {
 	bulk := &util.JSONBuilder{}
-	bulk.PutHex("audience", j.audience[:])
+	bulk.PutHex("audience", j.stage[:])
 	bulk.PutHex("member", j.member[:])
 	bulk.PutHex("read", j.read)
 	bulk.PutHex("submit", j.submit)
@@ -129,9 +129,9 @@ func (j *AcceptJoinAudience) JSON() string {
 	return j.authored.JSON(iAcceptJoinRequest, bulk)
 }
 
-func (j *UpdateAudience) JSON() string {
+func (j *UpdateStage) JSON() string {
 	bulk := &util.JSONBuilder{}
-	bulk.PutHex("audience", j.audience[:])
+	bulk.PutHex("audience", j.stage[:])
 	bulk.PutHex("submission", j.submission[:])
 	bulk.PutHex("moderation", j.moderation[:])
 	bulk.PutUint64("flag", uint64(j.flag))
@@ -145,7 +145,7 @@ func (j *UpdateAudience) JSON() string {
 
 func (j *SponsorshipOffer) JSON() string {
 	bulk := &util.JSONBuilder{}
-	bulk.PutHex("audience", j.audience[:])
+	bulk.PutHex("audience", j.stage[:])
 	bulk.PutString("contentType", j.contentType)
 	bulk.PutBase64("content", j.content)
 	bulk.PutUint64("expiry", j.expiry)
@@ -155,7 +155,7 @@ func (j *SponsorshipOffer) JSON() string {
 
 func (j *SponsorshipAcceptance) JSON() string {
 	bulk := &util.JSONBuilder{}
-	bulk.PutHex("audience", j.audience[:])
+	bulk.PutHex("audience", j.stage[:])
 	bulk.PutJSON("offer", j.offer.JSON())
 	bulk.PutBase64("modSignature", j.modSignature[:])
 	return j.authored.JSON(iSponsorshipAcceptance, bulk)

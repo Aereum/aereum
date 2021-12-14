@@ -15,7 +15,10 @@
 // along with the aereum library. If not, see <http://www.gnu.org/licenses/>.
 package chain
 
-import "github.com/Aereum/aereum/core/crypto"
+import (
+	"github.com/Aereum/aereum/core/crypto"
+	"github.com/Aereum/aereum/core/store"
+)
 
 type mutation struct {
 	DeltaWallets map[crypto.Hash]int
@@ -27,8 +30,8 @@ type mutation struct {
 	NewSpnOffer  map[crypto.Hash]uint64
 	NewMembers   map[crypto.Hash]struct{}
 	NewCaption   map[crypto.Hash]struct{}
-	NewAudiences map[crypto.Hash][]byte
-	UpdAudiences map[crypto.Hash][]byte
+	NewStages    map[crypto.Hash]store.StageKeys
+	StageUpdate  map[crypto.Hash]store.StageKeys
 	NewEphemeral map[crypto.Hash]uint64
 }
 
@@ -43,8 +46,8 @@ func NewMutation() *mutation {
 		NewSpnOffer:  make(map[crypto.Hash]uint64),
 		NewMembers:   make(map[crypto.Hash]struct{}),
 		NewCaption:   make(map[crypto.Hash]struct{}),
-		NewAudiences: make(map[crypto.Hash][]byte),
-		UpdAudiences: make(map[crypto.Hash][]byte),
+		NewStages:    make(map[crypto.Hash]store.StageKeys),
+		StageUpdate:  make(map[crypto.Hash]store.StageKeys),
 		NewEphemeral: make(map[crypto.Hash]uint64),
 	}
 }
@@ -92,12 +95,12 @@ func (m *mutation) HasCaption(hash crypto.Hash) bool {
 	return ok
 }
 
-func (m *mutation) GetAudience(hash crypto.Hash) []byte {
-	if audience, ok := m.UpdAudiences[hash]; ok {
-		return audience
+func (m *mutation) GetAudience(hash crypto.Hash) *store.StageKeys {
+	if audience, ok := m.StageUpdate[hash]; ok {
+		return &audience
 	}
-	audience := m.NewAudiences[hash]
-	return audience
+	audience := m.NewStages[hash]
+	return &audience
 }
 
 func (m *mutation) HasEphemeral(hash crypto.Hash) (bool, uint64) {
@@ -135,14 +138,14 @@ func GroupBlockMutations(blocks []*Block) *mutation {
 		for hash := range block.mutations.NewCaption {
 			grouped.NewCaption[hash] = struct{}{}
 		}
-		for hash, keys := range block.mutations.NewAudiences {
-			grouped.NewAudiences[hash] = keys
+		for hash, keys := range block.mutations.NewStages {
+			grouped.NewStages[hash] = keys
 		}
 		// incorporate fees to block publisher
-		if balance, ok := grouped.DeltaWallets[crypto.Hasher(block.Publisher)]; ok {
-			grouped.DeltaWallets[crypto.Hasher(block.Publisher)] = balance + int(block.FeesCollected)
+		if balance, ok := grouped.DeltaWallets[crypto.HashToken(block.Publisher)]; ok {
+			grouped.DeltaWallets[crypto.HashToken(block.Publisher)] = balance + int(block.FeesCollected)
 		} else {
-			grouped.DeltaWallets[crypto.Hasher(block.Publisher)] = int(block.FeesCollected)
+			grouped.DeltaWallets[crypto.HashToken(block.Publisher)] = int(block.FeesCollected)
 		}
 	}
 	return grouped

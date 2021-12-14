@@ -17,7 +17,7 @@ import (
 
 type InstructionNetWork map[crypto.Hash]*SecureConnection
 
-func NewInstructionClient(address string, prv crypto.PrivateKey, rmt crypto.PublicKey) (*SecureConnection, error) {
+func NewInstructionClient(address string, prv crypto.PrivateKey, rmt crypto.Token) (*SecureConnection, error) {
 	conn, err := net.Dial("tcp", address)
 	if err != nil {
 		return nil, err

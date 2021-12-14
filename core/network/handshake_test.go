@@ -1,6 +1,7 @@
 package network
 
 import (
+	"fmt"
 	"net"
 	"testing"
 
@@ -31,7 +32,9 @@ func TestSecureConnection(t *testing.T) {
 		conn, _ := listener.Accept()
 		sec, err := PerformServerHandShake(conn, prvSv, validator)
 		if err != nil {
+			fmt.Println("---------", err)
 			t.Error(err)
+			return
 		}
 		var msg ciphernonce
 		msg.msg, msg.nonce = sec.cipher.SealWithNewNonce([]byte("thats correct"))

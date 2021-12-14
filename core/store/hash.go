@@ -60,22 +60,37 @@ type HashVault struct {
 	hs *HashStore
 }
 
-func (w *HashVault) Exists(hash crypto.Hash) bool {
+func (w *HashVault) ExistsHash(hash crypto.Hash) bool {
 	response := make(chan QueryResult)
 	ok, _ := w.hs.Query(Query{hash: hash, param: []byte{exists}, response: response})
 	return ok
 }
 
-func (w *HashVault) Insert(hash crypto.Hash) bool {
+func (w *HashVault) ExistsToken(token crypto.Token) bool {
+	hash := crypto.HashToken(token)
+	return w.ExistsHash(hash)
+}
+
+func (w *HashVault) InsertHash(hash crypto.Hash) bool {
 	response := make(chan QueryResult)
 	ok, _ := w.hs.Query(Query{hash: hash, param: []byte{insert}, response: response})
 	return ok
 }
 
-func (w *HashVault) Remove(hash crypto.Hash) bool {
+func (w *HashVault) InsertToken(token crypto.Token) bool {
+	hash := crypto.HashToken(token)
+	return w.InsertHash(hash)
+}
+
+func (w *HashVault) RemoveHash(hash crypto.Hash) bool {
 	response := make(chan QueryResult)
 	ok, _ := w.hs.Query(Query{hash: hash, param: []byte{delete}, response: response})
 	return ok
+}
+
+func (w *HashVault) RemoveToken(token crypto.Token) bool {
+	hash := crypto.HashToken(token)
+	return w.RemoveHash(hash)
 }
 
 func (w *HashVault) Close() bool {

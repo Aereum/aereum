@@ -27,7 +27,10 @@ func (h Hash) Equal(another Hash) bool {
 }
 
 func (h Hash) Equals(another []byte) bool {
-	return bytes.Equal(h[:], another)
+	if len(another) < Size {
+		return false
+	}
+	return bytes.Equal(h[:], another[:Size])
 }
 
 func Hasher(data []byte) Hash {

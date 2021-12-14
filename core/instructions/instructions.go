@@ -2,6 +2,7 @@ package instructions
 
 import (
 	"github.com/Aereum/aereum/core/crypto"
+	"github.com/Aereum/aereum/core/store"
 	"github.com/Aereum/aereum/core/util"
 )
 
@@ -34,15 +35,15 @@ type InstructionValidator interface {
 	SetPublishSponsor(hash crypto.Hash) bool
 	SetNewEphemeralToken(hash crypto.Hash, expire uint64) bool
 	SetNewMember(tokenHash crypto.Hash, captionHashe crypto.Hash) bool
-	SetNewAudience(hash crypto.Hash, moderate, submit crypto.Token, flag byte) bool
-	UpdateAudience(hash crypto.Hash, moderate, submit crypto.Token, flag byte) bool
+	SetNewAudience(hash crypto.Hash, stage store.StageKeys) bool
+	UpdateAudience(hash crypto.Hash, stage store.StageKeys) bool
 	Balance(hash crypto.Hash) uint64
 	PowerOfAttorney(hash crypto.Hash) bool
 	SponsorshipOffer(hash crypto.Hash) uint64
 	HasMember(hash crypto.Hash) bool
 	HasCaption(hash crypto.Hash) bool
 	HasGrantedSponser(hash crypto.Hash) (bool, crypto.Hash)
-	GetAudienceKeys(hash crypto.Hash) (bool, crypto.Token, crypto.Token, byte)
+	GetAudienceKeys(hash crypto.Hash) *store.StageKeys
 	GetEphemeralExpire(hash crypto.Hash) (bool, uint64)
 	AddFeeCollected(uint64)
 	Epoch() uint64
@@ -119,15 +120,15 @@ func ParseInstruction(data []byte) Instruction {
 	case iUpdateInfo:
 		return ParseUpdateInfo(data)
 	case iCreateAudience:
-		return ParseCreateAudience(data)
+		return ParseCreateStage(data)
 	case iJoinAudience:
-		return ParseJoinAudience(data)
+		return ParseJoinStage(data)
 	case iAcceptJoinRequest:
-		return ParseAcceptJoinAudience(data)
+		return ParseAcceptJoinStage(data)
 	case iContent:
 		return ParseContent(data)
 	case iUpdateAudience:
-		return ParseUpdateAudience(data)
+		return ParseUpdateStage(data)
 	case iGrantPowerOfAttorney:
 		return ParseGrantPowerOfAttorney(data)
 	case iRevokePowerOfAttorney:

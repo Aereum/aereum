@@ -15,7 +15,10 @@
 // along with the aereum library. If not, see <http://www.gnu.org/licenses/>.
 package chain
 
-import "github.com/Aereum/aereum/core/crypto"
+import (
+	"github.com/Aereum/aereum/core/crypto"
+	"github.com/Aereum/aereum/core/store"
+)
 
 // Validator consists of a state and permanent mutations not incorporated into
 // the state. It provides an interface to check the state that would result
@@ -29,7 +32,7 @@ type MutatingState struct {
 // Balance returns the balance of fungible tokens associated to the hash.
 // It returns zero if the hash is not found.
 func (c *MutatingState) balance(hash crypto.Hash) uint64 {
-	_, balance := c.State.Wallets.Balance(hash)
+	_, balance := c.State.Wallets.BalanceHash(hash)
 	if c.Mutations == nil {
 		return balance
 	}
@@ -52,7 +55,7 @@ func (c *MutatingState) powerOfAttorney(hash crypto.Hash) bool {
 			return true
 		}
 	}
-	return c.State.PowerOfAttorney.Exists(hash)
+	return c.State.PowerOfAttorney.ExistsHash(hash)
 }
 
 // SponsorshipOffer returns the expire epoch of an SponsorshipOffer. It returns
@@ -75,7 +78,7 @@ func (c *MutatingState) hasMember(hash crypto.Hash) bool {
 	if c.Mutations != nil && c.Mutations.HasMember(hash) {
 		return true
 	}
-	return c.State.Members.Exists(hash)
+	return c.State.Members.ExistsHash(hash)
 }
 
 // HasGrantedSponsor returns the existence and the hash of the grantee +
@@ -95,20 +98,17 @@ func (c *MutatingState) hasCaption(hash crypto.Hash) bool {
 	if c.Mutations != nil && c.Mutations.HasCaption(hash) {
 		return true
 	}
-	return c.State.Captions.Exists(hash)
+	return c.State.Captions.ExistsHash(hash)
 }
 
 // GetAudienceKeys returns the audience keys
-func (c *MutatingState) getAudienceKeys(hash crypto.Hash) []byte {
+func (c *MutatingState) getAudienceKeys(hash crypto.Hash) *store.StageKeys {
 	if c.Mutations != nil {
 		if audience := c.Mutations.GetAudience(hash); audience != nil {
 			return audience
 		}
 	}
-	ok, keys := c.State.Audiences.GetKeys(hash)
-	if !ok {
-		return nil
-	}
+	keys := c.State.Stages.GetKeys(hash)
 	return keys
 }
 

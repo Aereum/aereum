@@ -44,7 +44,8 @@ func TestUpdateInfo(t *testing.T) {
 }
 
 func TestGrantPowerOfAttorney(t *testing.T) {
-	grant := author.NewGrantPowerOfAttorney([]byte{1, 2, 3, 6, 7, 8}, 10, 2000)
+	token, _ := crypto.RandomAsymetricKey()
+	grant := author.NewGrantPowerOfAttorney(token, 10, 2000)
 	grant2 := ParseGrantPowerOfAttorney(grant.Serialize())
 	if grant2 == nil {
 		t.Error("could not parse GrantPowerOfAttorney")
@@ -56,7 +57,8 @@ func TestGrantPowerOfAttorney(t *testing.T) {
 }
 
 func TestRevokePowerOfAttorney(t *testing.T) {
-	revoke := author.NewRevokePowerOfAttorney([]byte{1, 2, 3, 6, 7, 8}, 10, 2000)
+	token, _ := crypto.RandomAsymetricKey()
+	revoke := author.NewRevokePowerOfAttorney(token, 10, 2000)
 	revoke2 := ParseRevokePowerOfAttorney(revoke.Serialize())
 	if revoke2 == nil {
 		t.Error("could not parse RevokePowerOfAttorney")
@@ -68,7 +70,8 @@ func TestRevokePowerOfAttorney(t *testing.T) {
 }
 
 func TestCreateEphemeral(t *testing.T) {
-	ephemeral := author.NewCreateEphemeral([]byte{1, 2, 3, 6, 7, 8}, 20, 10, 2000)
+	token, _ := crypto.RandomAsymetricKey()
+	ephemeral := author.NewCreateEphemeral(token, 20, 10, 2000)
 	ephemeral2 := ParseCreateEphemeral(ephemeral.Serialize())
 	if ephemeral2 == nil {
 		t.Error("could not parse CreateEphemeral")

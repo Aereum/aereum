@@ -40,7 +40,7 @@ type NetworkMessageTemplate struct {
 	Nonce        []byte
 	Data         Serializer
 	Confirmation bool
-	Signature    []byte
+	Signature    crypto.Signature
 }
 
 func NewNetworkMessage(msg Serializer, token crypto.PrivateKey, confirm bool) *NetworkMessageTemplate {
@@ -52,12 +52,8 @@ func NewNetworkMessage(msg Serializer, token crypto.PrivateKey, confirm bool) *N
 		Data:         msg,
 		Confirmation: confirm,
 	}
-	hash := crypto.Hasher(netMsg.serializeWithoutSignatute())
-	signature, err := token.Sign(hash[:])
-	if err != nil {
-		return nil
-	}
-	netMsg.Signature = signature
+
+	netMsg.Signature = token.Sign(netMsg.serializeWithoutSignatute())
 	return &netMsg
 }
 
@@ -76,7 +72,7 @@ func (msg *NetworkMessageTemplate) serializeWithoutSignatute() []byte {
 
 func (msg *NetworkMessageTemplate) Serialize() []byte {
 	output := msg.serializeWithoutSignatute()
-	util.PutByteArray(msg.Signature, &output)
+	util.PutSignature(msg.Signature, &output)
 	return output
 }
 

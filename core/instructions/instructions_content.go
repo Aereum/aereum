@@ -38,8 +38,8 @@ func (content *Content) Validate(v InstructionValidator) bool {
 		return false
 	}
 	audienceHash := crypto.HashToken(content.audience)
-	ok, moderate, submit, _ := v.GetAudienceKeys(audienceHash)
-	if !ok {
+	stageKeys := v.GetAudienceKeys(audienceHash)
+	if stageKeys == nil {
 		return false
 	}
 	if content.sponsored {
@@ -60,11 +60,11 @@ func (content *Content) Validate(v InstructionValidator) bool {
 		v.AddFeeCollected(content.fee)
 		return v.SetPublishSponsor(hash)
 	}
-	if !submit.Verify(content.serializeSubBulk()[10:], content.subSignature) {
+	if !stageKeys.Submit.Verify(content.serializeSubBulk()[10:], content.subSignature) {
 		return false
 	}
 	if content.moderator != crypto.ZeroToken {
-		if !moderate.Verify(content.serializeModBulk(), content.modSignature) {
+		if !stageKeys.Moderate.Verify(content.serializeModBulk(), content.modSignature) {
 			return false
 		}
 	}

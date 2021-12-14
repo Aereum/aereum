@@ -32,7 +32,7 @@ type State struct {
 	Members         *store.HashVault
 	Captions        *store.HashVault
 	Wallets         *store.Wallet
-	Audiences       *store.Audience
+	Stages          *store.Stage
 	SponsorOffers   *store.HashExpireVault
 	SponsorGranted  *store.Sponsor
 	PowerOfAttorney *store.HashVault
@@ -43,13 +43,12 @@ type State struct {
 
 func NewGenesisState() (*State, crypto.PrivateKey) {
 	pubKey, prvKey := crypto.RandomAsymetricKey()
-	hash := crypto.Hasher(pubKey.ToBytes())
 	state := State{
 		Epoch:           0,
 		Members:         store.NewHashVault("members", 0, 8),
 		Captions:        store.NewHashVault("captions", 0, 8),
 		Wallets:         store.NewMemoryWalletStore(0, 8),
-		Audiences:       store.NewMemoryAudienceStore(0, 8),
+		Stages:          store.NewMemoryAudienceStore(0, 8),
 		SponsorOffers:   store.NewExpireHashVault("sponsoroffer", 0, 8),
 		SponsorGranted:  store.NewSponsorShipOfferStore(0, 8),
 		PowerOfAttorney: store.NewHashVault("poa", 0, 8),
@@ -57,20 +56,20 @@ func NewGenesisState() (*State, crypto.PrivateKey) {
 		SponsorExpire:   make(map[uint64]crypto.Hash),
 		EphemeralExpire: make(map[uint64]crypto.Hash),
 	}
-	state.Members.Insert(hash)
-	state.Captions.Insert(crypto.Hasher([]byte("Aereum Network Genesis")))
-	state.Wallets.Credit(hash, 1e6)
+	state.Members.InsertToken(pubKey)
+	state.Captions.InsertHash(crypto.Hasher([]byte("Aereum Network Genesis")))
+	state.Wallets.Credit(pubKey, 1e6)
 	return &state, prvKey
 }
 
 func NewGenesisStateWithToken(token crypto.PrivateKey) *State {
-	hash := crypto.Hasher(token.PublicKey().ToBytes())
+	hash := crypto.HashToken(token.PublicKey())
 	state := State{
 		Epoch:           0,
 		Members:         store.NewHashVault("members", 0, 8),
 		Captions:        store.NewHashVault("captions", 0, 8),
 		Wallets:         store.NewMemoryWalletStore(0, 8),
-		Audiences:       store.NewMemoryAudienceStore(0, 8),
+		Stages:          store.NewMemoryAudienceStore(0, 8),
 		SponsorOffers:   store.NewExpireHashVault("sponsoroffer", 0, 8),
 		SponsorGranted:  store.NewSponsorShipOfferStore(0, 8),
 		PowerOfAttorney: store.NewHashVault("poa", 0, 8),
@@ -78,31 +77,31 @@ func NewGenesisStateWithToken(token crypto.PrivateKey) *State {
 		SponsorExpire:   make(map[uint64]crypto.Hash),
 		EphemeralExpire: make(map[uint64]crypto.Hash),
 	}
-	state.Members.Insert(hash)
-	state.Captions.Insert(crypto.Hasher([]byte("Aereum Network Genesis")))
-	state.Wallets.Credit(hash, 1e6)
+	state.Members.InsertHash(hash)
+	state.Captions.InsertHash(crypto.Hasher([]byte("Aereum Network Genesis")))
+	state.Wallets.CreditHash(hash, 1e6)
 	return &state
 }
 
 func (s *State) IncorporateBlock(b *Block) {
 	for hash := range b.mutations.NewCaption {
-		s.Captions.Insert(hash)
+		s.Captions.InsertHash(hash)
 	}
 	for hash := range b.mutations.NewMembers {
-		s.Members.Insert(hash)
+		s.Members.InsertHash(hash)
 	}
 	for acc, delta := range b.mutations.DeltaWallets {
 		if delta > 0 {
-			s.Wallets.Credit(acc, uint64(delta))
+			s.Wallets.CreditHash(acc, uint64(delta))
 		} else if delta < 0 {
-			s.Wallets.Debit(acc, uint64(-delta))
+			s.Wallets.DebitHash(acc, uint64(-delta))
 		}
 	}
 	for hash := range b.mutations.GrantPower {
-		s.PowerOfAttorney.Insert(hash)
+		s.PowerOfAttorney.InsertHash(hash)
 	}
 	for hash := range b.mutations.RevokePower {
-		s.PowerOfAttorney.Remove(hash)
+		s.PowerOfAttorney.RemoveHash(hash)
 	}
 	for hash := range b.mutations.PublishSpn {
 		s.SponsorGranted.RemoveContentHash(hash)
@@ -113,11 +112,11 @@ func (s *State) IncorporateBlock(b *Block) {
 	for hash, expire := range b.mutations.NewSpnOffer {
 		s.SponsorOffers.Insert(hash, expire)
 	}
-	for hash, keys := range b.mutations.NewAudiences {
-		s.Audiences.SetKeys(hash, keys)
+	for hash, keys := range b.mutations.NewStages {
+		s.Stages.SetKeys(hash, &keys)
 	}
-	for hash, keys := range b.mutations.UpdAudiences {
-		s.Audiences.SetKeys(hash, keys)
+	for hash, keys := range b.mutations.StageUpdate {
+		s.Stages.SetKeys(hash, &keys)
 	}
-	s.Wallets.Credit(crypto.Hasher(b.Publisher), b.FeesCollected)
+	s.Wallets.CreditHash(crypto.HashToken(b.Publisher), b.FeesCollected)
 }
