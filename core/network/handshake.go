@@ -19,22 +19,27 @@ var errCouldNotSecure = errors.New("could not secure communication")
 // the aereum network consensus blockchain.
 //
 // The caller must know from the onset not only the IP and port number for the
-// connection but also the connection public key on aereum network id.
+// connection but also the connection token on aereum network to check the
+// identity of the server.
 //
-// after establishing connection, the caller send the called the following
-// message: its public key naked and a AES-256 symetric key encrypted using the
-// caller aereum network public key.
-// The message is signed with the caller network private key.
+// After establishing connection, the caller send the called the following
+// message: its token naked and an X25519 ephemeral public key for the diffie
+// hellman consensus secret.
 //
-// the called then sends the caller the following message: the decrypted
-// received AES-256 symetric key and another AES-256 symetric key, both
-// encrypted by the caller ephemeral public key.
-// The capacity to decrypt the original SHA-256 attests that the called is
-// in possession of the secret key associated without the need of a signature.
+// The called then sends the caller the following message: a copy of the
+// ephemeral public key received and another epheral public key, and the
+// signature of this message. It uses the two ephemeral token to derive the
+// diffie hellman secret key.
 //
-// the symetric keys are used to encryption and authentication for sucessive
-// messages using random nonce generated at the header of each message. The
-// caller uses the key provided itself provided the called its own.
+// The caller checks the validity of the information sent by the called and
+// derives the diffie hellman secret key. It finally sends the ephemeral public
+// key sent by the called signed.
+
+// The called confirms the information sent by the caller and if checks the
+// handshake is terminated and the secure connection estabilished.
+//
+// If any information is not valid, the connection is promptly terminated by
+// any party.
 
 // read the first byte (n) and read subsequent n-bytes from connection
 func readhs(conn net.Conn) ([]byte, error) {
@@ -73,21 +78,6 @@ func writehsSigned(conn net.Conn, msg []byte, prv crypto.PrivateKey) error {
 	}
 	return nil
 }
-
-//func prependLength(msg []byte) []byte {
-//	return append([]byte{byte(len(msg))}, msg...)
-//}
-
-/*func prependRead(msg []byte) ([]byte, []byte) {
-	if len(msg) < 1 {
-		return nil, nil
-	}
-	length := msg[0]
-	if len(msg) < int(length)+1 {
-		return nil, nil
-	}
-	return msg[1 : length+1], msg[length+1:]
-}*/
 
 func PerformClientHandShake(conn net.Conn, prvKey crypto.PrivateKey, remotePub crypto.Token) (*SecureConnection, error) {
 	// send public key and ephemeral public key for diffie hellman
