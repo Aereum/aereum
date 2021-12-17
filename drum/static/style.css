@@ -1,0 +1,205 @@
+@media (min-width: 601px) {
+    p span { font-size: 24px;}
+    .column.side {
+        width: 20%;
+        background-color:#2F3136;
+      }
+      
+      .header.side {
+        width: 20%;
+        background-color:#2F3136; 
+      }
+      
+      .header.middle {
+        width: 60%;
+        background-color:#36393F
+      }
+      
+      
+      /* Middle column */
+      .column.middle {
+        width: 60%;
+        background-color:#36393F
+      }
+}
+
+@media  (max-width: 600px) {
+    p span {font-size: 12px;}
+    .column.side {
+        display: none;
+        width: 5%;
+        background-color:#2F3136;
+      }
+      
+      .header.side {
+          display: none;
+        width: 5%;
+        background-color:#2F3136; 
+      }
+      
+      .header.middle {
+        width: 100%;
+        background-color:#36393F
+      }
+      
+      
+      /* Middle column */
+      .column.middle {
+        width: 100%;
+        background-color:#36393F
+      }
+}
+
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Roboto', sans-serif;
+  color: #FAFAFA;
+  margin: 0;
+  padding: 0;
+}
+
+/* Style the header */
+.column {
+  float: left;
+  padding: 10px;
+  height: 100%
+  /* Should be removed. Only for demonstration */
+}
+
+.header {
+  float: left;
+  padding: 10px;
+  height: 100%;
+   color: white;
+   border-bottom: 1px solid #232428;
+  /* Should be removed. Only for demonstration */
+}
+
+/* Clear floats after the columns */
+.row {
+  content: "";
+  display: table;
+  clear: both;
+  height: 100vh;
+  width: 100%;
+}
+
+/* Style the footer */
+.footer {
+  background-color: #ffffff;
+  padding-top: 5px;
+  text-align: center;
+}
+
+.headerbox {
+  display: table;
+  clear: both;
+  width: 100%;
+}
+
+.usercaption {
+  color: #D0D1D3;
+  font-weight: 600;
+  font-size: 16px;
+}
+
+.timestamp {
+  font-size: 12px;
+  color: #60646C;
+}
+
+.post {
+  padding-bottom: 10px;
+}
+
+.postcontent {
+  margin-top: 0px;
+  color: #D0D1D3;
+}
+
+.usercaptiontoken {
+  color: #D0D1D3;
+}
+
+.attorney_new {
+  display: none;
+}
+
+.attorney:hover .attorney_new {
+  font-size: 14px;
+  padding: 3px;
+  display: inline;
+  color: #ffffff;
+  background-color: #FF8C00; 
+}
+
+.wallets, .stages, .moderation, .engagement .attorney {
+  font-weight: bold;
+  padding-top: 50px;
+  margin-bottom: 5px;
+}
+
+.wallet {
+  font-size: 14px;
+  float: left;
+}
+
+.wallet_new {
+  display: none;
+}
+
+.stage_new {
+  display: none;
+}
+
+.wallets:hover .wallet_new {
+  font-size: 14px;
+  padding: 3px;
+  display: inline;
+  color: #ffffff;
+  background-color: #FF8C00; 
+}
+
+.stages:hover .stage_new {
+  font-size: 14px;
+  padding: 3px;
+  display: inline;
+  color: #ffffff;
+  background-color: #FF8C00; 
+}
+
+.walletbalance {
+	font-size: 16px;
+  float: right;
+}
+.walletdetails {
+  vertical-align: middle;
+  margin: 0px;
+  padding: 0px;
+}
+
+.stage {
+  font-size: 16px;
+  padding: 0px;
+  margin: 0px;
+}
+
+.moderate, .engage {
+  font-size: 16px;
+  padding: 0px;
+  margin: 0px;
+}
+
+p.walletdetails {
+  clear: both;
+}
+
+.moderateauthor, .engageauthor {
+  font-size: 16px;
+  font-weight: 300;
+  color: #77adf5;
+}

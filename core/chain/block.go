@@ -215,6 +215,7 @@ func (b *Block) serializeWithoutSignature() []byte {
 	bytes := make([]byte, 0)
 	util.PutUint64(b.epoch, &bytes)
 	util.PutByteArray(b.Parent[:], &bytes)
+	util.PutUint64(b.CheckPoint, &bytes)
 	util.PutByteArray(b.Publisher[:], &bytes)
 	util.PutTime(b.PublishedAt, &bytes)
 	util.PutUint16(uint16(len(b.Instructions)), &bytes)
@@ -231,6 +232,7 @@ func ParseBlock(data []byte) *Block {
 	block := Block{}
 	block.epoch, position = util.ParseUint64(data, position)
 	block.Parent, position = util.ParseHash(data, position)
+	block.CheckPoint, position = util.ParseUint64(data, position)
 	block.Publisher, position = util.ParseToken(data, position)
 	block.PublishedAt, position = util.ParseTime(data, position)
 	block.Instructions, position = util.ParseByteArrayArray(data, position)
@@ -262,6 +264,7 @@ func (b *Block) JSONSimple() string {
 	bulk := &util.JSONBuilder{}
 	bulk.PutUint64("epoch", b.epoch)
 	bulk.PutHex("parent", b.Parent[:])
+	bulk.PutUint64("checkpoint", b.CheckPoint)
 	bulk.PutHex("publisher", b.Publisher[:])
 	bulk.PutTime("publishedAt", b.PublishedAt)
 	bulk.PutUint64("instructionsCount", uint64(len(b.Instructions)))

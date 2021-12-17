@@ -30,10 +30,10 @@ func main() {
 		}
 		_, token = crypto.RandomAsymetricKey()
 		data := make([]byte, 0)
-		util.PutByteArray(token.ToBytes(), &data)
+		util.PutByteArray(token[:], &data)
 		for n := 0; n < total; n++ {
 			_, authors := crypto.RandomAsymetricKey()
-			inst := instructions.NewSingleReciepientTransfer(token, authors.PublicKey().ToBytes(), "whatever", 10, 1, 10)
+			inst := instructions.NewSingleReciepientTransfer(token, authors.PublicKey(), "whatever", 10, 1, 10)
 			util.PutByteArray(inst.Serialize(), &data)
 		}
 		if n, err := file.Write(data); n != len(data) || err != nil {
@@ -53,8 +53,8 @@ func main() {
 
 	position := 0
 	bytes, position := util.ParseByteArray(data, position)
-	token, err = crypto.PrivateKeyFromBytes(bytes)
-	fmt.Println(token.PublicKey().ToBytes())
+	copy(token[:], bytes)
+	fmt.Println(token.PublicKey())
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -69,7 +69,7 @@ func main() {
 
 	chain := consensus.NewGenesisBlockChain(token)
 	consensus := authority.NewProofOfAtuhority(chain, token)
-	network.NewNode(token, make(map[crypto.PublicKey]string), consensus, 1)
+	network.NewNode(token, make(map[crypto.Token]string), consensus, 1)
 
 	conns := make([]*network.SecureConnection, 10)
 	for n := 0; n < 10; n++ {

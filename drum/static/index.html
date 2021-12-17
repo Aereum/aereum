@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta name="description" content="Aereum Drum"/>
+        <meta charset="utf-8">
+        <title>Aereum: Drum</title>
+        <meta name="viewport" content="width+devide-width, initial-scale=1">
+        <meta name="author" content="Aereum Authors">
+        <link rel="stylesheet" href="drum.css">
+    </head>
+    <body>
+        <div class="mainbody">
+            <div class="leftmenu">
+                <p class="usercaptiontoken"></p>
+                <h4> My Attonerys </h4>  <button>grant new power of attorney</button>
+                <div id="attorneys"></div>
+                <h4> My Wallets </h4>  <button>create new wallet</button>
+                <div id="wallets"></div>
+                <h4> My Stages </h4>  <button onclick="clickstage()">create new stage</button>
+                <div id="stages"></div>
+                <h4> Moderation Activity </h4>  
+                <div id="moderation"></div>
+                <h4> Stages Engaged </h4>  
+                <div id="engagement"></div>
+            </div>
+            <div class="maincontent">
+                <div class="maincontentleftpanel">
+                    <div class="header">
+                        <span class="menubox" onclick="showhidemenu()">☰</span>
+                        <input class="searchbox" placeholder="Search in aereum blockchain"/>
+                        <span id="maincontenttitle"></span>
+                    </div>
+                    <div id="maincontentbodyleft">
+                    </div>
+                </div>
+                <div class="maincontentrightpanel">
+                    <div class="maincontentheader">
+                        <div id="maincontentrighttitle"></div>
+                    </div>
+                    <div id="maincontentbodyleft"></div>
+                </div>
+            </div>
+        </div>
+        <div id="myModal" class="modal" style="display:none;">
+            <div class="modal-content" >
+              <span class="close">&times;</span>
+              <div id="modal-content"></div>
+            </div>
+        </div>
+    
+    <script>
+        function clickstage() {
+            console.log("clicou")
+            var modal = document.getElementById("myModal");
+            var span = document.getElementsByClassName("close")[0];
+            
+            let inputEl = document.createElement("input")
+            inputEl.setAttribute("placeholder", "Enter name of Stage")
+            document.getElementById("modal-content").innerHTML = ""
+            document.getElementById("modal-content").appendChild(inputEl)
+            span.onclick = function() {
+                modal.style.display = "none";
+            }
+            modal.style.display = "block";
+        }
+    </script>
+    </body>
+</html>
