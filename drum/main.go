@@ -21,10 +21,6 @@ func handleAPI(w http.ResponseWriter, r *http.Request) {
 	fmt.Println("Success")
 	go func() {
 		defer conn.Close()
-		wallet := CreateNewWallteBalance()
-		wsutil.WriteServerText(conn, wallet.ToJSON())
-		wallet = CreateNewWallteBalance()
-		wsutil.WriteServerText(conn, wallet.ToJSON())
 		post := NewPostStage{
 			Action:    "NewStagePost",
 			Stage:     "Aereum",
@@ -49,11 +45,23 @@ func handleAPI(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 			if code.IsData() {
-				fmt.Println(string(msg))
+				var action Action
+				if err := json.Unmarshal(msg, &action); err == nil {
+					if action.Action == "createNewWallet" {
+						wallet := CreateNewWallteBalance()
+						wsutil.WriteServerText(conn, wallet.ToJSON())
+					}
+				} else {
+					fmt.Println(err)
+				}
 			}
 		}
 	}()
+}
 
+type Action struct {
+	Action string `json:"action"`
+	Values string `json:"values"`
 }
 
 type NewWalletBalance struct {
@@ -108,3 +116,11 @@ func main() {
 		log.Fatal(err)
 	}
 }
+
+/*
+
+   <span class="menubox" onclick="showhidemenu()">☰</span>
+                       <input class="searchbox" placeholder="Search in aereum blockchain"/>
+                       <span id="maincontenttitle"></span>
+
+*/

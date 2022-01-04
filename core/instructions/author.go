@@ -37,7 +37,7 @@ func (a *Author) NewJoinNetwork(caption string, details string, epoch, fee uint6
 		details:  details,
 	}
 	bulk := join.serializeBulk()
-	if a.sign(join.authored, bulk, iJoinNetwork) {
+	if a.sign(join.authored, bulk, IJoinNetwork) {
 		return &join
 	}
 	return nil
@@ -65,7 +65,7 @@ func (a *Author) NewJoinNetworkThirdParty(token crypto.Token, caption string, de
 		details:  details,
 	}
 	bulk := join.serializeBulk()
-	if a.sign(join.authored, bulk, iJoinNetwork) {
+	if a.sign(join.authored, bulk, IJoinNetwork) {
 		return &join
 	}
 	return nil
@@ -77,7 +77,7 @@ func (a *Author) NewUpdateInfo(details string, epoch, fee uint64) *UpdateInfo {
 		details:  details,
 	}
 	bulk := update.serializeBulk()
-	if a.sign(update.authored, bulk, iUpdateInfo) {
+	if a.sign(update.authored, bulk, IUpdateInfo) {
 		return &update
 	}
 	return nil
@@ -89,7 +89,7 @@ func (a *Author) NewGrantPowerOfAttorney(attorney crypto.Token, epoch, fee uint6
 		attorney: attorney,
 	}
 	bulk := grant.serializeBulk()
-	if a.sign(grant.authored, bulk, iGrantPowerOfAttorney) {
+	if a.sign(grant.authored, bulk, IGrantPowerOfAttorney) {
 		return &grant
 	}
 	return nil
@@ -101,7 +101,7 @@ func (a *Author) NewRevokePowerOfAttorney(attorney crypto.Token, epoch, fee uint
 		attorney: attorney,
 	}
 	bulk := revoke.serializeBulk()
-	if a.sign(revoke.authored, bulk, iRevokePowerOfAttorney) {
+	if a.sign(revoke.authored, bulk, IRevokePowerOfAttorney) {
 		return &revoke
 	}
 	return nil
@@ -114,7 +114,7 @@ func (a *Author) NewCreateEphemeral(token crypto.Token, expiry, epoch, fee uint6
 		expiry:         expiry,
 	}
 	bulk := ephemeral.serializeBulk()
-	if a.sign(ephemeral.authored, bulk, iCreateEphemeral) {
+	if a.sign(ephemeral.authored, bulk, ICreateEphemeral) {
 		return &ephemeral
 	}
 	return nil
@@ -129,7 +129,7 @@ func (a *Author) NewSecureChannel(tokenRange []byte, nonce uint64, encryptedNonc
 		content:        content,
 	}
 	bulk := secure.serializeBulk()
-	if a.sign(secure.authored, bulk, iSecureChannel) {
+	if a.sign(secure.authored, bulk, ISecureChannel) {
 		return &secure
 	}
 	return nil
@@ -145,7 +145,7 @@ func (a *Author) NewCreateAudience(audience *Stage, flag byte, description strin
 		description: description,
 	}
 	bulk := newAudience.serializeBulk()
-	if a.sign(newAudience.authored, bulk, iCreateAudience) {
+	if a.sign(newAudience.authored, bulk, ICreateAudience) {
 		return &newAudience
 	}
 	return nil
@@ -158,7 +158,7 @@ func (a *Author) NewJoinAudience(audience crypto.Token, presentation string, epo
 		presentation: presentation,
 	}
 	bulk := join.serializeBulk()
-	if a.sign(join.authored, bulk, iJoinAudience) {
+	if a.sign(join.authored, bulk, IJoinAudience) {
 		return &join
 	}
 	return nil
@@ -186,7 +186,7 @@ func (a *Author) NewAcceptJoinAudience(audience *Stage, member, key crypto.Token
 	modbulk := accept.serializeModBulk()
 	accept.modSignature = audience.Moderation.Sign(modbulk)
 	bulk := accept.serializeBulk()
-	if a.sign(accept.authored, bulk, iAcceptJoinRequest) {
+	if a.sign(accept.authored, bulk, IAcceptJoinRequest) {
 		return &accept
 	}
 	return nil
@@ -221,7 +221,7 @@ func (a *Author) NewUpdateAudience(audience *Stage, readers, submiters, moderato
 	}
 	update.audSignature = audience.PrivateKey.Sign(update.serializeAudBulk())
 	bulk := update.serializeBulk()
-	if a.sign(update.authored, bulk, iUpdateAudience) {
+	if a.sign(update.authored, bulk, IUpdateAudience) {
 		return &update
 	}
 	return nil
@@ -231,37 +231,37 @@ func (a *Author) ModerateContent(audience *Stage, content *Content, epoch, fee u
 	if audience == nil || audience.Moderation == crypto.ZeroPrivateKey {
 		return nil
 	}
-	if audience.PrivateKey.PublicKey() != content.audience {
+	if audience.PrivateKey.PublicKey() != content.Audience {
 		return nil
 	}
 	newContent := &Content{
 		epoch:        epoch,
-		published:    content.epoch,
-		author:       content.author,
-		audience:     content.audience,
-		contentType:  content.contentType,
-		content:      content.content,
-		sponsored:    content.sponsored,
-		encrypted:    content.encrypted,
-		subSignature: content.subSignature,
-		moderator:    audience.PrivateKey.PublicKey(),
-		attorney:     a.Attorney.PublicKey(),
-		wallet:       a.Wallet.PublicKey(),
-		fee:          fee,
+		Published:    content.epoch,
+		Author:       content.Author,
+		Audience:     content.Audience,
+		ContentType:  content.ContentType,
+		Content:      content.Content,
+		Sponsored:    content.Sponsored,
+		Encrypted:    content.Encrypted,
+		SubSignature: content.SubSignature,
+		Moderator:    audience.PrivateKey.PublicKey(),
+		Attorney:     a.Attorney.PublicKey(),
+		Wallet:       a.Wallet.PublicKey(),
+		Fee:          fee,
 	}
 	msg := newContent.serializeModBulk()
-	newContent.modSignature = audience.Moderation.Sign(msg)
+	newContent.ModSignature = audience.Moderation.Sign(msg)
 	if a.Attorney != crypto.ZeroPrivateKey {
-		newContent.attorney = a.Attorney.PublicKey()
-		newContent.signature = a.Attorney.Sign(newContent.serializeSignBulk())
+		newContent.Attorney = a.Attorney.PublicKey()
+		newContent.Signature = a.Attorney.Sign(newContent.serializeSignBulk())
 	} else {
-		newContent.signature = a.PrivateKey.Sign(newContent.serializeSignBulk())
+		newContent.Signature = a.PrivateKey.Sign(newContent.serializeSignBulk())
 	}
 	if a.Wallet != crypto.ZeroPrivateKey {
-		newContent.wallet = a.Wallet.PublicKey()
-		newContent.walletSignature = a.Attorney.Sign(newContent.serializeWalletBulk())
+		newContent.Wallet = a.Wallet.PublicKey()
+		newContent.WalletSignature = a.Attorney.Sign(newContent.serializeWalletBulk())
 	} else {
-		newContent.walletSignature = a.PrivateKey.Sign(newContent.serializeWalletBulk())
+		newContent.WalletSignature = a.PrivateKey.Sign(newContent.serializeWalletBulk())
 	}
 	return newContent
 }
@@ -272,43 +272,43 @@ func (a *Author) NewContent(audience *Stage, contentType string, message []byte,
 	}
 	content := &Content{
 		epoch:       epoch,
-		published:   epoch,
-		author:      a.PrivateKey.PublicKey(),
-		audience:    audience.PrivateKey.PublicKey(),
-		contentType: contentType,
-		hash:        []byte{},
-		sponsored:   false,
-		encrypted:   encrypted,
-		attorney:    a.Attorney.PublicKey(),
-		wallet:      a.Wallet.PublicKey(),
-		fee:         fee,
+		Published:   epoch,
+		Author:      a.PrivateKey.PublicKey(),
+		Audience:    audience.PrivateKey.PublicKey(),
+		ContentType: contentType,
+		Hash:        []byte{},
+		Sponsored:   false,
+		Encrypted:   encrypted,
+		Attorney:    a.Attorney.PublicKey(),
+		Wallet:      a.Wallet.PublicKey(),
+		Fee:         fee,
 	}
 	if encrypted {
 		cipher := crypto.CipherFromKey(audience.CipherKey)
-		content.content = cipher.Seal(message)
+		content.Content = cipher.Seal(message)
 	} else {
-		content.content = message
+		content.Content = message
 	}
 	if hash {
 		hashed := crypto.Hasher(message)
-		content.hash = hashed[:]
+		content.Hash = hashed[:]
 	}
 	subBulk := content.serializeSubBulk()
-	content.subSignature = audience.Submission.Sign(subBulk[10:])
-	util.PutSignature(content.subSignature, &subBulk)
+	content.SubSignature = audience.Submission.Sign(subBulk[10:])
+	util.PutSignature(content.SubSignature, &subBulk)
 	if audience.Moderation != crypto.ZeroPrivateKey {
-		content.moderator = a.PrivateKey.PublicKey()
-		content.modSignature = audience.Moderation.Sign(content.serializeModBulk())
+		content.Moderator = a.PrivateKey.PublicKey()
+		content.ModSignature = audience.Moderation.Sign(content.serializeModBulk())
 	}
 	if a.Attorney != crypto.ZeroPrivateKey {
-		content.signature = a.Attorney.Sign(content.serializeSignBulk())
+		content.Signature = a.Attorney.Sign(content.serializeSignBulk())
 	} else {
-		content.signature = a.PrivateKey.Sign(content.serializeSignBulk())
+		content.Signature = a.PrivateKey.Sign(content.serializeSignBulk())
 	}
 	if a.Wallet != crypto.ZeroPrivateKey {
-		content.walletSignature = a.Wallet.Sign(content.serializeWalletBulk())
+		content.WalletSignature = a.Wallet.Sign(content.serializeWalletBulk())
 	} else {
-		content.walletSignature = a.PrivateKey.Sign(content.serializeWalletBulk())
+		content.WalletSignature = a.PrivateKey.Sign(content.serializeWalletBulk())
 	}
 	return content
 }
@@ -320,7 +320,7 @@ func (a *Author) NewReact(hash []byte, reaction byte, epoch, fee uint64) *React 
 		reaction: reaction,
 	}
 	bulk := react.serializeBulk()
-	if a.sign(react.authored, bulk, iReact) {
+	if a.sign(react.authored, bulk, IReact) {
 		return &react
 	}
 	return nil
@@ -339,7 +339,7 @@ func (a *Author) NewSponsorshipOffer(audience *Stage, contentType string, conten
 		revenue:     revenue,
 	}
 	bulk := sponsorOffer.serializeBulk()
-	if a.sign(sponsorOffer.authored, bulk, iSponsorshipOffer) {
+	if a.sign(sponsorOffer.authored, bulk, ISponsorshipOffer) {
 		return &sponsorOffer
 	}
 	return nil
@@ -356,7 +356,7 @@ func (a *Author) NewSponsorshipAcceptance(audience *Stage, offer *SponsorshipOff
 	}
 	sponsorAcceptance.modSignature = audience.Moderation.Sign(sponsorAcceptance.serializeModBulk())
 	bulk := sponsorAcceptance.serializeBulk()
-	if a.sign(sponsorAcceptance.authored, bulk, iSponsorshipAcceptance) {
+	if a.sign(sponsorAcceptance.authored, bulk, ISponsorshipAcceptance) {
 		return &sponsorAcceptance
 	}
 	return nil

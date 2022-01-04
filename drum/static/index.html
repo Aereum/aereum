@@ -25,7 +25,7 @@
             </div>
             <div class="maincontent">
                 <div class="maincontentleftpanel">
-                    <div class="header">
+                    <div class="header" id="maincontentleftpanelheader" >
                         <span class="menubox" onclick="showhidemenu()">☰</span>
                         <input class="searchbox" placeholder="Search in aereum blockchain"/>
                         <span id="maincontenttitle"></span>
@@ -34,10 +34,9 @@
                     </div>
                 </div>
                 <div class="maincontentrightpanel">
-                    <div class="maincontentheader">
-                        <div id="maincontentrighttitle"></div>
+                    <div class="maincontentheader" id="maincontentrightpanelheader">
                     </div>
-                    <div id="maincontentbodyleft"></div>
+                    <div id="maincontentbodyleft" id="maincontentrightpanel"></div>
                 </div>
             </div>
         </div>
@@ -64,5 +63,6 @@
             modal.style.display = "block";
         }
     </script>
+    <script src="components.js"></script>
     </body>
 </html>

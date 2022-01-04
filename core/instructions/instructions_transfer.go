@@ -88,7 +88,7 @@ func (t *Transfer) Validate(v InstructionValidator) bool {
 }
 
 func (a *Transfer) Kind() byte {
-	return iTransfer
+	return ITransfer
 }
 
 func (a *Transfer) Epoch() uint64 {
@@ -96,7 +96,7 @@ func (a *Transfer) Epoch() uint64 {
 }
 
 func (s *Transfer) serializeWithoutSignature() []byte {
-	bytes := []byte{0, iTransfer}
+	bytes := []byte{0, ITransfer}
 	util.PutUint64(s.epoch, &bytes)
 	util.PutToken(s.From, &bytes)
 	util.PutUint16(uint16(len(s.To)), &bytes)
@@ -120,7 +120,7 @@ func (s *Transfer) Serialize() []byte {
 }
 
 func ParseTransfer(data []byte) *Transfer {
-	if len(data) < 2 || data[1] != iTransfer {
+	if len(data) < 2 || data[1] != ITransfer {
 		return nil
 	}
 	p := Transfer{}
@@ -163,7 +163,7 @@ func (t *Deposit) Validate(v InstructionValidator) bool {
 }
 
 func (a *Deposit) Kind() byte {
-	return iDeposit
+	return IDeposit
 }
 
 func (a *Deposit) Epoch() uint64 {
@@ -171,7 +171,7 @@ func (a *Deposit) Epoch() uint64 {
 }
 
 func (s *Deposit) serializeWithoutSignature() []byte {
-	bytes := []byte{0, iDeposit}
+	bytes := []byte{0, IDeposit}
 	util.PutUint64(s.epoch, &bytes)
 	util.PutToken(s.Token, &bytes)
 	util.PutUint64(s.Value, &bytes)
@@ -186,7 +186,7 @@ func (s *Deposit) Serialize() []byte {
 }
 
 func ParseDeposit(data []byte) *Deposit {
-	if len(data) < 2 || data[1] != iDeposit {
+	if len(data) < 2 || data[1] != IDeposit {
 		return nil
 	}
 	p := Deposit{}
@@ -225,7 +225,7 @@ func (t *Withdraw) Validate(v InstructionValidator) bool {
 }
 
 func (a *Withdraw) Kind() byte {
-	return iWithdraw
+	return IWithdraw
 }
 
 func (a *Withdraw) Epoch() uint64 {
@@ -233,7 +233,7 @@ func (a *Withdraw) Epoch() uint64 {
 }
 
 func (s *Withdraw) serializeWithoutSignature() []byte {
-	bytes := []byte{0, iWithdraw}
+	bytes := []byte{0, IWithdraw}
 	util.PutUint64(s.epoch, &bytes)
 	util.PutToken(s.Token, &bytes)
 	util.PutUint64(s.Value, &bytes)
@@ -248,7 +248,7 @@ func (s *Withdraw) Serialize() []byte {
 }
 
 func ParseWithdraw(data []byte) *Withdraw {
-	if len(data) < 2 || data[1] != iWithdraw {
+	if len(data) < 2 || data[1] != IWithdraw {
 		return nil
 	}
 	p := Withdraw{}

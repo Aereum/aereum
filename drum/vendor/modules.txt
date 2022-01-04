@@ -1,0 +1,17 @@
+# github.com/gobwas/httphead v0.1.0
+## explicit; go 1.15
+github.com/gobwas/httphead
+# github.com/gobwas/pool v0.2.1
+## explicit
+github.com/gobwas/pool
+github.com/gobwas/pool/internal/pmath
+github.com/gobwas/pool/pbufio
+github.com/gobwas/pool/pbytes
+# github.com/gobwas/ws v1.1.0
+## explicit; go 1.15
+github.com/gobwas/ws
+github.com/gobwas/ws/wsutil
+# golang.org/x/sys v0.0.0-20201207223542-d4d67f95c62d
+## explicit; go 1.12
+golang.org/x/sys/internal/unsafeheader
+golang.org/x/sys/unix

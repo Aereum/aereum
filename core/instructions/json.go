@@ -65,31 +65,31 @@ func (j *JoinNetwork) JSON() string {
 	bulk := &util.JSONBuilder{}
 	bulk.PutString("caption", j.caption)
 	bulk.PutJSON("details", j.details)
-	return j.authored.JSON(iJoinNetwork, bulk)
+	return j.authored.JSON(IJoinNetwork, bulk)
 }
 
 func (j *UpdateInfo) JSON() string {
 	bulk := &util.JSONBuilder{}
 	bulk.PutJSON("details", j.details)
-	return j.authored.JSON(iUpdateInfo, bulk)
+	return j.authored.JSON(IUpdateInfo, bulk)
 }
 
 func (j *GrantPowerOfAttorney) JSON() string {
 	bulk := &util.JSONBuilder{}
 	bulk.PutHex("details", j.attorney[:])
-	return j.authored.JSON(iGrantPowerOfAttorney, bulk)
+	return j.authored.JSON(IGrantPowerOfAttorney, bulk)
 }
 
 func (j *RevokePowerOfAttorney) JSON() string {
 	bulk := &util.JSONBuilder{}
 	bulk.PutHex("details", j.attorney[:])
-	return j.authored.JSON(iRevokePowerOfAttorney, bulk)
+	return j.authored.JSON(IRevokePowerOfAttorney, bulk)
 }
 func (j *CreateEphemeral) JSON() string {
 	bulk := &util.JSONBuilder{}
 	bulk.PutHex("ephemeralToken", j.ephemeralToken[:])
 	bulk.PutUint64("expiry", j.expiry)
-	return j.authored.JSON(iCreateEphemeral, bulk)
+	return j.authored.JSON(ICreateEphemeral, bulk)
 }
 
 func (j *SecureChannel) JSON() string {
@@ -98,7 +98,7 @@ func (j *SecureChannel) JSON() string {
 	bulk.PutUint64("nonce", j.nonce)
 	bulk.PutHex("encryptedNonce", j.encryptedNonce)
 	bulk.PutHex("encryptedNonce", j.content)
-	return j.authored.JSON(iSecureChannel, bulk)
+	return j.authored.JSON(ISecureChannel, bulk)
 }
 
 func (j *CreateStage) JSON() string {
@@ -108,14 +108,14 @@ func (j *CreateStage) JSON() string {
 	bulk.PutHex("moderation", j.moderation[:])
 	bulk.PutUint64("flag", uint64(j.flag))
 	bulk.PutString("description", j.description)
-	return j.authored.JSON(iCreateAudience, bulk)
+	return j.authored.JSON(ICreateAudience, bulk)
 }
 
 func (j *JoinStage) JSON() string {
 	bulk := &util.JSONBuilder{}
 	bulk.PutHex("audience", j.audience[:])
 	bulk.PutString("presentation", j.presentation)
-	return j.authored.JSON(iJoinAudience, bulk)
+	return j.authored.JSON(IJoinAudience, bulk)
 }
 
 func (j *AcceptJoinStage) JSON() string {
@@ -126,7 +126,7 @@ func (j *AcceptJoinStage) JSON() string {
 	bulk.PutHex("submit", j.submit)
 	bulk.PutHex("moderate", j.moderate)
 	bulk.PutBase64("modSignature", j.modSignature[:])
-	return j.authored.JSON(iAcceptJoinRequest, bulk)
+	return j.authored.JSON(IAcceptJoinRequest, bulk)
 }
 
 func (j *UpdateStage) JSON() string {
@@ -140,7 +140,7 @@ func (j *UpdateStage) JSON() string {
 	putTokenCiphersJSON(bulk, "subMembers", j.subMembers)
 	putTokenCiphersJSON(bulk, "modMembers", j.modMembers)
 	bulk.PutBase64("audSignature", j.audSignature[:])
-	return j.authored.JSON(iUpdateAudience, bulk)
+	return j.authored.JSON(IUpdateAudience, bulk)
 }
 
 func (j *SponsorshipOffer) JSON() string {
@@ -150,7 +150,7 @@ func (j *SponsorshipOffer) JSON() string {
 	bulk.PutBase64("content", j.content)
 	bulk.PutUint64("expiry", j.expiry)
 	bulk.PutUint64("revenue", j.revenue)
-	return j.authored.JSON(iSponsorshipOffer, bulk)
+	return j.authored.JSON(ISponsorshipOffer, bulk)
 }
 
 func (j *SponsorshipAcceptance) JSON() string {
@@ -158,43 +158,43 @@ func (j *SponsorshipAcceptance) JSON() string {
 	bulk.PutHex("audience", j.stage[:])
 	bulk.PutJSON("offer", j.offer.JSON())
 	bulk.PutBase64("modSignature", j.modSignature[:])
-	return j.authored.JSON(iSponsorshipAcceptance, bulk)
+	return j.authored.JSON(ISponsorshipAcceptance, bulk)
 }
 
 func (j *React) JSON() string {
 	bulk := &util.JSONBuilder{}
 	bulk.PutHex("hash", j.hash)
 	bulk.PutUint64("reaction", uint64(j.reaction))
-	return j.authored.JSON(iReact, bulk)
+	return j.authored.JSON(IReact, bulk)
 }
 
 func (j *Content) JSON() string {
 	bulk := &util.JSONBuilder{}
 	bulk.PutUint64("version", 0)
-	bulk.PutUint64("instructionType", uint64(iContent))
+	bulk.PutUint64("instructionType", uint64(IContent))
 	bulk.PutUint64("epoch", j.epoch)
-	bulk.PutUint64("published", j.published)
-	bulk.PutHex("author", j.author[:])
-	bulk.PutHex("audience", j.audience[:])
-	bulk.PutString("contentType", j.contentType)
-	bulk.PutBase64("content", j.content)
-	bulk.PutHex("hash", j.hash)
-	if j.wallet != crypto.ZeroToken {
-		bulk.PutHex("wallet", j.wallet[:])
+	bulk.PutUint64("published", j.Published)
+	bulk.PutHex("author", j.Author[:])
+	bulk.PutHex("audience", j.Audience[:])
+	bulk.PutString("contentType", j.ContentType)
+	bulk.PutBase64("content", j.Content)
+	bulk.PutHex("hash", j.Hash)
+	if j.Wallet != crypto.ZeroToken {
+		bulk.PutHex("wallet", j.Wallet[:])
 	}
-	bulk.PutUint64("fee", j.fee)
-	if j.attorney != crypto.ZeroToken {
-		bulk.PutHex("attorney", j.attorney[:])
+	bulk.PutUint64("fee", j.Fee)
+	if j.Attorney != crypto.ZeroToken {
+		bulk.PutHex("attorney", j.Attorney[:])
 	}
-	bulk.PutBase64("signature", j.signature[:])
-	bulk.PutBase64("walletSignature", j.walletSignature[:])
+	bulk.PutBase64("signature", j.Signature[:])
+	bulk.PutBase64("walletSignature", j.WalletSignature[:])
 	return bulk.ToString()
 }
 
 func (j *Transfer) JSON() string {
 	bulk := &util.JSONBuilder{}
 	bulk.PutUint64("version", 0)
-	bulk.PutUint64("instructionType", uint64(iTransfer))
+	bulk.PutUint64("instructionType", uint64(ITransfer))
 	bulk.PutUint64("epoch", j.epoch)
 	bulk.PutHex("from", j.From[:])
 	putReciepientArray(bulk, "to", j.To)
@@ -207,7 +207,7 @@ func (j *Transfer) JSON() string {
 func (j *Deposit) JSON() string {
 	bulk := &util.JSONBuilder{}
 	bulk.PutUint64("version", 0)
-	bulk.PutUint64("instructionType", uint64(iDeposit))
+	bulk.PutUint64("instructionType", uint64(IDeposit))
 	bulk.PutUint64("epoch", j.epoch)
 	bulk.PutHex("token", j.Token[:])
 	bulk.PutUint64("value", j.Value)
@@ -219,7 +219,7 @@ func (j *Deposit) JSON() string {
 func (j *Withdraw) JSON() string {
 	bulk := &util.JSONBuilder{}
 	bulk.PutUint64("version", 0)
-	bulk.PutUint64("instructionType", uint64(iDeposit))
+	bulk.PutUint64("instructionType", uint64(IDeposit))
 	bulk.PutUint64("epoch", j.epoch)
 	bulk.PutHex("token", j.Token[:])
 	bulk.PutUint64("value", j.Value)

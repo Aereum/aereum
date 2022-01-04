@@ -7,23 +7,23 @@ import (
 )
 
 const (
-	iTransfer byte = iota
-	iDeposit
-	iWithdraw
-	iJoinNetwork
-	iUpdateInfo
-	iCreateAudience
-	iJoinAudience
-	iAcceptJoinRequest
-	iContent
-	iUpdateAudience
-	iGrantPowerOfAttorney
-	iRevokePowerOfAttorney
-	iSponsorshipOffer
-	iSponsorshipAcceptance
-	iCreateEphemeral
-	iSecureChannel
-	iReact
+	ITransfer byte = iota
+	IDeposit
+	IWithdraw
+	IJoinNetwork
+	IUpdateInfo
+	ICreateAudience
+	IJoinAudience
+	IAcceptJoinRequest
+	IContent
+	IUpdateAudience
+	IGrantPowerOfAttorney
+	IRevokePowerOfAttorney
+	ISponsorshipOffer
+	ISponsorshipAcceptance
+	ICreateEphemeral
+	ISecureChannel
+	IReact
 	iUnkown
 )
 
@@ -109,40 +109,47 @@ func ParseInstruction(data []byte) Instruction {
 		return nil
 	}
 	switch data[1] {
-	case iTransfer:
+	case ITransfer:
 		return ParseTransfer(data)
-	case iDeposit:
+	case IDeposit:
 		return ParseDeposit(data)
-	case iWithdraw:
+	case IWithdraw:
 		return ParseWithdraw(data)
-	case iJoinNetwork:
+	case IJoinNetwork:
 		return ParseJoinNetwork(data)
-	case iUpdateInfo:
+	case IUpdateInfo:
 		return ParseUpdateInfo(data)
-	case iCreateAudience:
+	case ICreateAudience:
 		return ParseCreateStage(data)
-	case iJoinAudience:
+	case IJoinAudience:
 		return ParseJoinStage(data)
-	case iAcceptJoinRequest:
+	case IAcceptJoinRequest:
 		return ParseAcceptJoinStage(data)
-	case iContent:
+	case IContent:
 		return ParseContent(data)
-	case iUpdateAudience:
+	case IUpdateAudience:
 		return ParseUpdateStage(data)
-	case iGrantPowerOfAttorney:
+	case IGrantPowerOfAttorney:
 		return ParseGrantPowerOfAttorney(data)
-	case iRevokePowerOfAttorney:
+	case IRevokePowerOfAttorney:
 		return ParseRevokePowerOfAttorney(data)
-	case iSponsorshipOffer:
+	case ISponsorshipOffer:
 		return ParseSponsorshipOffer(data)
-	case iSponsorshipAcceptance:
+	case ISponsorshipAcceptance:
 		return ParseSponsorshipAcceptance(data)
-	case iCreateEphemeral:
+	case ICreateEphemeral:
 		return ParseCreateEphemeral(data)
-	case iSecureChannel:
+	case ISecureChannel:
 		return ParseSecureChannel(data)
-	case iReact:
+	case IReact:
 		return ParseReact(data)
 	}
 	return nil
+}
+
+func InstructionKind(msg []byte) byte {
+	if len(msg) < 2 {
+		return iUnkown
+	}
+	return msg[1]
 }

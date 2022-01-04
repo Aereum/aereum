@@ -42,7 +42,7 @@ func (stage *CreateStage) Payments() *Payment {
 }
 
 func (stage *CreateStage) Kind() byte {
-	return iCreateAudience
+	return ICreateAudience
 }
 
 func (stage *CreateStage) serializeBulk() []byte {
@@ -56,11 +56,11 @@ func (stage *CreateStage) serializeBulk() []byte {
 }
 
 func (stage *CreateStage) Serialize() []byte {
-	return stage.authored.serialize(iCreateAudience, stage.serializeBulk())
+	return stage.authored.serialize(ICreateAudience, stage.serializeBulk())
 }
 
 func ParseCreateStage(data []byte) *CreateStage {
-	if data[0] != 0 || data[1] != iCreateAudience {
+	if data[0] != 0 || data[1] != ICreateAudience {
 		return nil
 	}
 	stage := CreateStage{
@@ -105,7 +105,7 @@ func (join *JoinStage) Payments() *Payment {
 }
 
 func (join *JoinStage) Kind() byte {
-	return iJoinAudience
+	return IJoinAudience
 }
 
 func (join *JoinStage) serializeBulk() []byte {
@@ -117,11 +117,11 @@ func (join *JoinStage) serializeBulk() []byte {
 }
 
 func (stage *JoinStage) Serialize() []byte {
-	return stage.authored.serialize(iJoinAudience, stage.serializeBulk())
+	return stage.authored.serialize(IJoinAudience, stage.serializeBulk())
 }
 
 func ParseJoinStage(data []byte) *JoinStage {
-	if data[0] != 0 || data[1] != iJoinAudience {
+	if data[0] != 0 || data[1] != IJoinAudience {
 		return nil
 	}
 	stage := JoinStage{
@@ -176,7 +176,7 @@ func (accept *AcceptJoinStage) Payments() *Payment {
 }
 
 func (accept *AcceptJoinStage) Kind() byte {
-	return iJoinAudience
+	return IJoinAudience
 }
 
 func (accept *AcceptJoinStage) serializeModBulk() []byte {
@@ -197,11 +197,11 @@ func (accept *AcceptJoinStage) serializeBulk() []byte {
 }
 
 func (accept *AcceptJoinStage) Serialize() []byte {
-	return accept.authored.serialize(iAcceptJoinRequest, accept.serializeBulk())
+	return accept.authored.serialize(IAcceptJoinRequest, accept.serializeBulk())
 }
 
 func ParseAcceptJoinStage(data []byte) *AcceptJoinStage {
-	if data[0] != 0 || data[1] != iAcceptJoinRequest {
+	if data[0] != 0 || data[1] != IAcceptJoinRequest {
 		return nil
 	}
 	accept := AcceptJoinStage{
@@ -318,7 +318,7 @@ func (update *UpdateStage) Payments() *Payment {
 }
 
 func (update *UpdateStage) Kind() byte {
-	return iUpdateAudience
+	return IUpdateAudience
 }
 
 func (update *UpdateStage) serializeAudBulk() []byte {
@@ -342,11 +342,11 @@ func (update *UpdateStage) serializeBulk() []byte {
 }
 
 func (update *UpdateStage) Serialize() []byte {
-	return update.authored.serialize(iUpdateAudience, update.serializeBulk())
+	return update.authored.serialize(IUpdateAudience, update.serializeBulk())
 }
 
 func ParseUpdateStage(data []byte) *UpdateStage {
-	if data[0] != 0 || data[1] != iUpdateAudience {
+	if data[0] != 0 || data[1] != IUpdateAudience {
 		return nil
 	}
 	update := UpdateStage{

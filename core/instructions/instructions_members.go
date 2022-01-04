@@ -41,7 +41,7 @@ func (join *JoinNetwork) Payments() *Payment {
 }
 
 func (join *JoinNetwork) Kind() byte {
-	return iJoinNetwork
+	return IJoinNetwork
 }
 
 func (join *JoinNetwork) serializeBulk() []byte {
@@ -52,11 +52,11 @@ func (join *JoinNetwork) serializeBulk() []byte {
 }
 
 func (join *JoinNetwork) Serialize() []byte {
-	return join.authored.serialize(iJoinNetwork, join.serializeBulk())
+	return join.authored.serialize(IJoinNetwork, join.serializeBulk())
 }
 
 func ParseJoinNetwork(data []byte) *JoinNetwork {
-	if data[0] != 0 || data[1] != iJoinNetwork {
+	if data[0] != 0 || data[1] != IJoinNetwork {
 		return nil
 	}
 	join := JoinNetwork{
@@ -99,7 +99,7 @@ func (update *UpdateInfo) Payments() *Payment {
 }
 
 func (update *UpdateInfo) Kind() byte {
-	return iUpdateInfo
+	return IUpdateInfo
 }
 
 func (update *UpdateInfo) serializeBulk() []byte {
@@ -109,11 +109,11 @@ func (update *UpdateInfo) serializeBulk() []byte {
 }
 
 func (update *UpdateInfo) Serialize() []byte {
-	return update.authored.serialize(iUpdateInfo, update.serializeBulk())
+	return update.authored.serialize(IUpdateInfo, update.serializeBulk())
 }
 
 func ParseUpdateInfo(data []byte) *UpdateInfo {
-	if data[0] != 0 || data[1] != iUpdateInfo {
+	if data[0] != 0 || data[1] != IUpdateInfo {
 		return nil
 	}
 	update := UpdateInfo{
@@ -162,7 +162,7 @@ func (grant *GrantPowerOfAttorney) Payments() *Payment {
 }
 
 func (grant *GrantPowerOfAttorney) Kind() byte {
-	return iGrantPowerOfAttorney
+	return IGrantPowerOfAttorney
 }
 
 func (grant *GrantPowerOfAttorney) serializeBulk() []byte {
@@ -172,11 +172,11 @@ func (grant *GrantPowerOfAttorney) serializeBulk() []byte {
 }
 
 func (grant *GrantPowerOfAttorney) Serialize() []byte {
-	return grant.authored.serialize(iGrantPowerOfAttorney, grant.serializeBulk())
+	return grant.authored.serialize(IGrantPowerOfAttorney, grant.serializeBulk())
 }
 
 func ParseGrantPowerOfAttorney(data []byte) *GrantPowerOfAttorney {
-	if data[0] != 0 || data[1] != iGrantPowerOfAttorney {
+	if data[0] != 0 || data[1] != IGrantPowerOfAttorney {
 		return nil
 	}
 	grant := GrantPowerOfAttorney{
@@ -222,7 +222,7 @@ func (revoke *RevokePowerOfAttorney) Payments() *Payment {
 }
 
 func (revoke *RevokePowerOfAttorney) Kind() byte {
-	return iRevokePowerOfAttorney
+	return IRevokePowerOfAttorney
 }
 
 func (revoke *RevokePowerOfAttorney) serializeBulk() []byte {
@@ -232,11 +232,11 @@ func (revoke *RevokePowerOfAttorney) serializeBulk() []byte {
 }
 
 func (revoke *RevokePowerOfAttorney) Serialize() []byte {
-	return revoke.authored.serialize(iRevokePowerOfAttorney, revoke.serializeBulk())
+	return revoke.authored.serialize(IRevokePowerOfAttorney, revoke.serializeBulk())
 }
 
 func ParseRevokePowerOfAttorney(data []byte) *RevokePowerOfAttorney {
-	if data[0] != 0 || data[1] != iRevokePowerOfAttorney {
+	if data[0] != 0 || data[1] != IRevokePowerOfAttorney {
 		return nil
 	}
 	revoke := RevokePowerOfAttorney{
@@ -283,7 +283,7 @@ func (ephemeral *CreateEphemeral) Payments() *Payment {
 }
 
 func (ephemeral *CreateEphemeral) Kind() byte {
-	return iCreateEphemeral
+	return ICreateEphemeral
 }
 
 func (ephemeral *CreateEphemeral) serializeBulk() []byte {
@@ -294,11 +294,11 @@ func (ephemeral *CreateEphemeral) serializeBulk() []byte {
 }
 
 func (ephemeral *CreateEphemeral) Serialize() []byte {
-	return ephemeral.authored.serialize(iCreateEphemeral, ephemeral.serializeBulk())
+	return ephemeral.authored.serialize(ICreateEphemeral, ephemeral.serializeBulk())
 }
 
 func ParseCreateEphemeral(data []byte) *CreateEphemeral {
-	if data[0] != 0 || data[1] != iCreateEphemeral {
+	if data[0] != 0 || data[1] != ICreateEphemeral {
 		return nil
 	}
 	ephemeral := CreateEphemeral{
@@ -342,7 +342,7 @@ func (secure *SecureChannel) Payments() *Payment {
 }
 
 func (secure *SecureChannel) Kind() byte {
-	return iSecureChannel
+	return ISecureChannel
 }
 
 func (secure *SecureChannel) serializeBulk() []byte {
@@ -355,11 +355,11 @@ func (secure *SecureChannel) serializeBulk() []byte {
 }
 
 func (secure *SecureChannel) Serialize() []byte {
-	return secure.authored.serialize(iSecureChannel, secure.serializeBulk())
+	return secure.authored.serialize(ISecureChannel, secure.serializeBulk())
 }
 
 func ParseSecureChannel(data []byte) *SecureChannel {
-	if data[0] != 0 || data[1] != iSecureChannel {
+	if data[0] != 0 || data[1] != ISecureChannel {
 		return nil
 	}
 	secure := SecureChannel{

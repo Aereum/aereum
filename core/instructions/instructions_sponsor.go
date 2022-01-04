@@ -55,7 +55,7 @@ func (sponsored *SponsorshipOffer) Payments() *Payment {
 }
 
 func (sponsored *SponsorshipOffer) Kind() byte {
-	return iSponsorshipOffer
+	return ISponsorshipOffer
 }
 
 func (sponsored *SponsorshipOffer) serializeBulk() []byte {
@@ -69,11 +69,11 @@ func (sponsored *SponsorshipOffer) serializeBulk() []byte {
 }
 
 func (sponsored *SponsorshipOffer) Serialize() []byte {
-	return sponsored.authored.serialize(iSponsorshipOffer, sponsored.serializeBulk())
+	return sponsored.authored.serialize(ISponsorshipOffer, sponsored.serializeBulk())
 }
 
 func ParseSponsorshipOffer(data []byte) *SponsorshipOffer {
-	if data[0] != 0 || data[1] != iSponsorshipOffer {
+	if data[0] != 0 || data[1] != ISponsorshipOffer {
 		return nil
 	}
 	sponsored := SponsorshipOffer{
@@ -147,7 +147,7 @@ func (accept *SponsorshipAcceptance) Payments() *Payment {
 }
 
 func (accept *SponsorshipAcceptance) Kind() byte {
-	return iSponsorshipAcceptance
+	return ISponsorshipAcceptance
 }
 
 func (accept *SponsorshipAcceptance) serializeModBulk() []byte {
@@ -164,11 +164,11 @@ func (accept *SponsorshipAcceptance) serializeBulk() []byte {
 }
 
 func (accept *SponsorshipAcceptance) Serialize() []byte {
-	return accept.authored.serialize(iSponsorshipAcceptance, accept.serializeBulk())
+	return accept.authored.serialize(ISponsorshipAcceptance, accept.serializeBulk())
 }
 
 func ParseSponsorshipAcceptance(data []byte) *SponsorshipAcceptance {
-	if data[0] != 0 || data[1] != iSponsorshipAcceptance {
+	if data[0] != 0 || data[1] != ISponsorshipAcceptance {
 		return nil
 	}
 	accept := SponsorshipAcceptance{
