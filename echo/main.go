@@ -1,12 +1,7 @@
 package main
 
 import (
-	"fmt"
-	"log"
-
-	"github.com/Aereum/aereum/core/chain"
 	"github.com/Aereum/aereum/core/crypto"
-	"github.com/Aereum/aereum/core/network"
 )
 
 var beatPubKey = crypto.Token{
@@ -16,21 +11,8 @@ var beatPubKey = crypto.Token{
 
 func main() {
 	_, token := crypto.RandomAsymetricKey()
-	conn, err := network.NewAttendeeClient(":7801", token, beatPubKey)
-	if err != nil {
-		log.Fatal(err)
-	}
-	fmt.Println("ok")
-	for {
-		data, err := conn.ReadMessage()
-		if err != nil {
-			log.Fatal("connection error")
-		}
-		block := chain.ParseBlock(data)
-		if block != nil {
-			fmt.Println(block.JSONSimple())
-		} else {
-			fmt.Println(".....")
-		}
-	}
+	broker := InstructionBroker(token)
+	db := NewDB(broker)
+	BlockListener(token, db)
+	Serve(7900, token, db)
 }
