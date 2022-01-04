@@ -7,38 +7,38 @@ import (
 )
 
 type CreateStage struct {
-	authored    *authoredInstruction
-	audience    crypto.Token
-	submission  crypto.Token
-	moderation  crypto.Token
-	flag        byte
-	description string
+	Authored    *AuthoredInstruction
+	Audience    crypto.Token
+	Submission  crypto.Token
+	Moderation  crypto.Token
+	Flag        byte
+	Description string
 }
 
 func (a *CreateStage) Epoch() uint64 {
-	return a.authored.epoch
+	return a.Authored.epoch
 }
 
 func (stage *CreateStage) Validate(v InstructionValidator) bool {
-	if !v.HasMember(stage.authored.authorHash()) {
+	if !v.HasMember(stage.Authored.authorHash()) {
 		return false
 	}
-	audienceHash := crypto.HashToken(stage.audience)
+	audienceHash := crypto.HashToken(stage.Audience)
 	if stage := v.GetAudienceKeys(audienceHash); stage != nil {
 		return false
 	}
-	v.AddFeeCollected(stage.authored.fee)
+	v.AddFeeCollected(stage.Authored.Fee)
 	stageKeys := store.StageKeys{
-		Moderate: stage.moderation,
-		Submit:   stage.submission,
-		Stage:    stage.audience,
-		Flag:     stage.flag,
+		Moderate: stage.Moderation,
+		Submit:   stage.Submission,
+		Stage:    stage.Audience,
+		Flag:     stage.Flag,
 	}
 	return v.SetNewAudience(audienceHash, stageKeys)
 }
 
 func (stage *CreateStage) Payments() *Payment {
-	return stage.authored.payments()
+	return stage.Authored.payments()
 }
 
 func (stage *CreateStage) Kind() byte {
@@ -47,16 +47,16 @@ func (stage *CreateStage) Kind() byte {
 
 func (stage *CreateStage) serializeBulk() []byte {
 	bytes := make([]byte, 0)
-	util.PutToken(stage.audience, &bytes)
-	util.PutToken(stage.submission, &bytes)
-	util.PutToken(stage.moderation, &bytes)
-	bytes = append(bytes, stage.flag)
-	util.PutString(stage.description, &bytes)
+	util.PutToken(stage.Audience, &bytes)
+	util.PutToken(stage.Submission, &bytes)
+	util.PutToken(stage.Moderation, &bytes)
+	bytes = append(bytes, stage.Flag)
+	util.PutString(stage.Description, &bytes)
 	return bytes
 }
 
 func (stage *CreateStage) Serialize() []byte {
-	return stage.authored.serialize(ICreateAudience, stage.serializeBulk())
+	return stage.Authored.serialize(ICreateAudience, stage.serializeBulk())
 }
 
 func ParseCreateStage(data []byte) *CreateStage {
@@ -64,44 +64,44 @@ func ParseCreateStage(data []byte) *CreateStage {
 		return nil
 	}
 	stage := CreateStage{
-		authored: &authoredInstruction{},
+		Authored: &AuthoredInstruction{},
 	}
-	position := stage.authored.parseHead(data)
-	stage.audience, position = util.ParseToken(data, position)
-	stage.submission, position = util.ParseToken(data, position)
-	stage.moderation, position = util.ParseToken(data, position)
-	stage.flag, position = util.ParseByte(data, position)
-	stage.description, position = util.ParseString(data, position)
-	if stage.authored.parseTail(data, position) {
+	position := stage.Authored.parseHead(data)
+	stage.Audience, position = util.ParseToken(data, position)
+	stage.Submission, position = util.ParseToken(data, position)
+	stage.Moderation, position = util.ParseToken(data, position)
+	stage.Flag, position = util.ParseByte(data, position)
+	stage.Description, position = util.ParseString(data, position)
+	if stage.Authored.parseTail(data, position) {
 		return &stage
 	}
 	return nil
 }
 
 type JoinStage struct {
-	authored     *authoredInstruction
-	audience     crypto.Token
-	diffHellKey  crypto.Token
-	presentation string
+	Authored     *AuthoredInstruction
+	Audience     crypto.Token
+	DiffHellKey  crypto.Token
+	Presentation string
 }
 
 func (a *JoinStage) Epoch() uint64 {
-	return a.authored.epoch
+	return a.Authored.epoch
 }
 
 func (join *JoinStage) Validate(v InstructionValidator) bool {
-	if !v.HasMember(join.authored.authorHash()) {
+	if !v.HasMember(join.Authored.authorHash()) {
 		return false
 	}
-	if keys := v.GetAudienceKeys(crypto.HashToken(join.audience)); keys == nil {
+	if keys := v.GetAudienceKeys(crypto.HashToken(join.Audience)); keys == nil {
 		return false
 	}
-	v.AddFeeCollected(join.authored.fee)
+	v.AddFeeCollected(join.Authored.Fee)
 	return true
 }
 
 func (join *JoinStage) Payments() *Payment {
-	return join.authored.payments()
+	return join.Authored.payments()
 }
 
 func (join *JoinStage) Kind() byte {
@@ -110,14 +110,14 @@ func (join *JoinStage) Kind() byte {
 
 func (join *JoinStage) serializeBulk() []byte {
 	bytes := make([]byte, 0)
-	util.PutToken(join.audience, &bytes)
-	util.PutToken(join.diffHellKey, &bytes)
-	util.PutString(join.presentation, &bytes)
+	util.PutToken(join.Audience, &bytes)
+	util.PutToken(join.DiffHellKey, &bytes)
+	util.PutString(join.Presentation, &bytes)
 	return bytes
 }
 
 func (stage *JoinStage) Serialize() []byte {
-	return stage.authored.serialize(IJoinAudience, stage.serializeBulk())
+	return stage.Authored.serialize(IJoinAudience, stage.serializeBulk())
 }
 
 func ParseJoinStage(data []byte) *JoinStage {
@@ -125,38 +125,38 @@ func ParseJoinStage(data []byte) *JoinStage {
 		return nil
 	}
 	stage := JoinStage{
-		authored: &authoredInstruction{},
+		Authored: &AuthoredInstruction{},
 	}
-	position := stage.authored.parseHead(data)
-	stage.audience, position = util.ParseToken(data, position)
-	stage.diffHellKey, position = util.ParseToken(data, position)
-	stage.presentation, position = util.ParseString(data, position)
-	if stage.authored.parseTail(data, position) {
+	position := stage.Authored.parseHead(data)
+	stage.Audience, position = util.ParseToken(data, position)
+	stage.DiffHellKey, position = util.ParseToken(data, position)
+	stage.Presentation, position = util.ParseString(data, position)
+	if stage.Authored.parseTail(data, position) {
 		return &stage
 	}
 	return nil
 }
 
 type AcceptJoinStage struct {
-	authored     *authoredInstruction
-	stage        crypto.Token
-	member       crypto.Token
-	diffHellKey  crypto.Token
-	read         []byte
-	submit       []byte
-	moderate     []byte
+	Authored     *AuthoredInstruction
+	Stage        crypto.Token
+	Member       crypto.Token
+	DiffHellKey  crypto.Token
+	Read         []byte
+	Submit       []byte
+	Moderate     []byte
 	modSignature crypto.Signature
 }
 
 func (a *AcceptJoinStage) Epoch() uint64 {
-	return a.authored.epoch
+	return a.Authored.epoch
 }
 
 func (accept *AcceptJoinStage) Validate(v InstructionValidator) bool {
-	if !v.HasMember(accept.authored.authorHash()) {
+	if !v.HasMember(accept.Authored.authorHash()) {
 		return false
 	}
-	keys := v.GetAudienceKeys(crypto.HashToken(accept.stage))
+	keys := v.GetAudienceKeys(crypto.HashToken(accept.Stage))
 	if keys == nil || keys.Moderate == crypto.ZeroToken {
 		return false
 	}
@@ -165,14 +165,14 @@ func (accept *AcceptJoinStage) Validate(v InstructionValidator) bool {
 	}
 	//hashed := crypto.Hasher(accept.Serialize())
 	//if bytes.Equal(keys[0:crypto.Size], hashed[:]) {
-	v.AddFeeCollected(accept.authored.fee)
+	v.AddFeeCollected(accept.Authored.Fee)
 	return true
 	//}
 	//return false
 }
 
 func (accept *AcceptJoinStage) Payments() *Payment {
-	return accept.authored.payments()
+	return accept.Authored.payments()
 }
 
 func (accept *AcceptJoinStage) Kind() byte {
@@ -181,12 +181,12 @@ func (accept *AcceptJoinStage) Kind() byte {
 
 func (accept *AcceptJoinStage) serializeModBulk() []byte {
 	bytes := make([]byte, 0)
-	util.PutToken(accept.stage, &bytes)
-	util.PutToken(accept.member, &bytes)
-	util.PutToken(accept.diffHellKey, &bytes)
-	util.PutByteArray(accept.read, &bytes)
-	util.PutByteArray(accept.submit, &bytes)
-	util.PutByteArray(accept.moderate, &bytes)
+	util.PutToken(accept.Stage, &bytes)
+	util.PutToken(accept.Member, &bytes)
+	util.PutToken(accept.DiffHellKey, &bytes)
+	util.PutByteArray(accept.Read, &bytes)
+	util.PutByteArray(accept.Submit, &bytes)
+	util.PutByteArray(accept.Moderate, &bytes)
 	return bytes
 }
 
@@ -197,7 +197,7 @@ func (accept *AcceptJoinStage) serializeBulk() []byte {
 }
 
 func (accept *AcceptJoinStage) Serialize() []byte {
-	return accept.authored.serialize(IAcceptJoinRequest, accept.serializeBulk())
+	return accept.Authored.serialize(IAcceptJoinRequest, accept.serializeBulk())
 }
 
 func ParseAcceptJoinStage(data []byte) *AcceptJoinStage {
@@ -205,32 +205,32 @@ func ParseAcceptJoinStage(data []byte) *AcceptJoinStage {
 		return nil
 	}
 	accept := AcceptJoinStage{
-		authored: &authoredInstruction{},
+		Authored: &AuthoredInstruction{},
 	}
-	position := accept.authored.parseHead(data)
-	accept.stage, position = util.ParseToken(data, position)
-	accept.member, position = util.ParseToken(data, position)
-	accept.diffHellKey, position = util.ParseToken(data, position)
-	accept.read, position = util.ParseByteArray(data, position)
-	accept.submit, position = util.ParseByteArray(data, position)
-	accept.moderate, position = util.ParseByteArray(data, position)
+	position := accept.Authored.parseHead(data)
+	accept.Stage, position = util.ParseToken(data, position)
+	accept.Member, position = util.ParseToken(data, position)
+	accept.DiffHellKey, position = util.ParseToken(data, position)
+	accept.Read, position = util.ParseByteArray(data, position)
+	accept.Submit, position = util.ParseByteArray(data, position)
+	accept.Moderate, position = util.ParseByteArray(data, position)
 	accept.modSignature, position = util.ParseSignature(data, position)
-	if accept.authored.parseTail(data, position) {
+	if accept.Authored.parseTail(data, position) {
 		return &accept
 	}
 	return nil
 }
 
 type TokenCipher struct {
-	token  crypto.Token
-	cipher []byte
+	Token  crypto.Token
+	Cipher []byte
 }
 
 type TokenCiphers []TokenCipher
 
 func putTokenCipher(tc TokenCipher, data *[]byte) {
-	util.PutToken(tc.token, data)
-	util.PutByteArray(tc.cipher, data)
+	util.PutToken(tc.Token, data)
+	util.PutByteArray(tc.Cipher, data)
 }
 
 func putTokenCiphers(tcs TokenCiphers, data *[]byte) {
@@ -253,8 +253,8 @@ func parseTokenCipher(data []byte, position int) (TokenCipher, int) {
 	if position+1 >= len(data) {
 		return tc, position
 	}
-	tc.token, position = util.ParseToken(data, position)
-	tc.cipher, position = util.ParseByteArray(data, position)
+	tc.Token, position = util.ParseToken(data, position)
+	tc.Cipher, position = util.ParseByteArray(data, position)
 	return tc, position
 }
 
@@ -278,43 +278,43 @@ func parseTokenCiphers(data []byte, position int) (TokenCiphers, int) {
 }
 
 type UpdateStage struct {
-	authored     *authoredInstruction
-	stage        crypto.Token // existing audience public token - it doesn't change
-	submission   crypto.Token // new submission public token
-	moderation   crypto.Token // new moderation public token
-	diffHellKey  crypto.Token
-	flag         byte
-	description  string
-	readMembers  TokenCiphers
-	subMembers   TokenCiphers
-	modMembers   TokenCiphers
+	Authored     *AuthoredInstruction
+	Stage        crypto.Token // existing audience public token - it doesn't change
+	Submission   crypto.Token // new submission public token
+	Moderation   crypto.Token // new moderation public token
+	DiffHellKey  crypto.Token
+	Flag         byte
+	Description  string
+	ReadMembers  TokenCiphers
+	SubMembers   TokenCiphers
+	ModMembers   TokenCiphers
 	audSignature crypto.Signature
 }
 
 func (a *UpdateStage) Epoch() uint64 {
-	return a.authored.epoch
+	return a.Authored.epoch
 }
 
 func (update *UpdateStage) Validate(v InstructionValidator) bool {
-	if !v.HasMember(update.authored.authorHash()) {
+	if !v.HasMember(update.Authored.authorHash()) {
 		return false
 	}
-	hashed := crypto.HashToken(update.stage)
+	hashed := crypto.HashToken(update.Stage)
 	stageKeys := store.StageKeys{
-		Moderate: update.moderation,
-		Submit:   update.submission,
-		Stage:    update.stage,
-		Flag:     update.flag,
+		Moderate: update.Moderation,
+		Submit:   update.Submission,
+		Stage:    update.Stage,
+		Flag:     update.Flag,
 	}
 	if v.UpdateAudience(hashed, stageKeys) {
-		v.AddFeeCollected(update.authored.fee)
+		v.AddFeeCollected(update.Authored.Fee)
 		return true
 	}
 	return false
 }
 
 func (update *UpdateStage) Payments() *Payment {
-	return update.authored.payments()
+	return update.Authored.payments()
 }
 
 func (update *UpdateStage) Kind() byte {
@@ -323,15 +323,15 @@ func (update *UpdateStage) Kind() byte {
 
 func (update *UpdateStage) serializeAudBulk() []byte {
 	bytes := make([]byte, 0)
-	util.PutToken(update.stage, &bytes)
-	util.PutToken(update.submission, &bytes)
-	util.PutToken(update.moderation, &bytes)
-	util.PutToken(update.diffHellKey, &bytes)
-	util.PutByte(update.flag, &bytes)
-	util.PutString(update.description, &bytes)
-	putTokenCiphers(update.readMembers, &bytes)
-	putTokenCiphers(update.subMembers, &bytes)
-	putTokenCiphers(update.modMembers, &bytes)
+	util.PutToken(update.Stage, &bytes)
+	util.PutToken(update.Submission, &bytes)
+	util.PutToken(update.Moderation, &bytes)
+	util.PutToken(update.DiffHellKey, &bytes)
+	util.PutByte(update.Flag, &bytes)
+	util.PutString(update.Description, &bytes)
+	putTokenCiphers(update.ReadMembers, &bytes)
+	putTokenCiphers(update.SubMembers, &bytes)
+	putTokenCiphers(update.ModMembers, &bytes)
 	return bytes
 }
 
@@ -342,7 +342,7 @@ func (update *UpdateStage) serializeBulk() []byte {
 }
 
 func (update *UpdateStage) Serialize() []byte {
-	return update.authored.serialize(IUpdateAudience, update.serializeBulk())
+	return update.Authored.serialize(IUpdateAudience, update.serializeBulk())
 }
 
 func ParseUpdateStage(data []byte) *UpdateStage {
@@ -350,20 +350,20 @@ func ParseUpdateStage(data []byte) *UpdateStage {
 		return nil
 	}
 	update := UpdateStage{
-		authored: &authoredInstruction{},
+		Authored: &AuthoredInstruction{},
 	}
-	position := update.authored.parseHead(data)
-	update.stage, position = util.ParseToken(data, position)
-	update.submission, position = util.ParseToken(data, position)
-	update.moderation, position = util.ParseToken(data, position)
-	update.diffHellKey, position = util.ParseToken(data, position)
-	update.flag, position = util.ParseByte(data, position)
-	update.description, position = util.ParseString(data, position)
-	update.readMembers, position = parseTokenCiphers(data, position)
-	update.subMembers, position = parseTokenCiphers(data, position)
-	update.modMembers, position = parseTokenCiphers(data, position)
+	position := update.Authored.parseHead(data)
+	update.Stage, position = util.ParseToken(data, position)
+	update.Submission, position = util.ParseToken(data, position)
+	update.Moderation, position = util.ParseToken(data, position)
+	update.DiffHellKey, position = util.ParseToken(data, position)
+	update.Flag, position = util.ParseByte(data, position)
+	update.Description, position = util.ParseString(data, position)
+	update.ReadMembers, position = parseTokenCiphers(data, position)
+	update.SubMembers, position = parseTokenCiphers(data, position)
+	update.ModMembers, position = parseTokenCiphers(data, position)
 	update.audSignature, position = util.ParseSignature(data, position)
-	if update.authored.parseTail(data, position) {
+	if update.Authored.parseTail(data, position) {
 		return &update
 	}
 	return nil

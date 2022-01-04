@@ -23,30 +23,30 @@ func (a *Stage) ResetKeys() *UpdateStage {
 	a.CipherKey = crypto.NewCipherKey()
 	diffHellPub, diffHellPrv := dh.NewEphemeralKey()
 	update := UpdateStage{
-		stage:       a.PrivateKey.PublicKey(),
-		submission:  a.Submission.PublicKey(),
-		moderation:  a.Moderation.PublicKey(),
-		flag:        a.Flag,
-		diffHellKey: diffHellPub,
-		description: a.Description,
-		readMembers: make(TokenCiphers, 0),
-		subMembers:  make(TokenCiphers, 0),
-		modMembers:  make(TokenCiphers, 0),
+		Stage:       a.PrivateKey.PublicKey(),
+		Submission:  a.Submission.PublicKey(),
+		Moderation:  a.Moderation.PublicKey(),
+		Flag:        a.Flag,
+		DiffHellKey: diffHellPub,
+		Description: a.Description,
+		ReadMembers: make(TokenCiphers, 0),
+		SubMembers:  make(TokenCiphers, 0),
+		ModMembers:  make(TokenCiphers, 0),
 	}
 	for token, key := range a.Readers {
 		cipher := dh.ConsensusCipher(diffHellPrv, key)
-		tc := TokenCipher{token: token, cipher: cipher.Seal(a.CipherKey)}
-		update.readMembers = append(update.readMembers, tc)
+		tc := TokenCipher{Token: token, Cipher: cipher.Seal(a.CipherKey)}
+		update.ReadMembers = append(update.ReadMembers, tc)
 	}
 	for token, key := range a.Moderators {
 		cipher := dh.ConsensusCipher(diffHellPrv, key)
-		tc := TokenCipher{token: token, cipher: cipher.Seal(a.Moderation[:32])}
-		update.modMembers = append(update.modMembers, tc)
+		tc := TokenCipher{Token: token, Cipher: cipher.Seal(a.Moderation[:32])}
+		update.ModMembers = append(update.ModMembers, tc)
 	}
 	for token, key := range a.Submittors {
 		cipher := dh.ConsensusCipher(diffHellPrv, key)
-		tc := TokenCipher{token: token, cipher: cipher.Seal(a.Submission[:32])}
-		update.subMembers = append(update.subMembers, tc)
+		tc := TokenCipher{Token: token, Cipher: cipher.Seal(a.Submission[:32])}
+		update.SubMembers = append(update.SubMembers, tc)
 	}
 	return &update
 }

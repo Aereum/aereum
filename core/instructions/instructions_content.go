@@ -176,25 +176,25 @@ func ParseContent(data []byte) *Content {
 
 // Reaction instruction
 type React struct {
-	authored *authoredInstruction
-	hash     []byte
-	reaction byte
+	Authored *AuthoredInstruction
+	Hash     []byte
+	Reaction byte
 }
 
 func (a *React) Epoch() uint64 {
-	return a.authored.epoch
+	return a.Authored.epoch
 }
 
 func (react *React) Validate(v InstructionValidator) bool {
-	if v.HasMember(react.authored.authorHash()) {
-		v.AddFeeCollected(react.authored.fee)
+	if v.HasMember(react.Authored.authorHash()) {
+		v.AddFeeCollected(react.Authored.Fee)
 		return true
 	}
 	return false
 }
 
 func (react *React) Payments() *Payment {
-	return react.authored.payments()
+	return react.Authored.payments()
 }
 
 func (react *React) Kind() byte {
@@ -203,13 +203,13 @@ func (react *React) Kind() byte {
 
 func (react *React) serializeBulk() []byte {
 	bytes := make([]byte, 0)
-	util.PutByteArray(react.hash, &bytes)
-	util.PutByte(react.reaction, &bytes)
+	util.PutByteArray(react.Hash, &bytes)
+	util.PutByte(react.Reaction, &bytes)
 	return bytes
 }
 
 func (react *React) Serialize() []byte {
-	return react.authored.serialize(IReact, react.serializeBulk())
+	return react.Authored.serialize(IReact, react.serializeBulk())
 }
 
 func ParseReact(data []byte) *React {
@@ -217,12 +217,12 @@ func ParseReact(data []byte) *React {
 		return nil
 	}
 	react := React{
-		authored: &authoredInstruction{},
+		Authored: &AuthoredInstruction{},
 	}
-	position := react.authored.parseHead(data)
-	react.hash, position = util.ParseByteArray(data, position)
-	react.reaction, position = util.ParseByte(data, position)
-	if react.authored.parseTail(data, position) {
+	position := react.Authored.parseHead(data)
+	react.Hash, position = util.ParseByteArray(data, position)
+	react.Reaction, position = util.ParseByte(data, position)
+	if react.Authored.parseTail(data, position) {
 		return &react
 	}
 	return nil

@@ -12,60 +12,60 @@ type Author struct {
 	Attorney   crypto.PrivateKey
 }
 
-func (a *Author) NewAuthored(epoch, fee uint64) *authoredInstruction {
+func (a *Author) NewAuthored(epoch, fee uint64) *AuthoredInstruction {
 	if a.PrivateKey == crypto.ZeroPrivateKey {
 		return nil
 	}
-	authored := authoredInstruction{
+	authored := AuthoredInstruction{
 		epoch:  epoch,
-		author: a.PrivateKey.PublicKey(),
-		fee:    fee,
+		Author: a.PrivateKey.PublicKey(),
+		Fee:    fee,
 	}
 	if a.Wallet != crypto.ZeroPrivateKey {
-		authored.wallet = a.Wallet.PublicKey()
+		authored.Wallet = a.Wallet.PublicKey()
 	}
 	if a.Attorney != crypto.ZeroPrivateKey {
-		authored.attorney = a.Attorney.PublicKey()
+		authored.Attorney = a.Attorney.PublicKey()
 	}
 	return &authored
 }
 
 func (a *Author) NewJoinNetwork(caption string, details string, epoch, fee uint64) *JoinNetwork {
 	join := JoinNetwork{
-		authored: a.NewAuthored(epoch, fee),
-		caption:  caption,
-		details:  details,
+		Authored: a.NewAuthored(epoch, fee),
+		Caption:  caption,
+		Details:  details,
 	}
 	bulk := join.serializeBulk()
-	if a.sign(join.authored, bulk, IJoinNetwork) {
+	if a.sign(join.Authored, bulk, IJoinNetwork) {
 		return &join
 	}
 	return nil
 }
 
 func (a *Author) NewJoinNetworkThirdParty(token crypto.Token, caption string, details string, epoch, fee uint64) *JoinNetwork {
-	authored := authoredInstruction{
+	authored := AuthoredInstruction{
 		epoch:  epoch,
-		author: token,
-		fee:    fee,
+		Author: token,
+		Fee:    fee,
 	}
 	if a.Attorney != crypto.ZeroPrivateKey {
-		authored.attorney = a.Attorney.PublicKey()
+		authored.Attorney = a.Attorney.PublicKey()
 	}
 	if a.Wallet != crypto.ZeroPrivateKey {
-		authored.wallet = a.Wallet.PublicKey()
+		authored.Wallet = a.Wallet.PublicKey()
 	} else if a.Attorney != crypto.ZeroPrivateKey {
-		authored.wallet = a.Attorney.PublicKey()
+		authored.Wallet = a.Attorney.PublicKey()
 	} else {
-		authored.wallet = a.PrivateKey.PublicKey()
+		authored.Wallet = a.PrivateKey.PublicKey()
 	}
 	join := JoinNetwork{
-		authored: &authored,
-		caption:  caption,
-		details:  details,
+		Authored: &authored,
+		Caption:  caption,
+		Details:  details,
 	}
 	bulk := join.serializeBulk()
-	if a.sign(join.authored, bulk, IJoinNetwork) {
+	if a.sign(join.Authored, bulk, IJoinNetwork) {
 		return &join
 	}
 	return nil
@@ -73,11 +73,11 @@ func (a *Author) NewJoinNetworkThirdParty(token crypto.Token, caption string, de
 
 func (a *Author) NewUpdateInfo(details string, epoch, fee uint64) *UpdateInfo {
 	update := UpdateInfo{
-		authored: a.NewAuthored(epoch, fee),
-		details:  details,
+		Authored: a.NewAuthored(epoch, fee),
+		Details:  details,
 	}
 	bulk := update.serializeBulk()
-	if a.sign(update.authored, bulk, IUpdateInfo) {
+	if a.sign(update.Authored, bulk, IUpdateInfo) {
 		return &update
 	}
 	return nil
@@ -85,11 +85,11 @@ func (a *Author) NewUpdateInfo(details string, epoch, fee uint64) *UpdateInfo {
 
 func (a *Author) NewGrantPowerOfAttorney(attorney crypto.Token, epoch, fee uint64) *GrantPowerOfAttorney {
 	grant := GrantPowerOfAttorney{
-		authored: a.NewAuthored(epoch, fee),
-		attorney: attorney,
+		Authored: a.NewAuthored(epoch, fee),
+		Attorney: attorney,
 	}
 	bulk := grant.serializeBulk()
-	if a.sign(grant.authored, bulk, IGrantPowerOfAttorney) {
+	if a.sign(grant.Authored, bulk, IGrantPowerOfAttorney) {
 		return &grant
 	}
 	return nil
@@ -97,11 +97,11 @@ func (a *Author) NewGrantPowerOfAttorney(attorney crypto.Token, epoch, fee uint6
 
 func (a *Author) NewRevokePowerOfAttorney(attorney crypto.Token, epoch, fee uint64) *RevokePowerOfAttorney {
 	revoke := RevokePowerOfAttorney{
-		authored: a.NewAuthored(epoch, fee),
-		attorney: attorney,
+		Authored: a.NewAuthored(epoch, fee),
+		Attorney: attorney,
 	}
 	bulk := revoke.serializeBulk()
-	if a.sign(revoke.authored, bulk, IRevokePowerOfAttorney) {
+	if a.sign(revoke.Authored, bulk, IRevokePowerOfAttorney) {
 		return &revoke
 	}
 	return nil
@@ -109,12 +109,12 @@ func (a *Author) NewRevokePowerOfAttorney(attorney crypto.Token, epoch, fee uint
 
 func (a *Author) NewCreateEphemeral(token crypto.Token, expiry, epoch, fee uint64) *CreateEphemeral {
 	ephemeral := CreateEphemeral{
-		authored:       a.NewAuthored(epoch, fee),
-		ephemeralToken: token,
-		expiry:         expiry,
+		Authored:       a.NewAuthored(epoch, fee),
+		EphemeralToken: token,
+		Expiry:         expiry,
 	}
 	bulk := ephemeral.serializeBulk()
-	if a.sign(ephemeral.authored, bulk, ICreateEphemeral) {
+	if a.sign(ephemeral.Authored, bulk, ICreateEphemeral) {
 		return &ephemeral
 	}
 	return nil
@@ -122,14 +122,14 @@ func (a *Author) NewCreateEphemeral(token crypto.Token, expiry, epoch, fee uint6
 
 func (a *Author) NewSecureChannel(tokenRange []byte, nonce uint64, encryptedNonce, content []byte, epoch, fee uint64) *SecureChannel {
 	secure := SecureChannel{
-		authored:       a.NewAuthored(epoch, fee),
-		tokenRange:     tokenRange,
-		nonce:          nonce,
-		encryptedNonce: encryptedNonce,
-		content:        content,
+		Authored:       a.NewAuthored(epoch, fee),
+		TokenRange:     tokenRange,
+		Nonce:          nonce,
+		EncryptedNonce: encryptedNonce,
+		Content:        content,
 	}
 	bulk := secure.serializeBulk()
-	if a.sign(secure.authored, bulk, ISecureChannel) {
+	if a.sign(secure.Authored, bulk, ISecureChannel) {
 		return &secure
 	}
 	return nil
@@ -137,15 +137,15 @@ func (a *Author) NewSecureChannel(tokenRange []byte, nonce uint64, encryptedNonc
 
 func (a *Author) NewCreateAudience(audience *Stage, flag byte, description string, epoch, fee uint64) *CreateStage {
 	newAudience := CreateStage{
-		authored:    a.NewAuthored(epoch, fee),
-		audience:    audience.PrivateKey.PublicKey(),
-		submission:  audience.Submission.PublicKey(),
-		moderation:  audience.Moderation.PublicKey(),
-		flag:        flag,
-		description: description,
+		Authored:    a.NewAuthored(epoch, fee),
+		Audience:    audience.PrivateKey.PublicKey(),
+		Submission:  audience.Submission.PublicKey(),
+		Moderation:  audience.Moderation.PublicKey(),
+		Flag:        flag,
+		Description: description,
 	}
 	bulk := newAudience.serializeBulk()
-	if a.sign(newAudience.authored, bulk, ICreateAudience) {
+	if a.sign(newAudience.Authored, bulk, ICreateAudience) {
 		return &newAudience
 	}
 	return nil
@@ -153,12 +153,12 @@ func (a *Author) NewCreateAudience(audience *Stage, flag byte, description strin
 
 func (a *Author) NewJoinAudience(audience crypto.Token, presentation string, epoch, fee uint64) *JoinStage {
 	join := JoinStage{
-		authored:     a.NewAuthored(epoch, fee),
-		audience:     audience,
-		presentation: presentation,
+		Authored:     a.NewAuthored(epoch, fee),
+		Audience:     audience,
+		Presentation: presentation,
 	}
 	bulk := join.serializeBulk()
-	if a.sign(join.authored, bulk, IJoinAudience) {
+	if a.sign(join.Authored, bulk, IJoinAudience) {
 		return &join
 	}
 	return nil
@@ -166,27 +166,27 @@ func (a *Author) NewJoinAudience(audience crypto.Token, presentation string, epo
 
 func (a *Author) NewAcceptJoinAudience(audience *Stage, member, key crypto.Token, level byte, epoch, fee uint64) *AcceptJoinStage {
 	accept := AcceptJoinStage{
-		authored: a.NewAuthored(epoch, fee),
-		stage:    audience.PrivateKey.PublicKey(),
-		member:   member,
-		read:     []byte{},
-		submit:   []byte{},
-		moderate: []byte{},
+		Authored: a.NewAuthored(epoch, fee),
+		Stage:    audience.PrivateKey.PublicKey(),
+		Member:   member,
+		Read:     []byte{},
+		Submit:   []byte{},
+		Moderate: []byte{},
 	}
 	pub, prv := dh.NewEphemeralKey()
 	cipher := dh.ConsensusCipher(prv, key)
-	accept.read = cipher.Seal(audience.CipherKey)
+	accept.Read = cipher.Seal(audience.CipherKey)
 	if level > 0 {
-		accept.submit = cipher.Seal(audience.Submission[:32])
+		accept.Submit = cipher.Seal(audience.Submission[:32])
 	}
 	if level > 1 {
-		accept.moderate = cipher.Seal(audience.Moderation[:32])
+		accept.Moderate = cipher.Seal(audience.Moderation[:32])
 	}
-	accept.diffHellKey = pub
+	accept.DiffHellKey = pub
 	modbulk := accept.serializeModBulk()
 	accept.modSignature = audience.Moderation.Sign(modbulk)
 	bulk := accept.serializeBulk()
-	if a.sign(accept.authored, bulk, IAcceptJoinRequest) {
+	if a.sign(accept.Authored, bulk, IAcceptJoinRequest) {
 		return &accept
 	}
 	return nil
@@ -194,34 +194,34 @@ func (a *Author) NewAcceptJoinAudience(audience *Stage, member, key crypto.Token
 
 func (a *Author) NewUpdateAudience(audience *Stage, readers, submiters, moderators map[crypto.Token]crypto.Token, flag byte, description string, epoch, fee uint64) *UpdateStage {
 	update := UpdateStage{
-		authored:   a.NewAuthored(epoch, fee),
-		stage:      audience.PrivateKey.PublicKey(),
-		submission: audience.Submission.PublicKey(),
-		moderation: audience.Moderation.PublicKey(),
+		Authored:   a.NewAuthored(epoch, fee),
+		Stage:      audience.PrivateKey.PublicKey(),
+		Submission: audience.Submission.PublicKey(),
+		Moderation: audience.Moderation.PublicKey(),
 
-		flag:        flag,
-		description: description,
-		readMembers: make(TokenCiphers, 0),
-		subMembers:  make(TokenCiphers, 0),
-		modMembers:  make(TokenCiphers, 0),
+		Flag:        flag,
+		Description: description,
+		ReadMembers: make(TokenCiphers, 0),
+		SubMembers:  make(TokenCiphers, 0),
+		ModMembers:  make(TokenCiphers, 0),
 	}
 	prv, pub := dh.NewEphemeralKey()
-	update.diffHellKey = pub
+	update.DiffHellKey = pub
 	for token, key := range readers {
 		cipher := dh.ConsensusCipher(prv, key)
-		update.readMembers = append(update.readMembers, TokenCipher{token: token, cipher: cipher.Seal(audience.CipherKey)})
+		update.ReadMembers = append(update.ReadMembers, TokenCipher{Token: token, Cipher: cipher.Seal(audience.CipherKey)})
 	}
 	for token, key := range submiters {
 		cipher := dh.ConsensusCipher(prv, key)
-		update.subMembers = append(update.subMembers, TokenCipher{token: token, cipher: cipher.Seal(audience.Submission[:32])})
+		update.SubMembers = append(update.SubMembers, TokenCipher{Token: token, Cipher: cipher.Seal(audience.Submission[:32])})
 	}
 	for token, key := range moderators {
 		cipher := dh.ConsensusCipher(prv, key)
-		update.modMembers = append(update.modMembers, TokenCipher{token: token, cipher: cipher.Seal(audience.Moderation[:32])})
+		update.ModMembers = append(update.ModMembers, TokenCipher{Token: token, Cipher: cipher.Seal(audience.Moderation[:32])})
 	}
 	update.audSignature = audience.PrivateKey.Sign(update.serializeAudBulk())
 	bulk := update.serializeBulk()
-	if a.sign(update.authored, bulk, IUpdateAudience) {
+	if a.sign(update.Authored, bulk, IUpdateAudience) {
 		return &update
 	}
 	return nil
@@ -315,12 +315,12 @@ func (a *Author) NewContent(audience *Stage, contentType string, message []byte,
 
 func (a *Author) NewReact(hash []byte, reaction byte, epoch, fee uint64) *React {
 	react := React{
-		authored: a.NewAuthored(epoch, fee),
-		hash:     hash,
-		reaction: reaction,
+		Authored: a.NewAuthored(epoch, fee),
+		Hash:     hash,
+		Reaction: reaction,
 	}
 	bulk := react.serializeBulk()
-	if a.sign(react.authored, bulk, IReact) {
+	if a.sign(react.Authored, bulk, IReact) {
 		return &react
 	}
 	return nil
@@ -331,15 +331,15 @@ func (a *Author) NewSponsorshipOffer(audience *Stage, contentType string, conten
 		return nil
 	}
 	sponsorOffer := SponsorshipOffer{
-		authored:    a.NewAuthored(epoch, fee),
-		stage:       audience.PrivateKey.PublicKey(),
-		contentType: contentType,
-		content:     content,
-		expiry:      expiry,
-		revenue:     revenue,
+		Authored:    a.NewAuthored(epoch, fee),
+		Stage:       audience.PrivateKey.PublicKey(),
+		ContentType: contentType,
+		Content:     content,
+		Expiry:      expiry,
+		Revenue:     revenue,
 	}
 	bulk := sponsorOffer.serializeBulk()
-	if a.sign(sponsorOffer.authored, bulk, ISponsorshipOffer) {
+	if a.sign(sponsorOffer.Authored, bulk, ISponsorshipOffer) {
 		return &sponsorOffer
 	}
 	return nil
@@ -350,19 +350,19 @@ func (a *Author) NewSponsorshipAcceptance(audience *Stage, offer *SponsorshipOff
 		return nil
 	}
 	sponsorAcceptance := SponsorshipAcceptance{
-		authored: a.NewAuthored(epoch, fee),
-		offer:    offer,
-		stage:    audience.PrivateKey.PublicKey(),
+		Authored: a.NewAuthored(epoch, fee),
+		Offer:    offer,
+		Stage:    audience.PrivateKey.PublicKey(),
 	}
 	sponsorAcceptance.modSignature = audience.Moderation.Sign(sponsorAcceptance.serializeModBulk())
 	bulk := sponsorAcceptance.serializeBulk()
-	if a.sign(sponsorAcceptance.authored, bulk, ISponsorshipAcceptance) {
+	if a.sign(sponsorAcceptance.Authored, bulk, ISponsorshipAcceptance) {
 		return &sponsorAcceptance
 	}
 	return nil
 }
 
-func (a *Author) sign(authored *authoredInstruction, bulk []byte, insType byte) bool {
+func (a *Author) sign(authored *AuthoredInstruction, bulk []byte, insType byte) bool {
 	bytes := authored.serializeWithoutSignature(insType, bulk)
 	if a.Attorney != crypto.ZeroPrivateKey {
 		authored.signature = a.Attorney.Sign(bytes)

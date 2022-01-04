@@ -15,6 +15,7 @@ const fileNameTemaplate = "aereum_rawdb_%v.dat"
 type DBMessage struct {
 	file     int
 	position int
+	size     int
 }
 
 type DB struct {
@@ -48,16 +49,20 @@ func (db *DB) CreateNewFile() error {
 	}
 }
 
-func (db *DB) AppendMsg(msg []byte) error {
+func (db *DB) AppendMsg(msg []byte) (*DBMessage, error) {
 	dataLen, err := db.current.Write(msg)
 	if err != nil || dataLen < len(msg) {
-		return fmt.Errorf("could not persist message on the database: %v", err)
+		return nil, fmt.Errorf("could not persist message on the database: %v", err)
 	}
+	position := db.length
+	fileNum := len(db.permanent) + 1
 	db.length += dataLen
 	if db.length > maxFileLength {
-		return db.CreateNewFile()
+		if err := db.CreateNewFile(); err != nil {
+			panic(err)
+		}
 	}
-	return nil
+	return &DBMessage{file: fileNum, position: position, size: len(msg)}, nil
 }
 
 func (db *DB) Broadcast(token crypto.Token, msg []byte) {
@@ -68,12 +73,105 @@ func (db *DB) Broadcast(token crypto.Token, msg []byte) {
 	}
 }
 
-func (db *DB) IndexContent(position, file int, content instructions.Content) {
-	token := content.Audience
-	if index, ok := db.index[token]; ok {
-		db.index[token] = append(index, DBMessage{file: file, position: position})
-	} else {
-		db.index[token] = []DBMessage{{file: file, position: position}}
+func (db *DB) IndexTokens(msg *DBMessage, data []byte, tokens []crypto.Token) {
+	for _, token := range tokens {
+		if index, ok := db.index[token]; ok {
+			db.index[token] = append(index, *msg)
+		} else {
+			db.index[token] = []DBMessage{*msg}
+		}
+		db.Broadcast(token, data)
 	}
-	db.Broadcast(content.Audience, content.Serialize())
+}
+
+func (db *DB) Incorporate(msg []byte) {
+	newMsg, err := db.AppendMsg(msg)
+	if err != nil {
+		return
+	}
+	var tokens []crypto.Token
+	switch instructions.InstructionKind(msg) {
+	case instructions.IContent:
+		if content := instructions.ParseContent(msg); content != nil {
+			tokens = []crypto.Token{content.Author, content.Attorney, content.Wallet, content.Audience}
+		}
+	case instructions.ITransfer:
+		if transfer := instructions.ParseTransfer(msg); transfer != nil {
+			tokens = []crypto.Token{transfer.From}
+			for _, reciepient := range transfer.To {
+				tokens = append(tokens, reciepient.Token)
+			}
+		}
+	case instructions.IDeposit:
+		if deposit := instructions.ParseDeposit(msg); deposit != nil {
+			tokens = []crypto.Token{deposit.Token}
+		}
+	case instructions.IWithdraw:
+		if withdraw := instructions.ParseDeposit(msg); withdraw != nil {
+			tokens = []crypto.Token{withdraw.Token}
+		}
+	case instructions.IJoinNetwork:
+		if join := instructions.ParseJoinNetwork(msg); join != nil {
+			tokens = authoredTokens(join.Authored)
+		}
+	case instructions.IUpdateInfo:
+		if update := instructions.ParseUpdateInfo(msg); update != nil {
+			tokens = authoredTokens(update.Authored)
+		}
+	case instructions.ICreateAudience:
+		if join := instructions.ParseCreateStage(msg); join != nil {
+			tokens = append(authoredTokens(join.Authored), join.Audience)
+		}
+	case instructions.IJoinAudience:
+		if join := instructions.ParseJoinStage(msg); join != nil {
+			tokens = append(authoredTokens(join.Authored), join.Audience)
+		}
+	case instructions.IAcceptJoinRequest:
+		if join := instructions.ParseAcceptJoinStage(msg); join != nil {
+			tokens = append(authoredTokens(join.Authored), join.Stage)
+		}
+	case instructions.IUpdateAudience:
+		// TODO
+	case instructions.IGrantPowerOfAttorney:
+		if grant := instructions.ParseGrantPowerOfAttorney(msg); grant != nil {
+			tokens = append(authoredTokens(grant.Authored), grant.Attorney)
+		}
+	case instructions.IRevokePowerOfAttorney:
+		if revoke := instructions.ParseRevokePowerOfAttorney(msg); revoke != nil {
+			tokens = append(authoredTokens(revoke.Authored), revoke.Attorney)
+		}
+	case instructions.ISponsorshipOffer:
+		if offer := instructions.ParseSponsorshipOffer(msg); offer != nil {
+			tokens = append(authoredTokens(offer.Authored), offer.Stage)
+		}
+	case instructions.ISponsorshipAcceptance:
+		if accept := instructions.ParseSponsorshipAcceptance(msg); accept != nil {
+			tokens = append(authoredTokens(accept.Authored), accept.Stage, accept.Offer.Authored.Author)
+		}
+	case instructions.ICreateEphemeral:
+		if ephemeral := instructions.ParseCreateEphemeral(msg); ephemeral != nil {
+			tokens = append(authoredTokens(ephemeral.Authored), ephemeral.EphemeralToken)
+		}
+	case instructions.ISecureChannel:
+		if secure := instructions.ParseSecureChannel(msg); secure != nil {
+			// TODO: token range
+			tokens = authoredTokens(secure.Authored)
+		}
+	case instructions.IReact:
+		if react := instructions.ParseReact(msg); react != nil {
+			// TODO: token range
+			tokens = authoredTokens(react.Authored)
+		}
+		/*
+			ISecureChannel
+			IReact
+		*/
+	}
+	if len(tokens) > 0 {
+		db.IndexTokens(newMsg, msg, tokens)
+	}
+}
+
+func authoredTokens(authored *instructions.AuthoredInstruction) []crypto.Token {
+	return []crypto.Token{authored.Author, authored.Attorney, authored.Wallet}
 }
