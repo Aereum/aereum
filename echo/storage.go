@@ -38,7 +38,7 @@ func (r *Uint64RawFile) WriteAt(offset int64, data []uint64) error {
 	for n:=0; n < len(data); n++ {
 		binary.LittleEndian.PutUint64(bytes[n*8:(n+1)*8],data[n])
 	}
-	if n, err := r.file.WriteAt(bytes, offset*8); err != nil || n != len(data)*8 {
+	if n, err:=r.file.WriteAt(bytes, offset*8); err != nil || n != len(data)*8 {
 		return fmt.Errorf("IO Error")
 	}
 	return nil
