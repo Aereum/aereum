@@ -102,6 +102,7 @@ type Instruction interface {
 	Serialize() []byte
 	Epoch() uint64
 	Kind() byte
+	JSON() string
 }
 
 func ParseInstruction(data []byte) Instruction {

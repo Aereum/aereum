@@ -116,11 +116,3 @@ func main() {
 		log.Fatal(err)
 	}
 }
-
-/*
-
-   <span class="menubox" onclick="showhidemenu()">☰</span>
-                       <input class="searchbox" placeholder="Search in aereum blockchain"/>
-                       <span id="maincontenttitle"></span>
-
-*/
