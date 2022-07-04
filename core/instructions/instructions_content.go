@@ -26,6 +26,10 @@ type Content struct {
 	WalletSignature crypto.Signature
 }
 
+func (a *Content) Authority() crypto.Token {
+	return a.Author
+}
+
 func (a *Content) Epoch() uint64 {
 	return a.epoch
 }
@@ -179,6 +183,10 @@ type React struct {
 	Authored *AuthoredInstruction
 	Hash     []byte
 	Reaction byte
+}
+
+func (a *React) Authority() crypto.Token {
+	return a.Authored.Author
 }
 
 func (a *React) Epoch() uint64 {

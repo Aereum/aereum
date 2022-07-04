@@ -13,6 +13,10 @@ type JoinNetwork struct {
 	Details  string
 }
 
+func (a *JoinNetwork) Authority() crypto.Token {
+	return a.Authored.Author
+}
+
 func (a *JoinNetwork) Epoch() uint64 {
 	return a.Authored.epoch
 }
@@ -79,6 +83,10 @@ type UpdateInfo struct {
 	Details  string
 }
 
+func (a *UpdateInfo) Authority() crypto.Token {
+	return a.Authored.Author
+}
+
 func (a *UpdateInfo) Epoch() uint64 {
 	return a.Authored.epoch
 }
@@ -133,6 +141,10 @@ func ParseUpdateInfo(data []byte) *UpdateInfo {
 type GrantPowerOfAttorney struct {
 	Authored *AuthoredInstruction
 	Attorney crypto.Token
+}
+
+func (a *GrantPowerOfAttorney) Authority() crypto.Token {
+	return a.Authored.Author
 }
 
 func (a *GrantPowerOfAttorney) Epoch() uint64 {
@@ -195,6 +207,10 @@ type RevokePowerOfAttorney struct {
 	Attorney crypto.Token
 }
 
+func (a *RevokePowerOfAttorney) Authority() crypto.Token {
+	return a.Authored.Author
+}
+
 func (a *RevokePowerOfAttorney) Epoch() uint64 {
 	return a.Authored.epoch
 }
@@ -254,6 +270,10 @@ type CreateEphemeral struct {
 	Authored       *AuthoredInstruction
 	EphemeralToken crypto.Token
 	Expiry         uint64
+}
+
+func (a *CreateEphemeral) Authority() crypto.Token {
+	return a.Authored.Author
 }
 
 func (a *CreateEphemeral) Epoch() uint64 {
@@ -319,6 +339,10 @@ type SecureChannel struct {
 	Nonce          uint64
 	EncryptedNonce []byte
 	Content        []byte
+}
+
+func (a *SecureChannel) Authority() crypto.Token {
+	return a.Authored.Author
 }
 
 func (a *SecureChannel) Epoch() uint64 {

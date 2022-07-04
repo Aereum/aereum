@@ -103,6 +103,7 @@ type Instruction interface {
 	Epoch() uint64
 	Kind() byte
 	JSON() string
+	Authority() crypto.Token
 }
 
 func ParseInstruction(data []byte) Instruction {

@@ -82,6 +82,10 @@ func (t *Transfer) Payments() *Payment {
 	return payment
 }
 
+func (a *Transfer) Authority() crypto.Token {
+	return crypto.ZeroToken
+}
+
 func (t *Transfer) Validate(v InstructionValidator) bool {
 	v.AddFeeCollected(t.Fee)
 	return true
@@ -153,6 +157,10 @@ type Deposit struct {
 	Signature crypto.Signature
 }
 
+func (a *Deposit) Authority() crypto.Token {
+	return crypto.ZeroToken
+}
+
 func (d *Deposit) Payments() *Payment {
 	return NewPayment(crypto.HashToken(d.Token), d.Value)
 }
@@ -210,6 +218,10 @@ type Withdraw struct {
 	Value     uint64
 	Fee       uint64
 	Signature crypto.Signature
+}
+
+func (a *Withdraw) Authority() crypto.Token {
+	return crypto.ZeroToken
 }
 
 func (w *Withdraw) Payments() *Payment {

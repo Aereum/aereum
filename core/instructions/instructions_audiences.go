@@ -15,6 +15,10 @@ type CreateStage struct {
 	Description string
 }
 
+func (a *CreateStage) Authority() crypto.Token {
+	return a.Authored.Author
+}
+
 func (a *CreateStage) Epoch() uint64 {
 	return a.Authored.epoch
 }
@@ -85,6 +89,10 @@ type JoinStage struct {
 	Presentation string
 }
 
+func (a *JoinStage) Authority() crypto.Token {
+	return a.Authored.Author
+}
+
 func (a *JoinStage) Epoch() uint64 {
 	return a.Authored.epoch
 }
@@ -146,6 +154,10 @@ type AcceptJoinStage struct {
 	Submit       []byte
 	Moderate     []byte
 	modSignature crypto.Signature
+}
+
+func (a *AcceptJoinStage) Authority() crypto.Token {
+	return a.Authored.Author
 }
 
 func (a *AcceptJoinStage) Epoch() uint64 {
@@ -289,6 +301,10 @@ type UpdateStage struct {
 	SubMembers   TokenCiphers
 	ModMembers   TokenCiphers
 	audSignature crypto.Signature
+}
+
+func (a *UpdateStage) Authority() crypto.Token {
+	return a.Authored.Author
 }
 
 func (a *UpdateStage) Epoch() uint64 {

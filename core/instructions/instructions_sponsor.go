@@ -15,6 +15,10 @@ type SponsorshipOffer struct {
 	Revenue     uint64
 }
 
+func (a *SponsorshipOffer) Authority() crypto.Token {
+	return a.Authored.Author
+}
+
 func (a *SponsorshipOffer) Epoch() uint64 {
 	return a.Authored.epoch
 }
@@ -97,6 +101,10 @@ type SponsorshipAcceptance struct {
 	Stage        crypto.Token
 	Offer        *SponsorshipOffer
 	modSignature crypto.Signature
+}
+
+func (a *SponsorshipAcceptance) Authority() crypto.Token {
+	return a.Authored.Author
 }
 
 func (a *SponsorshipAcceptance) Epoch() uint64 {
