@@ -1,0 +1,108 @@
+package main
+
+import (
+	"encoding/binary"
+	"io"
+
+	"github.com/Aereum/aereum/core/crypto"
+	"github.com/Aereum/aereum/core/instructions"
+	"github.com/Aereum/aereum/core/store"
+)
+
+const (
+	BUCKETITEMS = 8
+	BUCKETSTART = 8
+)
+
+func ByteArrayToUint64Array(bytes []byte) []uint64 {
+	count := len(bytes) / 8
+	data := make([]uint64, count)
+	for n := 0; n < count; n++ {
+		data[n] = binary.LittleEndian.Uint64(bytes[n*8 : (n+1)*8])
+	}
+	return data
+}
+
+func Uint64ArrayTpByteArray(data []uint64) []byte {
+	bytes := make([]byte, 8*len(data))
+	for n := 0; n < len(data); n++ {
+		binary.LittleEndian.PutUint64(bytes[n*8:(n+1)*8], data[n])
+	}
+	return bytes
+}
+
+type Uint64Store struct {
+	store store.ByteStore
+}
+
+func (s *Uint64Store) Read(offset int64, count int64) []uint64 {
+	bytes := s.store.ReadAt(offset, 8*count)
+	return ByteArrayToUint64Array(bytes)
+}
+
+func (s *Uint64Store) Write(offset int64, data []uint64) {
+	s.store.WriteAt(offset*8, Uint64ArrayTpByteArray(data))
+}
+
+func (s *Uint64Store) Append(data []uint64) {
+	s.store.Append(Uint64ArrayTpByteArray(data))
+}
+
+type IndexStore struct {
+	hashIndex   *store.HashExpireVault
+	io          *Uint64Store
+	bucketCount uint64
+}
+
+func (i *IndexStore) Append(hash crypto.Hash, seq uint64) {
+	if bucket := i.hashIndex.Exists(hash); bucket > BUCKETSTART {
+
+		return
+	}
+	newBucket := make([]uint64, BUCKETITEMS+1)
+	newBucket[1] = seq
+	i.bucketCount += 1
+	i.hashIndex.Insert(hash, i.bucketCount)
+	i.io.Append(newBucket)
+}
+
+type Position struct {
+	Start uint64
+	Size  uint16
+}
+
+type Storage struct {
+	Positions []Position
+	Buffer    io.ReadWriteCloser
+	Sizes     io.WriteCloser
+}
+
+func (s *Storage) ReadNth(n uint64) instructions.Instruction {
+	return nil
+}
+
+func (s *Storage) Persist(instruction instructions.Instruction) {
+	bytes := instruction.Serialize()
+	if n, err := s.Buffer.Write(bytes); n != len(bytes) || err != nil {
+		return
+	}
+	blen := make([]byte, 2)
+	binary.LittleEndian.PutUint16(blen, uint16(len(bytes)))
+	if n, err := s.Sizes.Write(blen); n != 2 || err != nil {
+		return
+	}
+	if len(s.Positions) > 0 {
+		last := s.Positions[len(s.Positions)-1]
+		newPosition := Position{
+			Start: last.Start + uint64(last.Size),
+			Size:  uint16(len(bytes)),
+		}
+		s.Positions = append(s.Positions, newPosition)
+	} else {
+		newPosition := Position{
+			Start: 0,
+			Size:  uint16(len(bytes)),
+		}
+		s.Positions = append(s.Positions, newPosition)
+	}
+}

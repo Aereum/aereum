@@ -6,26 +6,82 @@ import (
 )
 
 type WalletBalance struct {
-	Token   crypto.Token
+	Token   crypto.PrivateKey
 	Balance uint64
 }
 
-type State struct {
-	Author    instructions.Author
-	Wallets   []crypto.PrivateKey
-	Attorneys []crypto.Token
-	Stages    map[crypto.Token]*Stage
-	Posts     []*instructions.Content
-	Broker    *InstructionBroker
+type StageInfo struct {
+	Stage   *instructions.Stage
+	Content []*instructions.Content
 }
 
-type Stage struct {
-	stage *instructions.Stage
-	live  bool
+type MyState struct {
+	MyToken        crypto.Token
+	Myself         *instructions.Author
+	MySecret       crypto.PrivateKey
+	Stages         map[crypto.Token]*StageInfo
+	Wallets        map[crypto.Token]WalletBalance
+	Epoch          uint64
+	MyInstructions []instructions.Instruction
+	MyHashes       map[crypto.Hash]int
+	Validated      []uint64
+	instructionsIO *PersistentByteArray
+	hashesIO       *PersistentByteArray
+}
+
+func (s *MyState) Incorporate(i instructions.Instruction) {
+	data := i.Serialize()
+	if author := i.Authority(); author.Equal(s.MyToken) {
+		hash := crypto.Hasher(data)
+		s.hashesIO.Append(hash[:])
+	} else {
+		s.instructionsIO.Append(data)
+		// TODO own instruction from another device
+	}
+}
+
+func NewMyState(token crypto.PrivateKey, broker *InstructionBroker) *MyState {
+	state := &MyState{
+		Myself:  &instructions.Author{PrivateKey: token, Wallet: token, Attorney: crypto.ZeroPrivateKey},
+		Stages:  make(map[crypto.Token]*StageInfo),
+		Wallets: make(map[crypto.Token]WalletBalance),
+	}
+
+	go func() {
+		for {
+			instruction := <-broker.Received
+			if instruction.Kind() == instructions.ICreateAudience {
+				create, _ := instruction.(*instructions.CreateStage)
+				if stage, ok := state.Stages[create.Audience]; ok {
+
+				}
+			}
+		}
+	}()
+
+	return state
+}
+
+func (s *MyState) Post(content []byte, contentType string, stage crypto.Token, encrypted, hashed bool) *instructions.Content {
+	if stage, ok := s.Stages[stage]; !ok {
+		return nil
+	} else {
+		return s.Myself.NewContent(stage.Stage, contentType, content, hashed, encrypted, s.Epoch, 0)
+	}
+}
+
+type WalletKeys struct {
+	Wallet crypto.Token
+	Secret crypto.PrivateKey
+}
+
+func (s *MyState) CreateStage(description string, flag byte) *instructions.CreateStage {
+	stage := instructions.NewStage(flag, description)
+	return s.Myself.NewCreateAudience(stage, flag, description, s.Epoch, 0)
 }
 
 func NewState(token crypto.PrivateKey, broker *InstructionBroker) *State {
-	state := &State{
+	state := &MyState{
 		Author:    instructions.Author{PrivateKey: token, Wallet: token},
 		Wallets:   []crypto.PrivateKey{token},
 		Attorneys: []crypto.Token{},
@@ -41,25 +97,8 @@ func NewState(token crypto.PrivateKey, broker *InstructionBroker) *State {
 				if stage, ok := state.Stages[create.Audience]; ok {
 					stage.live = true
 				}
-			} else if instruction.Kind() ==
+			}
 		}
 	}()
 	return state
-}
-
-func (s *State) CreateStage(description string, flag byte) {
-	stage := instructions.NewStage(flag, description)
-	instruction := s.Author.NewCreateAudience(stage, flag, description, s.Broker.Epoch, 1)
-	s.Broker.Send <- instruction
-}
-
-func (s *State) Publish(stage crypto.Token, message string, contentType string, encrypted bool) {
-	if stage, ok := s.Stages[stage]; ok {
-		msg := []byte(message)
-		if encrypted {
-			// TODO
-		}
-		instruction := s.Author.NewContent(stage, contentType, msg, false, false, s.Broker.Epoch, 1)
-		s.Broker.Send <- instruction
-	}
 }
