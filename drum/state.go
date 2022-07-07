@@ -2,6 +2,7 @@ package main
 
 import (
 	"github.com/Aereum/aereum/core/crypto"
+	"github.com/Aereum/aereum/core/crypto/dh"
 	"github.com/Aereum/aereum/core/instructions"
 )
 
@@ -12,13 +13,15 @@ type WalletBalance struct {
 
 type StageInfo struct {
 	Stage   *instructions.Stage
-	Content []*instructions.Content
+	Content []StageContentInfo
 }
 
 type MyState struct {
+	Vault          *SecureVault
 	MyToken        crypto.Token
 	Myself         *instructions.Author
 	MySecret       crypto.PrivateKey
+	MyAttorneys    map[crypto.Token]struct{}
 	Stages         map[crypto.Token]*StageInfo
 	Wallets        map[crypto.Token]WalletBalance
 	Epoch          uint64
@@ -27,6 +30,63 @@ type MyState struct {
 	Validated      []uint64
 	instructionsIO *PersistentByteArray
 	hashesIO       *PersistentByteArray
+}
+
+func (s *MyState) IncorporateGrantAttorney(poa instructions.GrantPowerOfAttorney) {
+	s.MyAttorneys[poa.Attorney] = struct{}{}
+}
+
+func (s *MyState) IncorporateRevokeAttorney(poa instructions.GrantPowerOfAttorney) {
+	delete(s.MyAttorneys, poa.Attorney)
+}
+
+func (s *MyState) IncorporateCreateStage(stage instructions.CreateStage) {
+	newStage := instructions.Stage{
+		Flag:        stage.Flag,
+		Description: stage.Description,
+	}
+	s.Stages[stage.Audience] = &StageInfo{
+		Stage: &newStage,
+		Content: make([]StageContentInfo,0)
+	}
+}
+
+func (s *MyState) IncorporateUpdateStage(stage instructions.UpdateStage) {
+	// TODO
+}
+
+func (s *MyState) IncoporateAcceptMyJoinStageRequest(accept instructions.AcceptJoinStage) {
+	var key crypto.PrivateKey
+	if accept.DiffHellKey.Equal(s.MyToken) {
+		token = s.MySecret
+	} else {
+		var ok bool
+		key, ok = s.Vault.Secrets[accept.DiffHellKey]
+		if !ok {
+			return
+		}
+	}
+	cipher := dh.ConsensusCipher(key, )
+	tc := TokenCipher{Token: token, Cipher: cipher.Seal(a.CipherKey)}
+	update.ReadMembers = append(update.ReadMembers, tc)
+}
+
+func (s *MyState) IncorporateContent(c instructions.Content) {
+	stage, ok := s.Stages[c.Audience]
+	if !ok {
+		return
+	}
+	content := StageContentInfo{
+		Epoch:       c.Epoch(),
+		ContentType: c.ContentType,
+		Moderated:   !c.Moderator.Equal(crypto.ZeroToken),
+		Sponsored:   c.Sponsored,
+	}
+	if c.Encrypted {
+		cipher := crypto.CipherFromKey(stage.Stage.CipherKey)
+		content.Content, _ = cipher.Open(c.Content)
+	}
+	stage.Content = append(stage.Content, content)
 }
 
 func (s *MyState) Incorporate(i instructions.Instruction) {

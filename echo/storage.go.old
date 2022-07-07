@@ -56,7 +56,14 @@ type IndexStore struct {
 
 func (i *IndexStore) Append(hash crypto.Hash, seq uint64) {
 	if bucket := i.hashIndex.Exists(hash); bucket > BUCKETSTART {
-
+		data := i.io.Read(bucket, BUCKETITEMS + 1)
+		if data[0] < BUCKETSTART {
+			i.io.Write((bucket - BUCKETSTART) * |ZBUCKETITEMS, data[0]+1)
+			i.io.Write( * BUCKETITEMS , data[0]+1)
+			data[data[0]+1] = seq
+			data[0] += 1
+			i.io.Write(data[0]-1, data)
+		}
 		return
 	}
 	newBucket := make([]uint64, BUCKETITEMS+1)

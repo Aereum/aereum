@@ -26,7 +26,6 @@ type SecureVault struct {
 	SecretKey crypto.PrivateKey
 	Stages    map[crypto.Token]*StageSecrets
 	Secrets   map[crypto.Token]crypto.PrivateKey
-	Ephemeral []crypto.PrivateKey
 	file      io.WriteCloser
 	cipher    crypto.Cipher
 }
@@ -135,6 +134,19 @@ func ReadKey(data []byte, position int, cipher crypto.Cipher) (crypto.PrivateKey
 	return pk, position + crypto.Size + crypto.NonceSize
 }
 
+func ReadStage(data []byte, position int, cipher crypto.Cipher) (StageSecrets, int) {
+	own, _ := cipher.Open(data[position+crypto.TokenSize : position+crypto.TokenSize+crypto.PrivateKeySize])
+	moderate, _ := cipher.Open(data[position+2*crypto.TokenSize : position+crypto.TokenSize+3*crypto.PrivateKeySize])
+	submit, _ := cipher.Open(data[position+3*crypto.TokenSize : position+crypto.TokenSize+4*crypto.PrivateKeySize])
+	cipherKey, _ := cipher.Open(data[position+4*crypto.TokenSize : position+crypto.TokenSize+4*crypto.PrivateKeySize+crypto.CipherKeySize])
+	var stage StageSecrets
+	copy(stage.Ownership[:], own)
+	copy(stage.Moderation[:], moderate)
+	copy(stage.Submission[:], submit)
+	copy(stage.CipherKey[:], cipherKey)
+	return stage, position + crypto.TokenSize + 4*crypto.PrivateKeySize + crypto.CipherKeySize
+}
+
 func OpenVaultFromPassword(password []byte, fileName string) *SecureVault {
 	file, err := os.Open(fileName)
 	if err != nil {
@@ -151,9 +163,32 @@ func OpenVaultFromPassword(password []byte, fileName string) *SecureVault {
 	copy(token[:], vault[0:crypto.Size])
 	key, err := scrypt.Key(password, token[:], 32768, 8, 1, 32)
 	cipher := crypto.CipherFromKey(key)
-	secretKey, _ := ReadKey(vault, 0, cipher)
+	secretKey, position := ReadKey(vault, 0, cipher)
 	if !secretKey.PublicKey().Equal(token) {
 		log.Fatal("Wrong password.")
+	}
+	secure := SecureVault{
+		SecretKey: secretKey,
+		Secrets:   make(map[crypto.Token]crypto.PrivateKey),
+		Stages:    make(map[crypto.Token]*StageSecrets),
+		cipher:    cipher,
+	}
+	for position < len(vault) {
+		if vault[position] == TypePrivateKey {
+			var key crypto.PrivateKey
+			key, position = ReadKey(vault, position+1, cipher)
+			secure.Secrets[key.PublicKey()] = key
+		} else if vault[position] == TypeStageSecrets {
+			var stage StageSecrets
+			stage, position = ReadStage(vault, position+1, cipher)
+			secure.Stages[stage.Ownership.PublicKey()] = &stage
+		} else {
+			break
+		}
+	}
+	if file, err := os.OpenFile(fileName, os.O_APPEND|os.O_WRONLY, os.ModeAppend); err == nil {
+		secure.file = file
+		return &secure
 	}
 	return nil
 }
