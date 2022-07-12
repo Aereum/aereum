@@ -43,20 +43,20 @@ type Party struct {
 	agreedKey []byte
 }
 
-func NewEphemeralKey() (crypto.Token, crypto.Token) {
-	var prvToken, pubToken crypto.Token
-	prv := make([]byte, crypto.PublicKeySize)
-	rand.Read(prv)
-	pub, err := curve25519.X25519(prv, curve25519.Basepoint)
+func NewEphemeralKey() (crypto.PrivateKey, crypto.Token) {
+	var pubToken crypto.Token
+	var prvToken crypto.PrivateKey
+	rand.Read(prvToken[0:32])
+	pub, err := curve25519.X25519(prvToken[0:32], curve25519.Basepoint)
 	if err == nil {
-		copy(prvToken[:], prv)
+		copy(prvToken[32:], pub)
 		copy(pubToken[:], pub)
 	}
 	return prvToken, pubToken
 }
 
-func ConsensusKey(local crypto.Token, remote crypto.Token) []byte {
-	agreedKey, err := curve25519.X25519(local[:], remote[:])
+func ConsensusKey(local crypto.PrivateKey, remote crypto.Token) []byte {
+	agreedKey, err := curve25519.X25519(local[0:32], remote[:])
 	if err != nil {
 		fmt.Println("------------------", err)
 		return nil
@@ -65,7 +65,7 @@ func ConsensusKey(local crypto.Token, remote crypto.Token) []byte {
 	return hashed[:]
 }
 
-func ConsensusCipher(local crypto.Token, remote crypto.Token) crypto.Cipher {
+func ConsensusCipher(local crypto.PrivateKey, remote crypto.Token) crypto.Cipher {
 	return crypto.CipherFromKey(ConsensusKey(local, remote))
 }
 

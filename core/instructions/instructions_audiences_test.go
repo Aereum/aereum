@@ -38,7 +38,7 @@ func TestJoinAudience(t *testing.T) {
 }
 
 func TestAcceptJoinAudience(t *testing.T) {
-	key, _ := dh.NewEphemeralKey()
+	_, key := dh.NewEphemeralKey()
 	accept := author.NewAcceptJoinAudience(audienceTest, author.PrivateKey.PublicKey(), key, 2, 10, 2000)
 	accept2 := ParseAcceptJoinStage(accept.Serialize())
 	if accept2 == nil {
@@ -54,7 +54,7 @@ func TestUpdateAudience(t *testing.T) {
 	readers := make(map[crypto.Token]crypto.Token, 3)
 	for n := 0; n < 3; n++ {
 		token, _ := crypto.RandomAsymetricKey()
-		key, _ := dh.NewEphemeralKey()
+		_, key := dh.NewEphemeralKey()
 		readers[token] = key
 	}
 	update := author.NewUpdateAudience(audienceTest, readers, readers, readers, 2, "teste", 10, 2000)

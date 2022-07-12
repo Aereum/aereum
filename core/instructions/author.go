@@ -151,6 +151,8 @@ func (a *Author) NewCreateAudience(audience *Stage, flag byte, description strin
 	return nil
 }
 
+func (a *Author) NewCreateStage()
+
 func (a *Author) NewJoinAudience(audience crypto.Token, presentation string, epoch, fee uint64) *JoinStage {
 	join := JoinStage{
 		Authored:     a.NewAuthored(epoch, fee),
@@ -173,7 +175,7 @@ func (a *Author) NewAcceptJoinAudience(audience *Stage, member, key crypto.Token
 		Submit:   []byte{},
 		Moderate: []byte{},
 	}
-	pub, prv := dh.NewEphemeralKey()
+	prv, pub := dh.NewEphemeralKey()
 	cipher := dh.ConsensusCipher(prv, key)
 	accept.Read = cipher.Seal(audience.CipherKey)
 	if level > 0 {
