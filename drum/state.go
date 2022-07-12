@@ -16,6 +16,24 @@ type StageInfo struct {
 	Content []StageContentInfo
 }
 
+type StageContentInfo struct {
+	Author      string
+	Epoch       uint64
+	ContentType string
+	Content     []byte
+	Moderated   bool
+	Sponsored   bool
+}
+
+type Stage struct {
+	Token     crypto.Token
+	Stage     *instructions.Stage
+	Cipher    crypto.Cipher
+	Messages  []StageContentInfo
+	Encrypted bool
+	Open      bool
+}
+
 type MyState struct {
 	Vault          *SecureVault
 	MyToken        crypto.Token
@@ -41,18 +59,21 @@ func (s *MyState) IncorporateRevokeAttorney(poa instructions.GrantPowerOfAttorne
 }
 
 func (s *MyState) IncorporateCreateStage(stage instructions.CreateStage) {
-	newStage := instructions.Stage{
-		Flag:        stage.Flag,
-		Description: stage.Description,
-	}
-	s.Stages[stage.Audience] = &StageInfo{
-		Stage: &newStage,
-		Content: make([]StageContentInfo,0)
-	}
 }
 
 func (s *MyState) IncorporateUpdateStage(stage instructions.UpdateStage) {
 	// TODO
+}
+
+func (s *MyState) AcceptJoinRequest(req *instructions.JoinStage, level byte) {
+	stage, ok := s.Stages[req.Audience]
+	if !ok {
+		return
+	}
+	accept := s.Myself.NewAcceptJoinAudience(stage, req.Authored.Author, req.DiffHellKey, level, s.Epoch, 0)
+	if accept != nil {
+		return
+	}
 }
 
 func (s *MyState) IncoporateAcceptMyJoinStageRequest(accept instructions.AcceptJoinStage) {
@@ -66,7 +87,7 @@ func (s *MyState) IncoporateAcceptMyJoinStageRequest(accept instructions.AcceptJ
 			return
 		}
 	}
-	cipher := dh.ConsensusCipher(key, )
+	cipher := dh.ConsensusCipher(key)
 	tc := TokenCipher{Token: token, Cipher: cipher.Seal(a.CipherKey)}
 	update.ReadMembers = append(update.ReadMembers, tc)
 }
