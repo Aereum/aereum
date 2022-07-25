@@ -135,14 +135,14 @@ func (a *Author) NewSecureChannel(tokenRange []byte, nonce uint64, encryptedNonc
 	return nil
 }
 
-func (a *Author) NewCreateAudience(audience *Stage, flag byte, description string, epoch, fee uint64) *CreateStage {
+func (a *Author) NewCreateAudience(audience *Stage, epoch, fee uint64) *CreateStage {
 	newAudience := CreateStage{
 		Authored:    a.NewAuthored(epoch, fee),
 		Audience:    audience.PrivateKey.PublicKey(),
 		Submission:  audience.Submission.PublicKey(),
 		Moderation:  audience.Moderation.PublicKey(),
-		Flag:        flag,
-		Description: description,
+		Flag:        audience.Flag,
+		Description: audience.Description,
 	}
 	bulk := newAudience.serializeBulk()
 	if a.sign(newAudience.Authored, bulk, ICreateAudience) {
@@ -151,12 +151,11 @@ func (a *Author) NewCreateAudience(audience *Stage, flag byte, description strin
 	return nil
 }
 
-func (a *Author) NewCreateStage()
-
-func (a *Author) NewJoinAudience(audience crypto.Token, presentation string, epoch, fee uint64) *JoinStage {
+func (a *Author) NewJoinAudience(audience crypto.Token, diffKey crypto.Token, presentation string, epoch, fee uint64) *JoinStage {
 	join := JoinStage{
 		Authored:     a.NewAuthored(epoch, fee),
 		Audience:     audience,
+		DiffHellKey:  diffKey,
 		Presentation: presentation,
 	}
 	bulk := join.serializeBulk()

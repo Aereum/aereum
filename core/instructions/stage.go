@@ -5,6 +5,11 @@ import (
 	"github.com/Aereum/aereum/core/crypto/dh"
 )
 
+const (
+	OpenStage      = 1 << 0
+	EncryptedStage = 1 << 2
+)
+
 type Stage struct {
 	PrivateKey  crypto.PrivateKey
 	Submission  crypto.PrivateKey
@@ -111,9 +116,13 @@ func (a *Stage) AcceptJoinRequest(req *JoinStage, level byte, author *Author, ep
 func NewStage(flag byte, description string) *Stage {
 	stage := Stage{Flag: flag, Description: description}
 	_, stage.PrivateKey = crypto.RandomAsymetricKey()
-	_, stage.Submission = crypto.RandomAsymetricKey()
 	_, stage.Moderation = crypto.RandomAsymetricKey()
-	stage.CipherKey = crypto.NewCipherKey()
+	_, stage.Submission = crypto.RandomAsymetricKey()
+	if flag&EncryptedStage > 0 {
+		stage.CipherKey = crypto.NewCipherKey()
+	} else {
+		stage.CipherKey = make([]byte, 0)
+	}
 	stage.Submittors = make(map[crypto.Token]crypto.Token)
 	stage.Moderators = make(map[crypto.Token]crypto.Token)
 	stage.Readers = make(map[crypto.Token]crypto.Token)

@@ -159,7 +159,7 @@ func TestGeneral(t *testing.T) {
 
 	// Create audience
 	audienceTest := instructions.NewStage(0, "teste")
-	createAudience := firstAuthor.NewCreateAudience(audienceTest, 1, "first audience", 3, uint64(joinFee))
+	createAudience := firstAuthor.NewCreateAudience(audienceTest, 3, uint64(joinFee))
 	if !block.Incorporate(createAudience) {
 		t.Error("could not add create audience")
 	}

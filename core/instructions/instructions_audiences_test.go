@@ -14,7 +14,7 @@ var (
 )
 
 func TestCreateteAudience(t *testing.T) {
-	audience := author.NewCreateAudience(audienceTest, 1, "teste", 10, 2000)
+	audience := author.NewCreateAudience(audienceTest, 10, 2000)
 	audience2 := ParseCreateStage(audience.Serialize())
 	if audience2 == nil {
 		t.Error("could not parse CreateAudience")
@@ -26,7 +26,7 @@ func TestCreateteAudience(t *testing.T) {
 }
 
 func TestJoinAudience(t *testing.T) {
-	join := author.NewJoinAudience(audienceTest.PrivateKey.PublicKey(), "teste", 10, 2000)
+	join := author.NewJoinAudience(audienceTest.PrivateKey.PublicKey(), audienceTest.PrivateKey.PublicKey(), "teste", 10, 2000)
 	join2 := ParseJoinStage(join.Serialize())
 	if join2 == nil {
 		t.Error("could not parse JoinAudience")

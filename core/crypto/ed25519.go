@@ -18,6 +18,7 @@ import (
 	"bytes"
 	"crypto/rand"
 	"crypto/sha512"
+	"encoding/hex"
 
 	"github.com/Aereum/aereum/core/crypto/edwards25519"
 )
@@ -74,6 +75,14 @@ func (p PrivateKey) PublicKey() Token {
 	var token Token
 	copy(token[:], p[32:])
 	return token
+}
+
+func (p PrivateKey) Hex() string {
+	return hex.EncodeToString(p[:])
+}
+
+func (p Token) Hex() string {
+	return hex.EncodeToString(p[:])
 }
 
 func (p PrivateKey) Sign(msg []byte) Signature {

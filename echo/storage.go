@@ -92,5 +92,4 @@ func (store *IndexStore) appendNewBucket(bucket, value uint64) uint64 {
 }
 
 func (store *IndexStore) Append(hash crypto.Hash, sequence uint64) {
-	store.
 }

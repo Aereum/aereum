@@ -12,6 +12,7 @@ import (
 
 const (
 	TypePrivateKey byte = iota
+	TypeWalletPrivateKey
 	TypeStageSecrets
 )
 
@@ -161,7 +162,7 @@ func OpenVaultFromPassword(password []byte, fileName string) *SecureVault {
 	}
 	var token crypto.Token
 	copy(token[:], vault[0:crypto.Size])
-	key, err := scrypt.Key(password, token[:], 32768, 8, 1, 32)
+	key, _ := scrypt.Key(password, token[:], 32768, 8, 1, 32)
 	cipher := crypto.CipherFromKey(key)
 	secretKey, position := ReadKey(vault, 0, cipher)
 	if !secretKey.PublicKey().Equal(token) {

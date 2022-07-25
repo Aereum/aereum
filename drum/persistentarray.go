@@ -9,6 +9,7 @@ import (
 	"github.com/Aereum/aereum/core/util"
 )
 
+// append only persistent bytearray with log.Fatal on io error logic
 type PersistentByteArray struct {
 	filename string
 	io       io.ReadWriteCloser
