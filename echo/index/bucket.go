@@ -16,6 +16,11 @@ type bucket struct {
 	count   uint64
 }
 
+type singlebucket struct {
+	previousBucket uint64
+}
+
+
 func (b *bucket) readSingle(bucket uint64) []InstructionPosition {
 	bytes := ReadOrPanic(b.storage, int64(bucket)*bucketSize, bucketSize)
 	return ByteSliceToPositionSlice(bytes)
@@ -25,12 +30,9 @@ func (b *bucket) readAll(bucket uint64) []InstructionPosition {
 	all := make([]InstructionPosition, 0)
 	for {
 		data := b.readSingle(bucket)
-		if data[0] == 0 {
-			for n := 1; n <= bucketItems; n++ {
-				if data[n] == 0 {
-					return append(all, data[1:n]...)
-				}
-			}
+		if len(data) > 0 {
+			return append(all, data...)
+		}
 			return append(all, data[1:]...)
 		}
 		bucket = data[0]
