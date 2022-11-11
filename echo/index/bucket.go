@@ -10,18 +10,19 @@ const (
 	bucketSize  = (bucketItems + 1) * 8
 )
 
+// used to store positions for instructions associated to a token
 type bucket struct {
 	storage IO
 	count   uint64
 }
 
-func (b *bucket) readSingle(bucket uint64) []uint64 {
+func (b *bucket) readSingle(bucket uint64) []InstructionPosition {
 	bytes := ReadOrPanic(b.storage, int64(bucket)*bucketSize, bucketSize)
-	return ByteArrayToUint64Array(bytes)
+	return ByteSliceToPositionSlice(bytes)
 }
 
-func (b *bucket) readAll(bucket uint64) []uint64 {
-	all := make([]uint64, 0)
+func (b *bucket) readAll(bucket uint64) []InstructionPosition {
+	all := make([]InstructionPosition, 0)
 	for {
 		data := b.readSingle(bucket)
 		if data[0] == 0 {
@@ -36,7 +37,9 @@ func (b *bucket) readAll(bucket uint64) []uint64 {
 	}
 }
 
-func (b *bucket) append(bucket, value uint64) uint64 {
+// append writes new non-zero value on available bucket or appends a new bucket
+// if there is no space available to the bucket
+func (b *bucket) append(bucket, value [8]byte) uint64 {
 	data := b.readSingle(bucket)
 	for n := 1; n <= bucketItems; n++ {
 		if data[n] == 0 {
@@ -47,8 +50,8 @@ func (b *bucket) append(bucket, value uint64) uint64 {
 		}
 	}
 	bytes := make([]byte, bucketSize)
-	binary.LittleEndian.PutUint64(bytes[0:8], bucket)
-	binary.LittleEndian.PutUint64(bytes[8:16], value)
+	binary.LittleEndian.PutUint64(bytes[0:8], bucket) // reference to old bucket
+	binary.LittleEndian.PutUint64(bytes[8:16], value) // value
 	WriteOrPanic(b.storage, bytes, int64(b.count)*bucketSize)
 	b.count += 1
 	return b.count

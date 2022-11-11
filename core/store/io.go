@@ -111,6 +111,22 @@ func NewFileStore(name string, size int64) *FileStore {
 	}
 }
 
+func OpenFileStore(name string) *FileStore {
+	file, err := os.OpenFile(name, os.O_RDWR, os.ModeExclusive)
+	if err != nil {
+		return nil
+	}
+	stat, err := file.Stat()
+	if err != nil {
+		return nil
+	}
+	return &FileStore{
+		name: name,
+		size: stat.Size(),
+		data: file,
+	}
+}
+
 func (f *FileStore) Close() {
 	err := f.data.Close()
 	if err != nil {

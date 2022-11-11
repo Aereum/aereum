@@ -38,7 +38,9 @@ func InstructionBroker(token crypto.PrivateKey) chan []byte {
 	go func() {
 		for {
 			msg := <-broker
-			if err := conn.WriteMessage(msg); err != nil {
+			if msg[0] == 255 {
+
+			} else if err := conn.WriteMessage(msg); err != nil {
 				panic(err)
 			}
 		}

@@ -25,6 +25,19 @@ func ReadOrPanic(src IO, offset int64, size int) []byte {
 	return bytes
 }
 
+func ByteSliceToPositionSlice(bytes []byte) []InstructionPosition {
+	count := (len(bytes)) / 8
+	data := make([]InstructionPosition, 0, count)
+	for n := 1; n < count; n++ {
+		if n > 0 && bytes[n*8] == 0 {
+			return data
+		}
+		value := ParseEntryPoisition(bytes[n*8 : (n+1)*8])
+		data = append(data, value)
+	}
+	return data
+}
+
 func ByteArrayToUint64Array(bytes []byte) []uint64 {
 	count := (len(bytes)) / 8
 	data := make([]uint64, 0, count)

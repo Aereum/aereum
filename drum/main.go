@@ -109,10 +109,19 @@ func (w NewWalletBalance) ToJSON() []byte {
 }
 
 func main() {
-	http.Handle("/ws", http.HandlerFunc(handleAPI))
+	/*http.Handle("/ws", http.HandlerFunc(handleAPI))
 	http.Handle("/", http.FileServer(http.Dir("./static")))
 	err := http.ListenAndServe(":7000", nil)
 	if err != nil {
 		log.Fatal(err)
+	}*/
+	listener := readPlays()
+	if listener == nil {
+		log.Fatal("could not play sheakespeare")
+	}
+	for {
+		instr := listener.Recieve()
+		content := instr.Text
+		fmt.Println(string(content))
 	}
 }

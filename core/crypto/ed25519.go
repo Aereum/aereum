@@ -130,6 +130,14 @@ func (p PrivateKey) Sign(msg []byte) Signature {
 
 type Token [TokenSize]byte
 
+func TokenFromString(s string) Token {
+	var token Token
+	if bytes, err := hex.DecodeString(s); err == nil {
+		copy(token[:], bytes)
+	}
+	return token
+}
+
 func (t Token) Equal(another Token) bool {
 	return t == another
 }

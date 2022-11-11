@@ -80,13 +80,15 @@ type WalletJSON struct {
 	Info    string `JSON:"info"`
 	Token   string `JSON:"token"`
 	Balance int    `JSON:"balance"`
+	Deposit int    `JSON:"deposit"`
 }
 
-func NewWalletJSON(wallet crypto.Token, balance uint64) WalletJSON {
+func NewWalletJSON(wallet crypto.Token, balance, deposit uint64) WalletJSON {
 	return WalletJSON{
 		Info:    "wallet",
 		Token:   wallet.Hex(),
 		Balance: int(balance),
+		Deposit: int(deposit),
 	}
 }
 
